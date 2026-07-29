@@ -56,7 +56,7 @@ router.get('/students', getAllStudents)
 
 /**
  * @swagger
- * /api/admin/users/{id}/status:
+ * /api/admin/students/{id}/status:
  *   put:
  *     summary: Freeze or unfreeze a student account
  *     tags: [Admin]
@@ -82,11 +82,11 @@ router.get('/students', getAllStudents)
  *       200:
  *         description: Account status updated successfully
  */
-router.put('/users/:id/status', toggleFreezeStudent)
+router.put('/students/:id/status', toggleFreezeStudent)
 
 /**
  * @swagger
- * /api/admin/users/{id}:
+ * /api/admin/students/{id}:
  *   delete:
  *     summary: Delete a student account
  *     tags: [Admin]
@@ -102,7 +102,7 @@ router.put('/users/:id/status', toggleFreezeStudent)
  *       200:
  *         description: Student account deleted successfully
  */
-router.delete('/users/:id', deleteStudentAccount)
+router.delete('/students/:id', deleteStudentAccount)
 
 /**
  * @swagger
