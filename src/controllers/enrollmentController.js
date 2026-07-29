@@ -1,5 +1,6 @@
 const db = require('../config/db')
 const axios = require('axios')
+const bcrypt = require('bcryptjs')
 const { COURSE_PRICES } = require('../utils/courses')
 
 // @desc    Register student details & initialize Paystack payment
@@ -38,7 +39,6 @@ exports.initializeEnrollment = async (req, res) => {
 
     // 3. Handle Free courses (e.g., Graphics Design)
     if (totalAmount === 0) {
-      // Check or create user account directly
       let userResult = await db.query('SELECT * FROM users WHERE email = $1', [
         email,
       ])
@@ -54,7 +54,6 @@ exports.initializeEnrollment = async (req, res) => {
         userId = userResult.rows[0].id
       }
 
-      // Save enrollment as completed
       await db.query(
         `INSERT INTO enrollments (user_id, first_name, middle_name, last_name, country, phone, email, course, reason, referred_by, total_amount, amount_paid, payment_status)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
@@ -83,7 +82,7 @@ exports.initializeEnrollment = async (req, res) => {
       })
     }
 
-    // 4. Enforce minimum installment rule for paid courses (Minimum ₦20,000 unless full amount is less)
+    // 4. Enforce minimum installment rule for paid courses
     const minInstallment = totalAmount >= 20000 ? 20000 : totalAmount
     if (paidAmount < minInstallment) {
       return res.status(400).json({
@@ -210,13 +209,20 @@ exports.initializeEnrollment = async (req, res) => {
   }
 }
 
-
 // @desc    Verify Paystack transaction & finalize enrollment tracking
-// @route   GET /api/enrollments/verify/:reference
+// @route   GET /api/enrollments/verify/:reference?
 // @access  Public
 exports.verifyEnrollmentPayment = async (req, res) => {
   try {
-    const { reference } = req.params;
+    // Gracefully handle path parameter, query string (?reference=...), or Paystack default (?trxref=...)
+    const reference =
+      req.params.reference || req.query.reference || req.query.trxref
+
+    if (!reference) {
+      return res
+        .status(400)
+        .json({ error: 'Transaction reference is missing.' })
+    }
 
     const response = await axios.get(
       `https://api.paystack.co/transaction/verify/${reference}`,
@@ -224,68 +230,74 @@ exports.verifyEnrollmentPayment = async (req, res) => {
         headers: {
           Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
         },
-      }
-    );
+      },
+    )
 
-    const paymentData = response.data.data;
+    const paymentData = response.data.data
 
     if (paymentData.status === 'success') {
-      // Update enrollment status if needed
       await db.query(
         `UPDATE enrollments SET payment_status = CASE WHEN amount_paid >= total_amount THEN 'completed' ELSE 'partial' END WHERE reference = $1`,
-        [reference]
-      );
+        [reference],
+      )
 
-      return res.status(200).json({
-        status: 'success',
-        message: 'Payment verified successfully! You can now set up your password.',
-        email: paymentData.customer.email,
-      });
+      // Redirect user browser safely back to frontend success route
+      return res.redirect(
+        `https://denskill.com/dashboard?payment=success&reference=${reference}`,
+      )
     } else {
-      return res.status(400).json({ status: 'failed', message: 'Payment verification failed.' });
+      // Redirect user browser to frontend failure/error route
+      return res.redirect(
+        `https://denskill.com/dashboard?payment=failed&reference=${reference}`,
+      )
     }
   } catch (err) {
-    console.error('Verification Error:', err.response?.data || err.message);
-    res.status(500).json({ error: 'Error verifying payment.' });
+    console.error('Verification Error:', err.response?.data || err.message)
+    return res.redirect('https://denskill.com/dashboard?payment=error')
   }
-};
+}
 
 // @desc    Set password after successful enrollment payment
-// @route   POST /api/auth/set-password
+// @route   POST /api/enrollments/set-password
 // @access  Public
-const bcrypt = require('bcryptjs');
-
 exports.setPassword = async (req, res) => {
   try {
-    const { email, password, confirmPassword } = req.body;
+    const { email, password, confirmPassword } = req.body
 
     if (!email || !password || !confirmPassword) {
-      return res.status(400).json({ error: 'Please provide email, password, and confirmation.' });
+      return res
+        .status(400)
+        .json({ error: 'Please provide email, password, and confirmation.' })
     }
 
     if (password !== confirmPassword) {
-      return res.status(400).json({ error: 'Passwords do not match.' });
+      return res.status(400).json({ error: 'Passwords do not match.' })
     }
 
-    // Check if user exists
-    const userResult = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+    const userResult = await db.query('SELECT * FROM users WHERE email = $1', [
+      email,
+    ])
     if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User account not found for this email.' });
+      return res
+        .status(404)
+        .json({ error: 'User account not found for this email.' })
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const salt = await bcrypt.genSalt(10)
+    const hashedPassword = await bcrypt.hash(password, salt)
 
-    // Update user password and set verified flag
-    await db.query('UPDATE users SET password = $1, is_verified = TRUE WHERE email = $2', [hashedPassword, email]);
+    await db.query(
+      'UPDATE users SET password = $1, is_verified = TRUE WHERE email = $2',
+      [hashedPassword, email],
+    )
 
     res.status(200).json({
       status: 'success',
-      message: 'Password set successfully! You can now log in to your dashboard.',
-    });
+      message:
+        'Password set successfully! You can now log in to your dashboard.',
+    })
   } catch (err) {
-    console.error('Set Password Error:', err.message);
-    res.status(500).json({ error: 'Server error while setting password.' });
+    console.error('Set Password Error:', err.message)
+    res.status(500).json({ error: 'Server error while setting password.' })
   }
-};
+}

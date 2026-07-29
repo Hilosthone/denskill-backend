@@ -65,7 +65,7 @@ router.post('/initialize', initializeEnrollment)
  *     parameters:
  *       - in: path
  *         name: reference
- *         required: true
+ *         required: false
  *         schema:
  *           type: string
  *         description: Paystack payment transaction reference
@@ -75,7 +75,7 @@ router.post('/initialize', initializeEnrollment)
  *       400:
  *         description: Payment verification failed.
  */
-router.get('/verify/:reference', verifyEnrollmentPayment)
+router.get('/verify/:reference?', verifyEnrollmentPayment)
 
 /**
  * @swagger
