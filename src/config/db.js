@@ -11,17 +11,6 @@ console.log(
   process.env.DB_PASSWORD ? process.env.DB_PASSWORD.length : 'UNDEFINED',
 )
 
-// const pool = new Pool({
-//   user: process.env.DB_USER,
-//   host: process.env.DB_HOST || '127.0.0.1',
-//   database: process.env.DB_NAME,
-//   password: process.env.DB_PASSWORD,
-//   port: process.env.DB_PORT || 5432,
-//   ssl: {
-//     rejectUnauthorized: false, // Required for Render PostgreSQL connections
-//   },
-// })
-
 const pool = new Pool({
   user: process.env.DB_USER,
   host: process.env.DB_HOST || '127.0.0.1',
@@ -74,6 +63,38 @@ pool
     ),
   )
   .catch((err) => console.error('❌ Migration error:', err.message))
+
+// Automatically ensure enrollments table exists on startup
+pool
+  .query(
+    `
+    CREATE TABLE IF NOT EXISTS enrollments (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      first_name VARCHAR(100) NOT NULL,
+      middle_name VARCHAR(100),
+      last_name VARCHAR(100) NOT NULL,
+      country VARCHAR(100) NOT NULL,
+      phone VARCHAR(50) NOT NULL,
+      email VARCHAR(255) NOT NULL,
+      course VARCHAR(100) NOT NULL,
+      reason TEXT,
+      referred_by VARCHAR(100),
+      total_amount NUMERIC DEFAULT 0,
+      amount_paid NUMERIC DEFAULT 0,
+      payment_status VARCHAR(20) DEFAULT 'pending',
+      reference VARCHAR(255),
+      expires_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `,
+  )
+  .then(() =>
+    console.log('✅ Database migration checked: enrollments table verified.'),
+  )
+  .catch((err) =>
+    console.error('❌ Migration error (enrollments):', err.message),
+  )
 
 module.exports = {
   query: (text, params) => pool.query(text, params),
