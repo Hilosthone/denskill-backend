@@ -19,14 +19,14 @@ const authRoutes = require('./routes/authRoutes')
 const paymentRoutes = require('./routes/paymentRoutes')
 const enrollmentRoutes = require('./routes/enrollmentRoutes')
 const dashboardRoutes = require('./routes/dashboardRoutes')
-const adminRoutes = require('./routes/adminRoutes') // 👈 Imported here
+const adminRoutes = require('./routes/adminRoutes') 
 
 // Mount Routes
 app.use('/api/auth', authRoutes)
 app.use('/api/payments', paymentRoutes)
 app.use('/api/enrollments', enrollmentRoutes)
 app.use('/api/dashboard', dashboardRoutes)
-app.use('/api/admin', adminRoutes) // 👈 Mounted here before app.listen
+app.use('/api/admin', adminRoutes) 
 
 // Initialize Swagger Documentation UI
 swaggerDocs(app)

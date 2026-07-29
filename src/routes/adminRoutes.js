@@ -11,6 +11,9 @@ const {
   getAdminAnnouncements,
   createAnnouncement,
   getInstructors,
+  toggleFreezeStudent,
+  deleteStudentAccount,
+  assignTutorToCourse,
   getReports,
   getSettings,
 } = require('../controllers/adminController')
@@ -50,6 +53,56 @@ router.get('/students', getAllStudents)
 
 /**
  * @swagger
+ * /api/admin/users/{id}/status:
+ *   put:
+ *     summary: Freeze or unfreeze a student account
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [active, frozen]
+ *     responses:
+ *       200:
+ *         description: Account status updated successfully
+ */
+router.put('/users/:id/status', toggleFreezeStudent)
+
+/**
+ * @swagger
+ * /api/admin/users/{id}:
+ *   delete:
+ *     summary: Delete a student account
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Student account deleted successfully
+ */
+router.delete('/users/:id', deleteStudentAccount)
+
+/**
+ * @swagger
  * /api/admin/payments:
  *   get:
  *     summary: Get all system payment logs
@@ -75,6 +128,35 @@ router.get('/payments', getAllPayments)
  *         description: Courses retrieved successfully
  */
 router.get('/courses', getAllCourses)
+
+/**
+ * @swagger
+ * /api/admin/courses/{courseId}/assign-tutor:
+ *   patch:
+ *     summary: Assign a tutor to a course
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: courseId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               tutorId:
+ *                 type: integer
+ *     responses:
+ *       200:
+ *         description: Tutor assigned successfully
+ */
+router.patch('/courses/:courseId/assign-tutor', assignTutorToCourse)
 
 /**
  * @swagger

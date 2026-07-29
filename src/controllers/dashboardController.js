@@ -4,7 +4,7 @@ const db = require('../config/db')
  * @swagger
  * /api/dashboard/overview:
  *   get:
- *     summary: Get complete student portal data across all tabs
+ *     summary: Get complete student portal data across all tabs (with assigned tutors)
  *     tags: [Dashboard]
  *     security:
  *       - bearerAuth: []
@@ -27,9 +27,15 @@ const getStudentOverview = async (req, res) => {
     }
     const user = userResult.rows[0]
 
+    // Updated to join courses and instructors/tutors
     const enrollmentsResult = await db.query(
-      `SELECT id, course, total_amount, amount_paid, payment_status, reference, expires_at, created_at 
-       FROM enrollments WHERE user_id = $1 ORDER BY created_at DESC`,
+      `SELECT e.id, e.course, e.total_amount, e.amount_paid, e.payment_status, e.reference, e.expires_at, e.created_at,
+              c.title as course_title, c.description as course_description,
+              u.name as tutor_name, u.email as tutor_email
+       FROM enrollments e
+       LEFT JOIN courses c ON e.course_id = c.id
+       LEFT JOIN users u ON c.tutor_id = u.id
+       WHERE e.user_id = $1 ORDER BY e.created_at DESC`,
       [userId],
     )
 
@@ -98,7 +104,7 @@ const getStudentProfile = async (req, res) => {
  * @swagger
  * /api/dashboard/courses:
  *   get:
- *     summary: Get student enrolled courses
+ *     summary: Get student enrolled courses with assigned tutors
  *     tags: [Dashboard]
  *     security:
  *       - bearerAuth: []
@@ -110,8 +116,13 @@ const getStudentCourses = async (req, res) => {
   try {
     const userId = req.user.id
     const coursesResult = await db.query(
-      `SELECT id, course, payment_status, expires_at, created_at 
-       FROM enrollments WHERE user_id = $1 ORDER BY created_at DESC`,
+      `SELECT e.id, e.course, e.payment_status, e.expires_at, e.created_at,
+              c.title as course_title, c.description as course_description,
+              u.name as tutor_name, u.email as tutor_email
+       FROM enrollments e
+       LEFT JOIN courses c ON e.course_id = c.id
+       LEFT JOIN users u ON c.tutor_id = u.id
+       WHERE e.user_id = $1 ORDER BY e.created_at DESC`,
       [userId],
     )
     res.status(200).json({ status: 'success', courses: coursesResult.rows })

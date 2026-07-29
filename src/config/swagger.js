@@ -8,7 +8,7 @@ const options = {
       title: 'D Enskill Academy API Docs',
       version: '1.0.0',
       description:
-        'API documentation for D Enskill Academy backend student portals, auth, and Paystack payments.',
+        'API documentation for D Enskill Academy backend student portals, auth, and Paystack payments by Hilosthone.',
     },
     servers: [
       {
@@ -26,7 +26,7 @@ const options = {
       },
     },
   },
-  apis: ['./src/routes/*.js', './src/controllers/*.js'], // Looks through your route and controller files for documentation comments
+  apis: ['./src/routes/*.js', './src/controllers/*.js'], 
 }
 
 const swaggerSpec = swaggerJSDoc(options)
