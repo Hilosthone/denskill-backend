@@ -5,7 +5,7 @@ require('dotenv').config()
 
 // Import database connection and Swagger documentation setup
 const db = require('./config/db')
-const { swaggerDocs } = require('./config/swagger') 
+const { swaggerDocs } = require('./config/swagger')
 
 const app = express()
 
@@ -44,6 +44,15 @@ app.get('/api/health', (req, res) => {
 // Base route test
 app.get('/', (req, res) => {
   res.send('Denskill Backend API is running...')
+})
+
+// Centralized Error Handling Middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack)
+  res.status(err.status || 500).json({
+    status: 'error',
+    message: err.message || 'Internal Server Error',
+  })
 })
 
 // Port Configuration & Server Startup

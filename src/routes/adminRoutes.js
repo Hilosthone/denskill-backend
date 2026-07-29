@@ -11,6 +11,9 @@ const {
   getAdminAnnouncements,
   createAnnouncement,
   getInstructors,
+  createInstructor,
+  updateInstructor,
+  deleteInstructor,
   toggleFreezeStudent,
   deleteStudentAccount,
   assignTutorToCourse,
@@ -203,8 +206,82 @@ router.post('/announcements', createAnnouncement)
  *     responses:
  *       200:
  *         description: Instructors retrieved successfully
+ *   post:
+ *     summary: Create a new instructor
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               specialty:
+ *                 type: string
+ *               role:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Instructor created successfully
  */
 router.get('/instructors', getInstructors)
+router.post('/instructors', createInstructor)
+
+/**
+ * @swagger
+ * /api/admin/instructors/{id}:
+ *   put:
+ *     summary: Update an existing instructor
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               specialty:
+ *                 type: string
+ *               role:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Instructor updated successfully
+ *   delete:
+ *     summary: Delete an instructor
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Instructor deleted successfully
+ */
+router.put('/instructors/:id', updateInstructor)
+router.delete('/instructors/:id', deleteInstructor)
 
 /**
  * @swagger

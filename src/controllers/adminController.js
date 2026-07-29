@@ -366,9 +366,94 @@ const createAnnouncement = async (req, res) => {
   }
 }
 
-// 6. Instructors Tab Placeholder
+// 6. Instructors Tab (Fully Implemented)
 const getInstructors = async (req, res) => {
-  res.status(200).json({ status: 'success', instructors: [] })
+  try {
+    const result = await db.query(
+      'SELECT id, name, email, specialty, role, created_at FROM instructors ORDER BY created_at DESC',
+    )
+    res.status(200).json({ status: 'success', instructors: result.rows })
+  } catch (err) {
+    console.error('Get Instructors Error:', err.message)
+    res.status(500).json({ error: 'Server error while fetching instructors.' })
+  }
+}
+
+const createInstructor = async (req, res) => {
+  try {
+    const { name, email, specialty, role } = req.body
+    if (!name || !email || !specialty) {
+      return res
+        .status(400)
+        .json({ error: 'Name, email, and specialty are required.' })
+    }
+
+    const result = await db.query(
+      'INSERT INTO instructors (name, email, specialty, role) VALUES ($1, $2, $3, $4) RETURNING *',
+      [name, email, specialty, role || 'Instructor'],
+    )
+
+    res.status(201).json({
+      status: 'success',
+      message: 'Instructor created successfully.',
+      instructor: result.rows[0],
+    })
+  } catch (err) {
+    console.error('Create Instructor Error:', err.message)
+    res.status(500).json({ error: 'Server error while creating instructor.' })
+  }
+}
+
+const updateInstructor = async (req, res) => {
+  try {
+    const { id } = req.params
+    const { name, email, specialty, role } = req.body
+
+    const result = await db.query(
+      `UPDATE instructors 
+       SET name = COALESCE($1, name), 
+           email = COALESCE($2, email), 
+           specialty = COALESCE($3, specialty), 
+           role = COALESCE($4, role) 
+       WHERE id = $5 RETURNING *`,
+      [name, email, specialty, role, id],
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Instructor not found.' })
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Instructor updated successfully.',
+      instructor: result.rows[0],
+    })
+  } catch (err) {
+    console.error('Update Instructor Error:', err.message)
+    res.status(500).json({ error: 'Server error while updating instructor.' })
+  }
+}
+
+const deleteInstructor = async (req, res) => {
+  try {
+    const { id } = req.params
+    const result = await db.query(
+      'DELETE FROM instructors WHERE id = $1 RETURNING id',
+      [id],
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Instructor not found.' })
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Instructor deleted successfully.',
+    })
+  } catch (err) {
+    console.error('Delete Instructor Error:', err.message)
+    res.status(500).json({ error: 'Server error while deleting instructor.' })
+  }
 }
 
 // 7. Reports Tab Placeholder
@@ -484,6 +569,9 @@ module.exports = {
   getAdminAnnouncements,
   createAnnouncement,
   getInstructors,
+  createInstructor,
+  updateInstructor,
+  deleteInstructor,
   toggleFreezeStudent,
   deleteStudentAccount,
   assignTutorToCourse,
