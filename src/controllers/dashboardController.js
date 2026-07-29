@@ -18,8 +18,13 @@ const getStudentOverview = async (req, res) => {
   try {
     const userId = req.user.id
 
+    // Fetch base user details, joined with enrollments to get profile metadata safely
     const userResult = await db.query(
-      'SELECT id, name, email, middle_name, country, phone, reason, referred_by, is_verified, created_at FROM users WHERE id = $1',
+      `SELECT u.id, u.name, u.email, u.is_verified, u.created_at,
+              e.first_name, e.middle_name, e.last_name, e.country, e.phone, e.reason, e.referred_by
+       FROM users u
+       LEFT JOIN enrollments e ON u.id = e.user_id
+       WHERE u.id = $1`,
       [userId],
     )
     if (userResult.rows.length === 0) {
@@ -27,7 +32,7 @@ const getStudentOverview = async (req, res) => {
     }
     const user = userResult.rows[0]
 
-    // Updated join using e.course and c.title
+    // Fetch enrolled courses with tutor details
     const enrollmentsResult = await db.query(
       `SELECT e.id, e.course, e.total_amount, e.amount_paid, e.payment_status, e.reference, e.expires_at, e.created_at,
               c.title as course_title, c.description as course_description,
