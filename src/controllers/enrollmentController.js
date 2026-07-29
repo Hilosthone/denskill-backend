@@ -657,16 +657,16 @@ exports.verifyEnrollmentPayment = async (req, res) => {
       }
 
       return res.redirect(
-        `https://denskill.com/dashboard?payment=success&reference=${reference}`,
+        `https://denskill.com/student/dashboard?payment=success&reference=${reference}`,
       )
     } else {
       return res.redirect(
-        `https://denskill.com/dashboard?payment=failed&reference=${reference}`,
+        `https://denskill.com/student/dashboard?payment=failed&reference=${reference}`,
       )
     }
   } catch (err) {
     console.error('Verification Error:', err.response?.data || err.message)
-    return res.redirect('https://denskill.com/dashboard?payment=error')
+    return res.redirect('https://denskill.com/student/dashboard?payment=error')
   }
 }
 
