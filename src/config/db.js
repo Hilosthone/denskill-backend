@@ -11,13 +11,15 @@ console.log(
   process.env.DB_PASSWORD ? process.env.DB_PASSWORD.length : 'UNDEFINED',
 )
 
-//
 const pool = new Pool({
   user: process.env.DB_USER,
   host: process.env.DB_HOST || '127.0.0.1',
   database: process.env.DB_NAME,
   password: process.env.DB_PASSWORD,
   port: process.env.DB_PORT || 5432,
+  ssl: {
+    rejectUnauthorized: false, // Required for Render PostgreSQL connections
+  },
 })
 
 pool.on('connect', () => {
@@ -34,12 +36,19 @@ pool
   )
   .catch((err) => console.error('❌ Migration error:', err.message))
 
+// Automatically ensure courses have a tutor_id column
+pool
+  .query(
+    `ALTER TABLE courses ADD COLUMN IF NOT EXISTS tutor_id INTEGER REFERENCES users(id) ON DELETE SET NULL;`,
+  )
+  .then(() =>
+    console.log(
+      '✅ Database migration checked: course tutor relationship verified.',
+    ),
+  )
+  .catch((err) => console.error('❌ Migration error:', err.message))
+
 module.exports = {
   query: (text, params) => pool.query(text, params),
   getClient: () => pool.connect(),
 }
-
-// Automatically ensure courses have a tutor_id column
-pool.query(`ALTER TABLE courses ADD COLUMN IF NOT EXISTS tutor_id INTEGER REFERENCES users(id) ON DELETE SET NULL;`)
-  .then(() => console.log('✅ Database migration checked: course tutor relationship verified.'))
-  .catch(err => console.error('❌ Migration error:', err.message))
