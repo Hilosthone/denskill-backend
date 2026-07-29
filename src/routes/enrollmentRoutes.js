@@ -75,7 +75,9 @@ router.post('/initialize', initializeEnrollment)
  *       400:
  *         description: Payment verification failed.
  */
-router.get('/verify/:reference?', verifyEnrollmentPayment)
+// router.get('/verify/:reference?', verifyEnrollmentPayment)
+router.get('/verify', verifyEnrollmentPayment)
+router.get('/verify/:reference', verifyEnrollmentPayment)
 
 /**
  * @swagger
