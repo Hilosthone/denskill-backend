@@ -8,19 +8,93 @@
 
 ---
 
-## 🔐 1. Authentication (`/api/auth`)
+## 💳 1. Enrollments (`/api/enrollments`)
 
-### Register a new user
-* **`POST /api/auth/signup`**
+### Register student details and initialize Paystack payment
+* **`POST /api/enrollments/initialize`**
 * **Request Body:**
   ```json
   {
-    "name": "John Doe",
-    "email": "john@example.com",
-    "password": "securepassword123"
+    "firstName": "John",
+    "lastName": "Doe",
+    "country": "Nigeria",
+    "phone": "08012345678",
+    "email": "student@example.com",
+    "course": "Full-Stack Web Development",
+    "amountPaid": 20000,
+    "callback_url": "http://localhost:3000/student/dashboard"
   }
 
 ```
+
+* **Response (200):** Returns Paystack authorization URL and reference.
+
+### Initialize subsequent installment payment for a logged-in student
+
+* **`POST /api/enrollments/pay-installment`**
+* **Security:** Bearer Auth Required
+* **Request Body:**
+```json
+{
+  "course": "Mobile Development",
+  "amountPayable": 20000,
+  "callback_url": "http://localhost:3000/student/dashboard"
+}
+
+```
+
+
+* **Response (200):** Returns Paystack authorization URL, reference, and remaining balance.
+
+### Verify Paystack transaction and finalize enrollment tracking
+
+* **`GET /api/enrollments/verify/{reference}`**
+* **Parameters:** `reference` (Path, string)
+* **Response (302/200):** Verifies Paystack transaction, updates enrollment status, and redirects back to frontend dashboard.
+
+### Set password after successful enrollment payment
+
+* **`POST /api/enrollments/set-password`**
+* **Request Body:**
+```json
+{
+  "email": "student@example.com",
+  "password": "newsecurepassword",
+  "confirmPassword": "newsecurepassword"
+}
+
+```
+
+
+* **Response (200):** Password configured successfully for newly enrolled student.
+
+---
+
+## 💰 2. Payments (`/api/payments`)
+
+### Get all system payment logs
+
+* **`GET /api/payments`**
+* **Security:** Bearer Auth / Admin Required
+* **Response (200):** Returns list of all platform payment records.
+
+---
+
+## 🔐 3. Signup & Login (`/api/auth`)
+
+### Register a new user
+
+* **`POST /api/auth/signup`**
+* **Request Body:**
+```json
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "securepassword123"
+}
+
+```
+
 
 * **Response (201):** Returns success status and created user object.
 
@@ -39,6 +113,37 @@
 
 * **Response (200):** Returns access token (`JWT`) and user info.
 
+### Request password reset OTP
+
+* **`POST /api/auth/forgot-password`**
+* **Request Body:**
+```json
+{
+  "email": "john@example.com"
+}
+
+```
+
+
+* **Response (200):** Sends a 6-digit OTP to the registered email address.
+
+### Reset password using OTP
+
+* **`POST /api/auth/reset-password`**
+* **Request Body:**
+```json
+{
+  "email": "john@example.com",
+  "otp": "123456",
+  "newPassword": "newsecurepassword123",
+  "confirmPassword": "newsecurepassword123"
+}
+
+```
+
+
+* **Response (200):** Password reset successfully.
+
 ### Log out a user
 
 * **`POST /api/auth/logout`**
@@ -47,48 +152,19 @@
 
 ---
 
-## 💳 2. Enrollments & Paystack (`/api/enrollments`)
+## 🎓 4. Student Dashboard (`/api/dashboard`)
 
-### Initialize Payment
+*(Requires Student Bearer Token)*
 
-* **`POST /api/enrollments/initialize`**
-* **Request Body:**
-```json
-{
-  "email": "student@example.com",
-  "course": "Full-Stack Web Development",
-  "amount": 50000
-}
-
-```
-
-
-* **Response (200):** Returns Paystack authorization URL and reference.
-
-### Verify Transaction
-
-* **`GET /api/enrollments/verify/{reference}`**
-* **Parameters:** `reference` (Path, string)
-* **Response (200):** Verifies Paystack transaction, updates enrollment status, and activates tracking.
-
-### Set Password After Payment
-
-* **`POST /api/enrollments/set-password`**
-* **Request Body:**
-```json
-{
-  "email": "student@example.com",
-  "password": "newsecurepassword"
-}
-
-```
-
-
-* **Response (200):** Password configured successfully for newly enrolled student.
+* **`GET /api/dashboard/overview`** — Get complete student portal data across all tabs (includes assigned tutor info: `tutor_name`, `tutor_email`).
+* **`GET /api/dashboard/profile`** — Get student profile details.
+* **`GET /api/dashboard/courses`** — Get student enrolled courses with assigned tutors.
+* **`GET /api/dashboard/payments`** — Get student payment history.
+* **`GET /api/dashboard/announcements`** — Get portal announcements.
 
 ---
 
-## 🛡️ 3. Admin Management (`/api/admin`)
+## 🛡️ 5. Admin Management (`/api/admin`)
 
 *(Requires Admin Bearer Token)*
 
@@ -104,18 +180,6 @@
 * **`GET /api/admin/instructors`** — Get system instructors.
 * **`GET /api/admin/reports`** — Get system performance reports.
 * **`GET /api/admin/settings`** — Get platform settings.
-
----
-
-## 🎓 4. Student Dashboard (`/api/dashboard`)
-
-*(Requires Student Bearer Token)*
-
-* **`GET /api/dashboard/overview`** — Get complete student portal data across all tabs (includes assigned tutor info: `tutor_name`, `tutor_email`).
-* **`GET /api/dashboard/profile`** — Get student profile details.
-* **`GET /api/dashboard/courses`** — Get student enrolled courses with assigned tutors.
-* **`GET /api/dashboard/payments`** — Get student payment history.
-* **`GET /api/dashboard/announcements`** — Get portal announcements.
 
 ```
 
