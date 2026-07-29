@@ -36,14 +36,28 @@ pool
   )
   .catch((err) => console.error('❌ Migration error:', err.message))
 
-// Automatically ensure courses have a tutor_id column
+// Automatically ensure courses table exists and has tutor_id column
 pool
   .query(
-    `ALTER TABLE courses ADD COLUMN IF NOT EXISTS tutor_id INTEGER REFERENCES users(id) ON DELETE SET NULL;`,
+    `
+    CREATE TABLE IF NOT EXISTS courses (
+      id SERIAL PRIMARY KEY,
+      title VARCHAR(255) NOT NULL,
+      description TEXT,
+      tutor_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `,
   )
+  .then(() => {
+    // Also ensure tutor_id column exists if table was already there without it
+    return pool.query(
+      `ALTER TABLE courses ADD COLUMN IF NOT EXISTS tutor_id INTEGER REFERENCES users(id) ON DELETE SET NULL;`,
+    )
+  })
   .then(() =>
     console.log(
-      '✅ Database migration checked: course tutor relationship verified.',
+      '✅ Database migration checked: courses table and tutor relationship verified.',
     ),
   )
   .catch((err) => console.error('❌ Migration error:', err.message))
