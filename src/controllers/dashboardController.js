@@ -19,7 +19,7 @@ const getStudentOverview = async (req, res) => {
     const userId = req.user.id
 
     const userResult = await db.query(
-      'SELECT id, name, email, is_verified, created_at FROM users WHERE id = $1',
+      'SELECT id, name, email, middle_name, country, phone, reason, referred_by, is_verified, created_at FROM users WHERE id = $1',
       [userId],
     )
     if (userResult.rows.length === 0) {
@@ -27,13 +27,13 @@ const getStudentOverview = async (req, res) => {
     }
     const user = userResult.rows[0]
 
-    // Updated to join courses and instructors/tutors
+    // Updated join using e.course and c.title
     const enrollmentsResult = await db.query(
       `SELECT e.id, e.course, e.total_amount, e.amount_paid, e.payment_status, e.reference, e.expires_at, e.created_at,
               c.title as course_title, c.description as course_description,
               u.name as tutor_name, u.email as tutor_email
        FROM enrollments e
-       LEFT JOIN courses c ON e.course_id = c.id
+       LEFT JOIN courses c ON e.course = c.title
        LEFT JOIN users u ON c.tutor_id = u.id
        WHERE e.user_id = $1 ORDER BY e.created_at DESC`,
       [userId],
@@ -86,8 +86,13 @@ const getStudentOverview = async (req, res) => {
 const getStudentProfile = async (req, res) => {
   try {
     const userId = req.user.id
+    // Also fetch enrollment metadata like country, phone, reason, and referredBy
     const userResult = await db.query(
-      'SELECT id, name, email, is_verified, created_at FROM users WHERE id = $1',
+      `SELECT u.id, u.name, u.email, u.is_verified, u.created_at,
+              e.first_name, e.middle_name, e.last_name, e.country, e.phone, e.reason, e.referred_by
+       FROM users u
+       LEFT JOIN enrollments e ON u.id = e.user_id
+       WHERE u.id = $1`,
       [userId],
     )
     if (userResult.rows.length === 0) {
@@ -120,7 +125,7 @@ const getStudentCourses = async (req, res) => {
               c.title as course_title, c.description as course_description,
               u.name as tutor_name, u.email as tutor_email
        FROM enrollments e
-       LEFT JOIN courses c ON e.course_id = c.id
+       LEFT JOIN courses c ON e.course = c.title
        LEFT JOIN users u ON c.tutor_id = u.id
        WHERE e.user_id = $1 ORDER BY e.created_at DESC`,
       [userId],
