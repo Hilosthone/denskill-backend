@@ -127,6 +127,8 @@
 //           firstName,
 //           lastName,
 //           phone,
+//           paymentType: 'initial',
+//           paidAmount,
 //         },
 //       },
 //       {
@@ -209,12 +211,103 @@
 //   }
 // }
 
+// // @desc    Initialize subsequent/installment payment for logged-in user
+// // @route   POST /api/enrollments/pay-installment
+// // @access  Private (Requires authentication middleware attaching req.user)
+// exports.initializeInstallmentPayment = async (req, res) => {
+//   try {
+//     const userId = req.user?.id
+//     const { course, amountPayable, callback_url } = req.body
+
+//     if (!userId || !course || !amountPayable) {
+//       return res
+//         .status(400)
+//         .json({ error: 'Course and payment amount are required.' })
+//     }
+
+//     // 1. Fetch user enrollment
+//     const enrollmentResult = await db.query(
+//       'SELECT * FROM enrollments WHERE user_id = $1 AND course = $2',
+//       [userId, course],
+//     )
+
+//     if (enrollmentResult.rows.length === 0) {
+//       return res
+//         .status(404)
+//         .json({ error: 'Enrollment record not found for this course.' })
+//     }
+
+//     const enrollment = enrollmentResult.rows[0]
+
+//     if (enrollment.payment_status === 'completed') {
+//       return res
+//         .status(400)
+//         .json({ error: 'This course is already fully paid.' })
+//     }
+
+//     const totalAmount = Number(enrollment.total_amount)
+//     const currentPaid = Number(enrollment.amount_paid)
+//     const remainingBalance = totalAmount - currentPaid
+//     const installmentAmount = Number(amountPayable)
+
+//     if (installmentAmount > remainingBalance) {
+//       return res.status(400).json({
+//         error: `Amount exceeds remaining balance. You only owe ₦${remainingBalance.toLocaleString()}`,
+//       })
+//     }
+
+//     // 2. Initialize Paystack transaction for installment
+//     const amountInKobo = Math.round(installmentAmount * 100)
+
+//     const paystackResponse = await axios.post(
+//       'https://api.paystack.co/transaction/initialize',
+//       {
+//         email: enrollment.email,
+//         amount: amountInKobo,
+//         callback_url: callback_url || 'https://denskill.com/dashboard',
+//         metadata: {
+//           course,
+//           userId,
+//           paymentType: 'installment',
+//           installmentAmount,
+//         },
+//       },
+//       {
+//         headers: {
+//           Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+//           'Content-Type': 'application/json',
+//         },
+//       },
+//     )
+
+//     const { authorization_url, reference } = paystackResponse.data.data
+
+//     // 3. Update active reference in database so verification hooks onto it
+//     await db.query(
+//       'UPDATE enrollments SET reference = $1 WHERE user_id = $2 AND course = $3',
+//       [reference, userId, course],
+//     )
+
+//     res.status(200).json({
+//       status: 'success',
+//       authorization_url,
+//       reference,
+//       remainingBalance: remainingBalance - installmentAmount,
+//     })
+//   } catch (err) {
+//     console.error(
+//       'Installment Initialization Error:',
+//       err.response?.data || err.message,
+//     )
+//     res.status(500).json({ error: 'Failed to initialize installment payment.' })
+//   }
+// }
+
 // // @desc    Verify Paystack transaction & finalize enrollment tracking
 // // @route   GET /api/enrollments/verify/:reference?
 // // @access  Public
 // exports.verifyEnrollmentPayment = async (req, res) => {
 //   try {
-//     // Gracefully handle path parameter, query string (?reference=...), or Paystack default (?trxref=...)
 //     const reference =
 //       req.params.reference || req.query.reference || req.query.trxref
 
@@ -236,25 +329,40 @@
 //     const paymentData = response.data.data
 
 //     if (paymentData.status === 'success') {
-//       await db.query(
-//         `UPDATE enrollments SET payment_status = CASE WHEN amount_paid >= total_amount THEN 'completed' ELSE 'partial' END WHERE reference = $1`,
-//         [reference],
-//       )
+//       const metadata = paymentData.metadata || {}
+//       const paymentType = metadata.paymentType || 'initial'
 
-//       // Redirect user browser safely back to frontend success route
-//       return res.redirect(
-//         `https://denskill.com/dashboard?payment=success&reference=${reference}`,
-//       )
-//     } else {
-//       // Redirect user browser to frontend failure/error route
-//       return res.redirect(
-//         `https://denskill.com/dashboard?payment=failed&reference=${reference}`,
-//       )
-//     }
-//   } catch (err) {
-//     console.error('Verification Error:', err.response?.data || err.message)
-//     return res.redirect('https://denskill.com/dashboard?payment=error')
-//   }
+//       if (paymentType === 'installment') {
+//         const installmentPaid = Number(metadata.installmentAmount) || 0
+
+//         // Increment amount_paid and clear expiry if balance is fully paid
+//         await db.query(
+//           `UPDATE enrollments
+//            SET amount_paid = amount_paid + $1,
+//                payment_status = CASE WHEN (amount_paid + $1) >= total_amount THEN 'completed' ELSE 'partial' END,
+//                expires_at = CASE WHEN (amount_paid + $1) >= total_amount THEN NULL ELSE expires_at END
+//            WHERE reference = $2`,
+//           [installmentPaid, reference],
+//         )
+//       } else {
+//         // Initial registration payment
+//         await db.query(
+//           `UPDATE enrollments SET payment_status = CASE WHEN amount_paid >= total_amount THEN 'completed' ELSE 'partial' END WHERE reference = $1`,
+//           [reference],
+//         )
+//       }
+//           return res.redirect(
+//             `https://denskill.com/student/dashboard?payment=success&reference=${reference}`,
+//           )
+//         } else {
+//           return res.redirect(
+//             `https://denskill.com/student/dashboard?payment=failed&reference=${reference}`,
+//           )
+//         }
+//       } catch (err) {
+//         console.error('Verification Error:', err.response?.data || err.message)
+//         return res.redirect('https://denskill.com/student/dashboard?payment=error')
+//       }
 // }
 
 // // @desc    Set password after successful enrollment payment
@@ -568,7 +676,7 @@ exports.initializeInstallmentPayment = async (req, res) => {
       {
         email: enrollment.email,
         amount: amountInKobo,
-        callback_url: callback_url || 'https://denskill.com/dashboard',
+        callback_url: callback_url || 'https://www.denskill.com/dashboard',
         metadata: {
           course,
           userId,
@@ -618,7 +726,7 @@ exports.verifyEnrollmentPayment = async (req, res) => {
     if (!reference) {
       return res
         .status(400)
-        .json({ error: 'Transaction reference is missing.' })
+        .json({ success: false, error: 'Transaction reference is missing.' })
     }
 
     const response = await axios.get(
@@ -645,7 +753,7 @@ exports.verifyEnrollmentPayment = async (req, res) => {
            SET amount_paid = amount_paid + $1,
                payment_status = CASE WHEN (amount_paid + $1) >= total_amount THEN 'completed' ELSE 'partial' END,
                expires_at = CASE WHEN (amount_paid + $1) >= total_amount THEN NULL ELSE expires_at END
-           WHERE reference = $2`,
+            WHERE reference = $2`,
           [installmentPaid, reference],
         )
       } else {
@@ -655,32 +763,29 @@ exports.verifyEnrollmentPayment = async (req, res) => {
           [reference],
         )
       }
-          return res.redirect(
-            `https://denskill.com/student/dashboard?payment=success&reference=${reference}`,
-          )
-        } else {
-          return res.redirect(
-            `https://denskill.com/student/dashboard?payment=failed&reference=${reference}`,
-          )
-        }
-      } catch (err) {
-        console.error('Verification Error:', err.response?.data || err.message)
-        return res.redirect('https://denskill.com/student/dashboard?payment=error')
-      }
 
-
-  //     return res.redirect(
-  //       `http://localhost:3000/student/dashboard?payment=success&reference=${reference}`,
-  //     )
-  //   } else {
-  //     return res.redirect(
-  //       `http://localhost:3000/student/dashboard?payment=failed&reference=${reference}`,
-  //     )
-  //   }
-  // } catch (err) {
-  //   console.error('Verification Error:', err.response?.data || err.message)
-  //   return res.redirect('http://localhost:3000/student/dashboard?payment=error')
-  // }
+      // Return JSON instead of redirecting (Fixes the CORS error!)
+      return res.status(200).json({
+        success: true,
+        message: 'Payment verified successfully',
+        reference,
+        customerEmail: paymentData.customer?.email,
+        metadata: paymentData.metadata,
+      })
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment verification failed',
+        reference,
+      })
+    }
+  } catch (err) {
+    console.error('Verification Error:', err.response?.data || err.message)
+    return res.status(500).json({
+      success: false,
+      error: 'Server error during payment verification.',
+    })
+  }
 }
 
 // @desc    Set password after successful enrollment payment
