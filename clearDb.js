@@ -1,3 +1,6 @@
+//src/server.js
+// clearDb.js
+// This script is intended to be run from the command line to clear the database.
 const db = require('./src/config/db')
 
 async function clearDatabase() {
