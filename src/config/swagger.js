@@ -8,7 +8,7 @@ const options = {
       title: 'D Enskill Academy API Docs',
       version: '1.0.0',
       description:
-        'API documentation for D Enskill Academy backend student portals, auth, and Paystack payments by Hilosthone.',
+        'API documentation for D Enskill Academy backend admin, student portals, auth, and Paystack payments by Hilosthone.',
     },
     servers: [
       {
@@ -37,7 +37,6 @@ const swaggerSpec = swaggerJSDoc(options)
 
 const swaggerDocs = (app) => {
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
-  console.log('📄 Swagger Docs available at /api-docs')
 }
 
 module.exports = { swaggerDocs }

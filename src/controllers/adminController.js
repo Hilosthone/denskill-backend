@@ -107,9 +107,94 @@
 //   }
 // }
 
-// // 6. Instructors Tab Placeholder
+// // 6. Instructors Tab (Fully Implemented)
 // const getInstructors = async (req, res) => {
-//   res.status(200).json({ status: 'success', instructors: [] })
+//   try {
+//     const result = await db.query(
+//       'SELECT id, name, email, specialty, role, created_at FROM instructors ORDER BY created_at DESC',
+//     )
+//     res.status(200).json({ status: 'success', instructors: result.rows })
+//   } catch (err) {
+//     console.error('Get Instructors Error:', err.message)
+//     res.status(500).json({ error: 'Server error while fetching instructors.' })
+//   }
+// }
+
+// const createInstructor = async (req, res) => {
+//   try {
+//     const { name, email, specialty, role } = req.body
+//     if (!name || !email || !specialty) {
+//       return res
+//         .status(400)
+//         .json({ error: 'Name, email, and specialty are required.' })
+//     }
+
+//     const result = await db.query(
+//       'INSERT INTO instructors (name, email, specialty, role) VALUES ($1, $2, $3, $4) RETURNING *',
+//       [name, email, specialty, role || 'Instructor'],
+//     )
+
+//     res.status(201).json({
+//       status: 'success',
+//       message: 'Instructor created successfully.',
+//       instructor: result.rows[0],
+//     })
+//   } catch (err) {
+//     console.error('Create Instructor Error:', err.message)
+//     res.status(500).json({ error: 'Server error while creating instructor.' })
+//   }
+// }
+
+// const updateInstructor = async (req, res) => {
+//   try {
+//     const { id } = req.params
+//     const { name, email, specialty, role } = req.body
+
+//     const result = await db.query(
+//       `UPDATE instructors
+//        SET name = COALESCE($1, name),
+//            email = COALESCE($2, email),
+//            specialty = COALESCE($3, specialty),
+//            role = COALESCE($4, role)
+//        WHERE id = $5 RETURNING *`,
+//       [name, email, specialty, role, id],
+//     )
+
+//     if (result.rows.length === 0) {
+//       return res.status(404).json({ error: 'Instructor not found.' })
+//     }
+
+//     res.status(200).json({
+//       status: 'success',
+//       message: 'Instructor updated successfully.',
+//       instructor: result.rows[0],
+//     })
+//   } catch (err) {
+//     console.error('Update Instructor Error:', err.message)
+//     res.status(500).json({ error: 'Server error while updating instructor.' })
+//   }
+// }
+
+// const deleteInstructor = async (req, res) => {
+//   try {
+//     const { id } = req.params
+//     const result = await db.query(
+//       'DELETE FROM instructors WHERE id = $1 RETURNING id',
+//       [id],
+//     )
+
+//     if (result.rows.length === 0) {
+//       return res.status(404).json({ error: 'Instructor not found.' })
+//     }
+
+//     res.status(200).json({
+//       status: 'success',
+//       message: 'Instructor deleted successfully.',
+//     })
+//   } catch (err) {
+//     console.error('Delete Instructor Error:', err.message)
+//     res.status(500).json({ error: 'Server error while deleting instructor.' })
+//   }
 // }
 
 // // 7. Reports Tab Placeholder
@@ -143,12 +228,10 @@
 //       return res.status(404).json({ error: 'User not found' })
 //     }
 
-//     res
-//       .status(200)
-//       .json({
-//         message: `User account status updated to ${status}`,
-//         user: result.rows[0],
-//       })
+//     res.status(200).json({
+//       message: `User account status updated to ${status}`,
+//       user: result.rows[0],
+//     })
 //   } catch (error) {
 //     res.status(500).json({ error: error.message })
 //   }
@@ -168,29 +251,6 @@
 //     }
 
 //     res.status(200).json({ message: 'Student account deleted successfully' })
-//   } catch (error) {
-//     res.status(500).json({ error: error.message })
-//   }
-// }
-
-// // PUT /api/admin/courses/:courseId/assign-tutor - Assign Tutor to a Course
-// const assignTutorToCourse = async (req, res) => {
-//   try {
-//     const { courseId } = req.params
-//     const { tutor_id } = req.body
-
-//     const result = await db.query(
-//       `UPDATE courses SET tutor_id = $1 WHERE id = $2 RETURNING *`,
-//       [tutor_id, courseId],
-//     )
-
-//     if (result.rows.length === 0) {
-//       return res.status(404).json({ error: 'Course not found.' })
-//     }
-
-//     res
-//       .status(200)
-//       .json({ message: 'Tutor assigned successfully', course: result.rows[0] })
 //   } catch (error) {
 //     res.status(500).json({ error: error.message })
 //   }
@@ -224,7 +284,7 @@
 
 //     const courseResult = await db.query(
 //       'UPDATE courses SET tutor_id = $1 WHERE id = $2 RETURNING *',
-//       [tutorId, courseId]
+//       [tutorId, courseId],
 //     )
 
 //     if (courseResult.rows.length === 0) {
@@ -250,6 +310,9 @@
 //   getAdminAnnouncements,
 //   createAnnouncement,
 //   getInstructors,
+//   createInstructor,
+//   updateInstructor,
+//   deleteInstructor,
 //   toggleFreezeStudent,
 //   deleteStudentAccount,
 //   assignTutorToCourse,
@@ -257,7 +320,54 @@
 //   getSettings,
 // }
 
+const jwt = require('jsonwebtoken')
 const db = require('../config/db')
+
+// @desc    Admin login
+// @route   POST /api/admin/auth/login
+// @access  Public
+const adminLogin = async (req, res) => {
+  try {
+    const { email, password } = req.body
+
+    const ADMIN_EMAIL = 'lluxury692@gmail.com'
+    const ADMIN_PASS = 'admin@deskill123'
+
+    if (!email || !password) {
+      return res
+        .status(400)
+        .json({ success: false, message: 'Please provide email and password' })
+    }
+
+    if (email !== ADMIN_EMAIL || password !== ADMIN_PASS) {
+      return res
+        .status(401)
+        .json({ success: false, message: 'Invalid admin credentials' })
+    }
+
+    const token = jwt.sign(
+      { email: ADMIN_EMAIL, role: 'admin' },
+      process.env.JWT_SECRET || 'fallback_secret',
+      { expiresIn: '7d' },
+    )
+
+    return res.status(200).json({
+      success: true,
+      message: 'Admin logged in successfully',
+      token,
+      admin: {
+        name: 'System Admin',
+        email: ADMIN_EMAIL,
+        role: 'admin',
+      },
+    })
+  } catch (error) {
+    console.error('Admin login error:', error)
+    return res
+      .status(500)
+      .json({ success: false, message: 'Server error during admin login' })
+  }
+}
 
 // 1. GET /api/admin/dashboard (Dashboard Metrics & Recent Enrollments)
 const getAdminOverview = async (req, res) => {
@@ -472,7 +582,7 @@ const getSettings = async (req, res) => {
   })
 }
 
-// PUT /api/admin/users/:id/freeze - Freeze or Unfreeze account
+// PUT /api/admin/students/:id/status - Freeze or Unfreeze account
 const toggleFreezeStudent = async (req, res) => {
   try {
     const { id } = req.params
@@ -496,7 +606,7 @@ const toggleFreezeStudent = async (req, res) => {
   }
 }
 
-// DELETE /api/admin/users/:id - Delete student account
+// DELETE /api/admin/students/:id - Delete student account
 const deleteStudentAccount = async (req, res) => {
   try {
     const { id } = req.params
@@ -515,27 +625,6 @@ const deleteStudentAccount = async (req, res) => {
   }
 }
 
-/**
- * @swagger
- * /api/admin/courses/{courseId}/assign-tutor:
- *   patch:
- *     summary: Assign a tutor to a course
- *     tags: [Admin]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               tutorId:
- *                 type: integer
- *     responses:
- *       200:
- *         description: Tutor assigned successfully
- */
 const assignTutorToCourse = async (req, res) => {
   try {
     const { courseId } = req.params
@@ -562,6 +651,7 @@ const assignTutorToCourse = async (req, res) => {
 }
 
 module.exports = {
+  adminLogin,
   getAdminOverview,
   getAllStudents,
   getAllPayments,
