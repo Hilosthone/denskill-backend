@@ -825,7 +825,7 @@ exports.setPassword = async (req, res) => {
     res.status(200).json({
       status: 'success',
       message:
-        'Password set successfully! You can now log in to your dashboard.',
+        'Password set successfully! You can now log in to your dashboard...',
     })
   } catch (err) {
     console.error('Set Password Error:', err.message)
