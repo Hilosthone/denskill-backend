@@ -264,7 +264,7 @@
 //       {
 //         email: enrollment.email,
 //         amount: amountInKobo,
-//         callback_url: callback_url || 'https://denskill.com/dashboard',
+//         callback_url: callback_url || 'https://www.denskill.com/dashboard',
 //         metadata: {
 //           course,
 //           userId,
@@ -314,7 +314,7 @@
 //     if (!reference) {
 //       return res
 //         .status(400)
-//         .json({ error: 'Transaction reference is missing.' })
+//         .json({ success: false, error: 'Transaction reference is missing.' })
 //     }
 
 //     const response = await axios.get(
@@ -341,7 +341,7 @@
 //            SET amount_paid = amount_paid + $1,
 //                payment_status = CASE WHEN (amount_paid + $1) >= total_amount THEN 'completed' ELSE 'partial' END,
 //                expires_at = CASE WHEN (amount_paid + $1) >= total_amount THEN NULL ELSE expires_at END
-//            WHERE reference = $2`,
+//             WHERE reference = $2`,
 //           [installmentPaid, reference],
 //         )
 //       } else {
@@ -351,18 +351,29 @@
 //           [reference],
 //         )
 //       }
-//           return res.redirect(
-//             `https://denskill.com/student/dashboard?payment=success&reference=${reference}`,
-//           )
-//         } else {
-//           return res.redirect(
-//             `https://denskill.com/student/dashboard?payment=failed&reference=${reference}`,
-//           )
-//         }
-//       } catch (err) {
-//         console.error('Verification Error:', err.response?.data || err.message)
-//         return res.redirect('https://denskill.com/student/dashboard?payment=error')
-//       }
+
+//       // Return JSON instead of redirecting (Fixes the CORS error!)
+//       return res.status(200).json({
+//         success: true,
+//         message: 'Payment verified successfully',
+//         reference,
+//         customerEmail: paymentData.customer?.email,
+//         metadata: paymentData.metadata,
+//       })
+//     } else {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Payment verification failed',
+//         reference,
+//       })
+//     }
+//   } catch (err) {
+//     console.error('Verification Error:', err.response?.data || err.message)
+//     return res.status(500).json({
+//       success: false,
+//       error: 'Server error during payment verification.',
+//     })
+//   }
 // }
 
 // // @desc    Set password after successful enrollment payment
@@ -402,7 +413,7 @@
 //     res.status(200).json({
 //       status: 'success',
 //       message:
-//         'Password set successfully! You can now log in to your dashboard.',
+//         'Password set successfully! You can now log in to your dashboard...',
 //     })
 //   } catch (err) {
 //     console.error('Set Password Error:', err.message)
@@ -441,12 +452,14 @@ exports.initializeEnrollment = async (req, res) => {
         .json({ error: 'Please fill in all required registration fields.' })
     }
 
-    // 2. Validate course existence and get price
+    // 2. Validate course existence and get details
     if (!(course in COURSE_PRICES)) {
       return res.status(400).json({ error: 'Invalid course selected.' })
     }
 
-    const totalAmount = COURSE_PRICES[course]
+    const courseObj = COURSE_PRICES[course]
+    const totalAmount = courseObj.price
+    const totalWeeks = courseObj.weeks
     const paidAmount = Number(amountPaid) || totalAmount
 
     // 3. Handle Free courses (e.g., Graphics Design)
@@ -494,7 +507,7 @@ exports.initializeEnrollment = async (req, res) => {
       })
     }
 
-    // 4. Enforce minimum installment rule for paid courses
+    // 4. Enforce minimum installment rule (₦20,000 for paid courses)
     const minInstallment = totalAmount >= 20000 ? 20000 : totalAmount
     if (paidAmount < minInstallment) {
       return res.status(400).json({
@@ -553,15 +566,16 @@ exports.initializeEnrollment = async (req, res) => {
 
     const { authorization_url, reference } = paystackResponse.data.data
 
-    // 7. Calculate installment expiration (4 weeks from now if partial)
+    // 7. Calculate exact dynamic duration expiration based on course weeks
     let expiresAt = null
     let paymentStatus = 'partial'
     if (paidAmount === totalAmount) {
       paymentStatus = 'completed'
     } else {
-      const fourWeeksFromNow = new Date()
-      fourWeeksFromNow.setDate(fourWeeksFromNow.getDate() + 28)
-      expiresAt = fourWeeksFromNow
+      const expiryDays = totalWeeks * 7
+      const futureDate = new Date()
+      futureDate.setDate(futureDate.getDate() + expiryDays)
+      expiresAt = futureDate
     }
 
     // 8. Save or update pending enrollment record
@@ -764,7 +778,6 @@ exports.verifyEnrollmentPayment = async (req, res) => {
         )
       }
 
-      // Return JSON instead of redirecting (Fixes the CORS error!)
       return res.status(200).json({
         success: true,
         message: 'Payment verified successfully',
@@ -785,6 +798,76 @@ exports.verifyEnrollmentPayment = async (req, res) => {
       success: false,
       error: 'Server error during payment verification.',
     })
+  }
+}
+
+// @desc    Get student installment breakdown status and timeline health
+// @route   GET /api/enrollments/installment-status/:course
+// @access  Private (Requires authentication middleware attaching req.user)
+exports.getInstallmentStatus = async (req, res) => {
+  try {
+    const userId = req.user?.id
+    const course = decodeURIComponent(req.params.course)
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized user context.' })
+    }
+
+    const enrollmentResult = await db.query(
+      'SELECT * FROM enrollments WHERE user_id = $1 AND course = $2',
+      [userId, course],
+    )
+
+    if (enrollmentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Enrollment record not found.' })
+    }
+
+    const enrollment = enrollmentResult.rows[0]
+    const totalAmount = Number(enrollment.total_amount)
+    const amountPaid = Number(enrollment.amount_paid)
+    const remainingBalance = totalAmount - amountPaid
+
+    // Retrieve course total weeks from configuration map
+    const courseMeta = COURSE_PRICES[course] || {
+      price: totalAmount,
+      weeks: totalAmount === 200000 ? 22 : 11,
+    }
+    const totalWeeks = courseMeta.weeks
+    const weeklyBudget = totalWeeks > 0 ? totalAmount / totalWeeks : 0
+
+    // Time calculations
+    const createdAt = new Date(enrollment.created_at)
+    const now = new Date()
+    const diffTime = Math.abs(now - createdAt)
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    const weeksElapsed =
+      totalWeeks > 0 ? Math.min(Math.floor(diffDays / 7), totalWeeks) : 0
+
+    const expectedPaid = weeksElapsed * weeklyBudget
+    const paymentHealth =
+      amountPaid >= expectedPaid ? 'On Track' : 'Behind Schedule'
+
+    res.status(200).json({
+      status: 'success',
+      breakdown: {
+        totalAmount,
+        amountPaid,
+        remainingBalance,
+        totalWeeks,
+        weeklyBudget: Number(weeklyBudget.toFixed(2)),
+        daily7Days: Number((weeklyBudget / 7).toFixed(2)),
+        daily5Days: Number((weeklyBudget / 5).toFixed(2)),
+        weeksElapsed,
+        paymentHealth,
+        paymentStatus: enrollment.payment_status,
+        expiresAt: enrollment.expires_at,
+      },
+    })
+  } catch (err) {
+    console.error('Installment Status Error:', err.message)
+    res
+      .status(500)
+      .json({ error: 'Server error while fetching installment status.' })
   }
 }
 

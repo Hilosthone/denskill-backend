@@ -1,10 +1,13 @@
+// // enrollmentRoutes.js
 // const express = require('express')
 // const router = express.Router()
 // const {
 //   initializeEnrollment,
+//   initializeInstallmentPayment,
 //   verifyEnrollmentPayment,
 //   setPassword,
 // } = require('../controllers/enrollmentController')
+// const { protect } = require('../middleware/authMiddleware')
 
 // /**
 //  * @swagger
@@ -58,6 +61,38 @@
 
 // /**
 //  * @swagger
+//  * /api/enrollments/pay-installment:
+//  *   post:
+//  *     summary: Initialize subsequent installment payment for a logged-in student
+//  *     tags: [Enrollments]
+//  *     security:
+//  *       - bearerAuth: []
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             required:
+//  *               - course
+//  *               - amountPayable
+//  *             properties:
+//  *               course:
+//  *                 type: string
+//  *               amountPayable:
+//  *                 type: number
+//  *               callback_url:
+//  *                 type: string
+//  *     responses:
+//  *       200:
+//  *         description: Installment Paystack checkout link generated successfully.
+//  *       400:
+//  *         description: Validation error or amount exceeds remaining balance.
+//  */
+// router.post('/pay-installment', protect, initializeInstallmentPayment)
+
+// /**
+//  * @swagger
 //  * /api/enrollments/verify/{reference}:
 //  *   get:
 //  *     summary: Verify Paystack transaction and finalize enrollment tracking
@@ -75,7 +110,6 @@
 //  *       400:
 //  *         description: Payment verification failed.
 //  */
-// // router.get('/verify/:reference?', verifyEnrollmentPayment)
 // router.get('/verify', verifyEnrollmentPayment)
 // router.get('/verify/:reference', verifyEnrollmentPayment)
 
@@ -112,6 +146,8 @@
 
 // module.exports = router
 
+
+// enrollmentRoutes.js
 const express = require('express')
 const router = express.Router()
 const {
@@ -119,6 +155,7 @@ const {
   initializeInstallmentPayment,
   verifyEnrollmentPayment,
   setPassword,
+  getInstallmentStatus,
 } = require('../controllers/enrollmentController')
 const { protect } = require('../middleware/authMiddleware') 
 
@@ -203,6 +240,29 @@ router.post('/initialize', initializeEnrollment)
  *         description: Validation error or amount exceeds remaining balance.
  */
 router.post('/pay-installment', protect, initializeInstallmentPayment)
+
+/**
+ * @swagger
+ * /api/enrollments/installment-status/{course}:
+ *   get:
+ *     summary: Get student installment breakdown status and timeline health
+ *     tags: [Enrollments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: course
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Name of the course
+ *     responses:
+ *       200:
+ *         description: Installment breakdown fetched successfully.
+ *       404:
+ *         description: Enrollment record not found.
+ */
+router.get('/installment-status/:course', protect, getInstallmentStatus) // <-- 2. Add the route here
 
 /**
  * @swagger
