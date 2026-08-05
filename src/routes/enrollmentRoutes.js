@@ -6,6 +6,7 @@
 //   initializeInstallmentPayment,
 //   verifyEnrollmentPayment,
 //   setPassword,
+//   getInstallmentStatus,
 // } = require('../controllers/enrollmentController')
 // const { protect } = require('../middleware/authMiddleware')
 
@@ -93,6 +94,29 @@
 
 // /**
 //  * @swagger
+//  * /api/enrollments/installment-status/{course}:
+//  *   get:
+//  *     summary: Get student installment breakdown status and timeline health
+//  *     tags: [Enrollments]
+//  *     security:
+//  *       - bearerAuth: []
+//  *     parameters:
+//  *       - in: path
+//  *         name: course
+//  *         required: true
+//  *         schema:
+//  *           type: string
+//  *         description: Name of the course
+//  *     responses:
+//  *       200:
+//  *         description: Installment breakdown fetched successfully.
+//  *       404:
+//  *         description: Enrollment record not found.
+//  */
+// router.get('/installment-status/:course', protect, getInstallmentStatus) // <-- 2. Add the route here
+
+// /**
+//  * @swagger
 //  * /api/enrollments/verify/{reference}:
 //  *   get:
 //  *     summary: Verify Paystack transaction and finalize enrollment tracking
@@ -146,24 +170,22 @@
 
 // module.exports = router
 
-
-// enrollmentRoutes.js
 const express = require('express')
 const router = express.Router()
 const {
-  initializeEnrollment,
+  initializeEnrollment, // Update this controller to call Flutterwave underneath
   initializeInstallmentPayment,
   verifyEnrollmentPayment,
   setPassword,
   getInstallmentStatus,
 } = require('../controllers/enrollmentController')
-const { protect } = require('../middleware/authMiddleware') 
+const { protect } = require('../middleware/authMiddleware')
 
 /**
  * @swagger
  * /api/enrollments/initialize:
  *   post:
- *     summary: Register student details and initialize Paystack payment
+ *     summary: Register student details and initialize Flutterwave payment
  *     tags: [Enrollments]
  *     requestBody:
  *       required: true
@@ -199,11 +221,11 @@ const { protect } = require('../middleware/authMiddleware')
  *                 type: string
  *               amountPaid:
  *                 type: number
- *               callback_url:
+ *               redirect_url:
  *                 type: string
  *     responses:
  *       200:
- *         description: Paystack checkout authorization URL generated successfully.
+ *         description: Flutterwave payment link generated successfully.
  *       400:
  *         description: Validation error or missing fields.
  */
@@ -213,7 +235,7 @@ router.post('/initialize', initializeEnrollment)
  * @swagger
  * /api/enrollments/pay-installment:
  *   post:
- *     summary: Initialize subsequent installment payment for a logged-in student
+ *     summary: Initialize subsequent installment payment via Flutterwave
  *     tags: [Enrollments]
  *     security:
  *       - bearerAuth: []
@@ -231,11 +253,11 @@ router.post('/initialize', initializeEnrollment)
  *                 type: string
  *               amountPayable:
  *                 type: number
- *               callback_url:
+ *               redirect_url:
  *                 type: string
  *     responses:
  *       200:
- *         description: Installment Paystack checkout link generated successfully.
+ *         description: Installment Flutterwave checkout link generated successfully.
  *       400:
  *         description: Validation error or amount exceeds remaining balance.
  */
@@ -262,13 +284,13 @@ router.post('/pay-installment', protect, initializeInstallmentPayment)
  *       404:
  *         description: Enrollment record not found.
  */
-router.get('/installment-status/:course', protect, getInstallmentStatus) // <-- 2. Add the route here
+router.get('/installment-status/:course', protect, getInstallmentStatus)
 
 /**
  * @swagger
  * /api/enrollments/verify/{reference}:
  *   get:
- *     summary: Verify Paystack transaction and finalize enrollment tracking
+ *     summary: Verify Flutterwave transaction and finalize enrollment tracking
  *     tags: [Enrollments]
  *     parameters:
  *       - in: path
@@ -276,7 +298,7 @@ router.get('/installment-status/:course', protect, getInstallmentStatus) // <-- 
  *         required: false
  *         schema:
  *           type: string
- *         description: Paystack payment transaction reference
+ *         description: Flutterwave transaction ID or reference
  *     responses:
  *       200:
  *         description: Payment verified successfully.

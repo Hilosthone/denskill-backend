@@ -1,6 +1,5 @@
-// wipeDb.js
-const db = require('./src/config/db') // Adjust path to your db connection file
-
+// src/wipeDb.js
+const db = require('./src/config/db') 
 async function wipeDatabase() {
   try {
     console.log('Wiping database...')

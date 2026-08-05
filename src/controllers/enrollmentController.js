@@ -264,7 +264,7 @@
 //       {
 //         email: enrollment.email,
 //         amount: amountInKobo,
-//         callback_url: callback_url || 'https://www.denskill.com/dashboard',
+//         callback_url: callback_url || 'https://www.denskill.com/verify',
 //         metadata: {
 //           course,
 //           userId,
@@ -421,12 +421,15 @@
 //   }
 // }
 
+//src/controllers/enrollmentController.js
 const db = require('../config/db')
 const axios = require('axios')
 const bcrypt = require('bcryptjs')
 const { COURSE_PRICES } = require('../utils/courses')
 
-// @desc    Register student details & initialize Paystack payment
+const FLW_SECRET_KEY = process.env.FLW_SECRET_KEY
+
+// @desc    Register student details & initialize Flutterwave payment
 // @route   POST /api/enrollments/initialize
 // @access  Public
 exports.initializeEnrollment = async (req, res) => {
@@ -442,7 +445,7 @@ exports.initializeEnrollment = async (req, res) => {
       reason,
       referredBy,
       amountPaid, // Amount the student is paying right now
-      callback_url,
+      redirect_url,
     } = req.body
 
     // 1. Validate required fields
@@ -537,16 +540,28 @@ exports.initializeEnrollment = async (req, res) => {
       userId = userResult.rows[0].id
     }
 
-    // 6. Initialize transaction with Paystack (Convert amount to kobo)
-    const amountInKobo = Math.round(paidAmount * 100)
+    // 6. Generate a unique transaction reference for Flutterwave
+    const tx_ref = `denskill_flw_${Date.now()}_${Math.floor(Math.random() * 1000)}`
 
-    const paystackResponse = await axios.post(
-      'https://api.paystack.co/transaction/initialize',
+    // 7. Initialize transaction with Flutterwave
+    const flwResponse = await axios.post(
+      'https://api.flutterwave.com/v3/payments',
       {
-        email,
-        amount: amountInKobo,
-        callback_url,
-        metadata: {
+        tx_ref,
+        amount: paidAmount,
+        currency: 'NGN',
+        redirect_url: redirect_url || 'https://www.denskill.com/verify', 
+        customer: {
+          email,
+          phonenumber: phone,
+          name: `${firstName} ${lastName}`,
+        },
+        customizations: {
+          title: 'D Enskill Academy',
+          description: `Enrollment payment for ${course}`,
+          logo: 'https://www.denskill.com/denskill.png',
+        },
+        meta: {
           course,
           userId,
           firstName,
@@ -558,15 +573,16 @@ exports.initializeEnrollment = async (req, res) => {
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          Authorization: `Bearer ${FLW_SECRET_KEY}`,
           'Content-Type': 'application/json',
         },
       },
     )
 
-    const { authorization_url, reference } = paystackResponse.data.data
+    const paymentLink = flwResponse.data.data.link
+    const reference = tx_ref // Flutterwave tracks by tx_ref
 
-    // 7. Calculate exact dynamic duration expiration based on course weeks
+    // 8. Calculate exact dynamic duration expiration based on course weeks
     let expiresAt = null
     let paymentStatus = 'partial'
     if (paidAmount === totalAmount) {
@@ -578,7 +594,7 @@ exports.initializeEnrollment = async (req, res) => {
       expiresAt = futureDate
     }
 
-    // 8. Save or update pending enrollment record
+    // 9. Save or update pending enrollment record
     const existingEnrollment = await db.query(
       'SELECT * FROM enrollments WHERE email = $1 AND course = $2',
       [email, course],
@@ -623,7 +639,7 @@ exports.initializeEnrollment = async (req, res) => {
 
     res.status(200).json({
       status: 'success',
-      authorization_url,
+      authorization_url: paymentLink, // Kept key name consistent for frontend integration
       reference,
     })
   } catch (err) {
@@ -637,13 +653,13 @@ exports.initializeEnrollment = async (req, res) => {
   }
 }
 
-// @desc    Initialize subsequent/installment payment for logged-in user
+// @desc    Initialize subsequent/installment payment for logged-in user via Flutterwave
 // @route   POST /api/enrollments/pay-installment
 // @access  Private (Requires authentication middleware attaching req.user)
 exports.initializeInstallmentPayment = async (req, res) => {
   try {
     const userId = req.user?.id
-    const { course, amountPayable, callback_url } = req.body
+    const { course, amountPayable, redirect_url } = req.body
 
     if (!userId || !course || !amountPayable) {
       return res
@@ -682,16 +698,26 @@ exports.initializeInstallmentPayment = async (req, res) => {
       })
     }
 
-    // 2. Initialize Paystack transaction for installment
-    const amountInKobo = Math.round(installmentAmount * 100)
+    // 2. Generate unique reference and initialize Flutterwave transaction
+    const tx_ref = `denskill_inst_${Date.now()}_${Math.floor(Math.random() * 1000)}`
 
-    const paystackResponse = await axios.post(
-      'https://api.paystack.co/transaction/initialize',
+    const flwResponse = await axios.post(
+      'https://api.flutterwave.com/v3/payments',
       {
-        email: enrollment.email,
-        amount: amountInKobo,
-        callback_url: callback_url || 'https://www.denskill.com/dashboard',
-        metadata: {
+        tx_ref,
+        amount: installmentAmount,
+        currency: 'NGN',
+        redirect_url: redirect_url || 'https://www.denskill.com/dashboard',
+        customer: {
+          email: enrollment.email,
+          phonenumber: enrollment.phone,
+          name: `${enrollment.first_name} ${enrollment.last_name}`,
+        },
+        customizations: {
+          title: 'D Enskill Academy',
+          description: `Installment payment for ${course}`,
+        },
+        meta: {
           course,
           userId,
           paymentType: 'installment',
@@ -700,13 +726,14 @@ exports.initializeInstallmentPayment = async (req, res) => {
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          Authorization: `Bearer ${FLW_SECRET_KEY}`,
           'Content-Type': 'application/json',
         },
       },
     )
 
-    const { authorization_url, reference } = paystackResponse.data.data
+    const paymentLink = flwResponse.data.data.link
+    const reference = tx_ref
 
     // 3. Update active reference in database so verification hooks onto it
     await db.query(
@@ -716,7 +743,7 @@ exports.initializeInstallmentPayment = async (req, res) => {
 
     res.status(200).json({
       status: 'success',
-      authorization_url,
+      authorization_url: paymentLink,
       reference,
       remainingBalance: remainingBalance - installmentAmount,
     })
@@ -729,13 +756,13 @@ exports.initializeInstallmentPayment = async (req, res) => {
   }
 }
 
-// @desc    Verify Paystack transaction & finalize enrollment tracking
+// @desc    Verify Flutterwave transaction & finalize enrollment tracking
 // @route   GET /api/enrollments/verify/:reference?
 // @access  Public
 exports.verifyEnrollmentPayment = async (req, res) => {
   try {
     const reference =
-      req.params.reference || req.query.reference || req.query.trxref
+      req.params.reference || req.query.reference || req.query.tx_ref
 
     if (!reference) {
       return res
@@ -743,19 +770,31 @@ exports.verifyEnrollmentPayment = async (req, res) => {
         .json({ success: false, error: 'Transaction reference is missing.' })
     }
 
-    const response = await axios.get(
-      `https://api.paystack.co/transaction/verify/${reference}`,
+    // First, find the transaction ID using the tx_ref from Flutterwave, or verify directly if an ID was passed
+    // Flutterwave verify route uses transaction ID. We query transactions by tx_ref first to get the ID.
+    const txnSearchResponse = await axios.get(
+      `https://api.flutterwave.com/v3/transactions?tx_ref=${reference}`,
       {
         headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          Authorization: `Bearer ${FLW_SECRET_KEY}`,
         },
       },
     )
 
-    const paymentData = response.data.data
+    const transactions = txnSearchResponse.data.data
 
-    if (paymentData.status === 'success') {
-      const metadata = paymentData.metadata || {}
+    if (!transactions || transactions.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Transaction not found on Flutterwave',
+        reference,
+      })
+    }
+
+    const paymentData = transactions[0]
+
+    if (paymentData.status === 'successful') {
+      const metadata = paymentData.meta || {}
       const paymentType = metadata.paymentType || 'initial'
 
       if (paymentType === 'installment') {
@@ -783,12 +822,12 @@ exports.verifyEnrollmentPayment = async (req, res) => {
         message: 'Payment verified successfully',
         reference,
         customerEmail: paymentData.customer?.email,
-        metadata: paymentData.metadata,
+        metadata: paymentData.meta,
       })
     } else {
       return res.status(400).json({
         success: false,
-        message: 'Payment verification failed',
+        message: 'Payment verification failed or incomplete',
         reference,
       })
     }
@@ -827,7 +866,6 @@ exports.getInstallmentStatus = async (req, res) => {
     const amountPaid = Number(enrollment.amount_paid)
     const remainingBalance = totalAmount - amountPaid
 
-    // Retrieve course total weeks from configuration map
     const courseMeta = COURSE_PRICES[course] || {
       price: totalAmount,
       weeks: totalAmount === 200000 ? 22 : 11,
@@ -835,7 +873,6 @@ exports.getInstallmentStatus = async (req, res) => {
     const totalWeeks = courseMeta.weeks
     const weeklyBudget = totalWeeks > 0 ? totalAmount / totalWeeks : 0
 
-    // Time calculations
     const createdAt = new Date(enrollment.created_at)
     const now = new Date()
     const diffTime = Math.abs(now - createdAt)
