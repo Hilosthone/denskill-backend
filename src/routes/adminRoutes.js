@@ -1,4 +1,4 @@
-// //src/routes/adminRoutes.js
+// // src/routes/adminRoutes.js
 // const express = require('express')
 // const router = express.Router()
 // const { protect } = require('../middleware/authMiddleware')
@@ -19,7 +19,12 @@
 //   assignTutorToCourse,
 //   getReports,
 //   getSettings,
+//   executeGradeOverride,
+//   getAttendanceOverview,
 // } = require('../controllers/adminController')
+// const {
+//   manualOnboardStudent,
+// } = require('../controllers/adminEnrollmentController')
 
 // // Enforce auth & admin checking on all routes under /api/admin
 // router.use(protect, isAdmin)
@@ -287,7 +292,7 @@
 //  * @swagger
 //  * /api/admin/reports:
 //  *   get:
-//  *     summary: Get system performance reports
+//  *     summary: Get system performance reports and grading metrics
 //  *     tags: [Admin]
 //  *     security:
 //  *       - bearerAuth: []
@@ -296,6 +301,46 @@
 //  *         description: Reports retrieved successfully
 //  */
 // router.get('/reports', getReports)
+
+// /**
+//  * @swagger
+//  * /api/admin/grading/override/{gradeId}:
+//  *   put:
+//  *     summary: Execute an administrative override for any disputed score or academic adjustment
+//  *     tags: [Admin]
+//  *     security:
+//  *       - bearerAuth: []
+//  *     parameters:
+//  *       - in: path
+//  *         name: gradeId
+//  *         required: true
+//  *         schema:
+//  *           type: integer
+//  *     responses:
+//  *       200:
+//  *         description: Grade override executed successfully
+//  */
+// router.put('/grading/override/:gradeId', executeGradeOverride)
+
+// /**
+//  * @swagger
+//  * /api/admin/attendance/overview/{courseId}:
+//  *   get:
+//  *     summary: Monitor cohort-wide attendance trends and flag chronically absent students
+//  *     tags: [Admin]
+//  *     security:
+//  *       - bearerAuth: []
+//  *     parameters:
+//  *       - in: path
+//  *         name: courseId
+//  *         required: true
+//  *         schema:
+//  *           type: string
+//  *     responses:
+//  *       200:
+//  *         description: Attendance overview retrieved successfully
+//  */
+// router.get('/attendance/overview/:courseId', getAttendanceOverview)
 
 // /**
 //  * @swagger
@@ -311,6 +356,59 @@
 //  */
 // router.get('/settings', getSettings)
 
+// /**
+//  * @swagger
+//  * /api/admin/enrollments/manual-onboard:
+//  *   post:
+//  *     summary: Manually onboard a pre-paid/offline student with login credentials
+//  *     tags: [Admin]
+//  *     security:
+//  *       - bearerAuth: []
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             required:
+//  *               - firstName
+//  *               - lastName
+//  *               - email
+//  *               - phone
+//  *               - course
+//  *               - amountPaid
+//  *               - password
+//  *             properties:
+//  *               firstName:
+//  *                 type: string
+//  *               middleName:
+//  *                 type: string
+//  *               lastName:
+//  *                 type: string
+//  *               country:
+//  *                 type: string
+//  *               phone:
+//  *                 type: string
+//  *               email:
+//  *                 type: string
+//  *               course:
+//  *                 type: string
+//  *               amountPaid:
+//  *                 type: number
+//  *               password:
+//  *                 type: string
+//  *               referredBy:
+//  *                 type: string
+//  *               reason:
+//  *                 type: string
+//  *     responses:
+//  *       200:
+//  *         description: Student successfully onboarded with login credentials.
+//  *       400:
+//  *         description: Validation error or student already exists.
+//  */
+// router.post('/enrollments/manual-onboard', manualOnboardStudent)
+
 // module.exports = router
 
 
@@ -321,6 +419,7 @@ const router = express.Router()
 const { protect } = require('../middleware/authMiddleware')
 const { isAdmin } = require('../middleware/adminMiddleware')
 const {
+  adminLogin, // <--- Make sure adminLogin is imported from adminController
   getAdminOverview,
   getAllStudents,
   getAllPayments,
@@ -336,12 +435,48 @@ const {
   assignTutorToCourse,
   getReports,
   getSettings,
+  executeGradeOverride,
+  getAttendanceOverview,
 } = require('../controllers/adminController')
 const {
   manualOnboardStudent,
 } = require('../controllers/adminEnrollmentController')
 
-// Enforce auth & admin checking on all routes under /api/admin
+// ==========================================
+// 1. PUBLIC ADMIN ROUTES (No Auth Required)
+// ==========================================
+
+/**
+ * @swagger
+ * /api/admin/auth/login:
+ *   post:
+ *     summary: Admin login
+ *     tags: [Admin Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Admin logged in successfully
+ *       401:
+ *         description: Invalid credentials
+ */
+router.post('/auth/login', adminLogin)
+
+// ==========================================
+// 2. PROTECTED ADMIN ROUTES (Auth & Admin Check)
+// ==========================================
 router.use(protect, isAdmin)
 
 /**
@@ -607,7 +742,7 @@ router.delete('/instructors/:id', deleteInstructor)
  * @swagger
  * /api/admin/reports:
  *   get:
- *     summary: Get system performance reports
+ *     summary: Get system performance reports and grading metrics
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
@@ -616,6 +751,46 @@ router.delete('/instructors/:id', deleteInstructor)
  *         description: Reports retrieved successfully
  */
 router.get('/reports', getReports)
+
+/**
+ * @swagger
+ * /api/admin/grading/override/{gradeId}:
+ *   put:
+ *     summary: Execute an administrative override for any disputed score or academic adjustment
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: gradeId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Grade override executed successfully
+ */
+router.put('/grading/override/:gradeId', executeGradeOverride)
+
+/**
+ * @swagger
+ * /api/admin/attendance/overview/{courseId}:
+ *   get:
+ *     summary: Monitor cohort-wide attendance trends and flag chronically absent students
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: courseId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Attendance overview retrieved successfully
+ */
+router.get('/attendance/overview/:courseId', getAttendanceOverview)
 
 /**
  * @swagger
