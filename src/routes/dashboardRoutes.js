@@ -1,4 +1,4 @@
-// //src/routes/dashboardRoutes.js
+// // src/routes/dashboardRoutes.js
 // const express = require('express')
 // const router = express.Router()
 // const { protect } = require('../middleware/authMiddleware')
@@ -8,6 +8,11 @@
 //   getStudentCourses,
 //   getStudentPayments,
 //   getStudentAnnouncements,
+//   getCourseAssessments,
+//   submitAssessmentContent,
+//   getStudentGradesAndAttendance,
+//   getStudentCourseModules,
+//   getStudentLiveSessions,
 // } = require('../controllers/dashboardController')
 
 // // Protect all routes with auth
@@ -20,18 +25,24 @@
 // router.get('/receipts', getStudentPayments)
 // router.get('/announcements', getStudentAnnouncements)
 
+// // New Assessment, Submission, and Grade/Attendance Routes
+// router.get('/assessments/:courseId', getCourseAssessments)
+// router.post('/assessments/:assessmentId/submit', submitAssessmentContent)
+// router.get('/grades', getStudentGradesAndAttendance)
+
+// // New Course Content & Live Session Routes
+// router.get('/modules/:courseId', getStudentCourseModules)
+// router.get('/sessions/:courseId', getStudentLiveSessions)
+
 // router.get('/community', (req, res) => {
 //   res.status(200).json({ status: 'success', posts: [] })
 // })
 
 // module.exports = router
 
-
-
-// src/routes/dashboardRoutes.js
 const express = require('express')
 const router = express.Router()
-const { protect } = require('../middleware/authMiddleware') 
+const { protect } = require('../middleware/authMiddleware')
 const {
   getStudentOverview,
   getStudentProfile,
@@ -43,6 +54,8 @@ const {
   getStudentGradesAndAttendance,
   getStudentCourseModules,
   getStudentLiveSessions,
+  verifyContributionPayment,
+  getStudentScholarshipProfile,
 } = require('../controllers/dashboardController')
 
 // Protect all routes with auth
@@ -54,6 +67,10 @@ router.get('/courses', getStudentCourses)
 router.get('/payments', getStudentPayments)
 router.get('/receipts', getStudentPayments)
 router.get('/announcements', getStudentAnnouncements)
+
+// Scholarship-specific portal routes (merged from scholarshipDashboardRoutes)
+router.post('/payment/verify', verifyContributionPayment)
+router.get('/scholarship/profile', getStudentScholarshipProfile)
 
 // New Assessment, Submission, and Grade/Attendance Routes
 router.get('/assessments/:courseId', getCourseAssessments)

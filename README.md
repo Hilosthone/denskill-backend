@@ -96,7 +96,7 @@
 ```
 
 
-* **Response (201):** Returns success status and created user object.
+* **Response (201):** Returns success status, student ID number (`DEN-REG-001`), and created user object.
 
 ### Log in a user
 
@@ -111,7 +111,21 @@
 ```
 
 
-* **Response (200):** Returns access token (`JWT`) and user info.
+* **Response (200):** Returns access token (`JWT`), refresh token, and user info (including `student_id_number` and `student_type`).
+
+### Exchange refresh token for a new access token
+
+* **`POST /api/auth/refresh`**
+* **Request Body:**
+```json
+{
+  "refreshToken": "long_lived_jwt_refresh_token"
+}
+
+```
+
+
+* **Response (200):** Returns a fresh short-lived access token (`15m`).
 
 ### Request password reset OTP
 
@@ -148,7 +162,16 @@
 
 * **`POST /api/auth/logout`**
 * **Security:** Bearer Auth Required
-* **Response (200):** Session cleared successfully.
+* **Request Body:**
+```json
+{
+  "refreshToken": "long_lived_jwt_refresh_token"
+}
+
+```
+
+
+* **Response (200):** Session and refresh token revoked successfully.
 
 ---
 
@@ -180,6 +203,42 @@
 * **`GET /api/admin/instructors`** — Get system instructors.
 * **`GET /api/admin/reports`** — Get system performance reports.
 * **`GET /api/admin/settings`** — Get platform settings.
+
+---
+
+## 🌟 6. Scholarship Portal & Auth (`/api/scholarship/auth`)
+
+### Register a new scholarship student
+
+* **`POST /api/scholarship/auth/signup`**
+* **Request Body:**
+```json
+{
+  "name": "Jane Doe",
+  "email": "jane@example.com",
+  "password": "securepassword123",
+  "cohort_id": 1
+}
+
+```
+
+
+* **Response (201):** Returns success status, cohort-bound student ID (e.g., `DEN-SCH-C1-001`), and created scholarship user record.
+
+### Scholarship student login
+
+* **`POST /api/scholarship/auth/login`**
+* **Request Body:**
+```json
+{
+  "email": "jane@example.com",
+  "password": "securepassword123"
+}
+
+```
+
+
+* **Response (200):** Returns login token, scholarship status, student ID number, and cohort details (`id`, `name`, `code`).
 
 ```
 

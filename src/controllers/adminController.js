@@ -1,5 +1,35 @@
+// // src/controllers/adminController.js
 // const jwt = require('jsonwebtoken')
+// const crypto = require('crypto')
 // const db = require('../config/db')
+
+// // Helper: Generate Short-lived Access Token (15 minutes)
+// const generateAccessToken = (admin) => {
+//   return jwt.sign(
+//     { id: admin.id, email: admin.email, role: admin.role },
+//     process.env.JWT_SECRET || 'fallback_secret',
+//     { expiresIn: '15m' },
+//   )
+// }
+
+// // Helper: Generate Long-lived Refresh Token (7 days) & Store in DB
+// const generateRefreshToken = async (admin) => {
+//   const refreshToken = jwt.sign(
+//     { id: admin.id, email: admin.email, role: admin.role },
+//     process.env.JWT_REFRESH_SECRET || 'fallback_refresh_secret',
+//     { expiresIn: '7d' },
+//   )
+
+//   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+
+//   await db.query(
+//     `INSERT INTO refresh_tokens (user_id, token, expires_at)
+//      VALUES ($1, $2, $3)`,
+//     [admin.id, refreshToken, expiresAt],
+//   )
+
+//   return refreshToken
+// }
 
 // // @desc    Admin login
 // // @route   POST /api/admin/auth/login
@@ -23,16 +53,20 @@
 //         .json({ success: false, message: 'Invalid admin credentials' })
 //     }
 
-//     const token = jwt.sign(
-//       { email: ADMIN_EMAIL, role: 'admin' },
-//       process.env.JWT_SECRET || 'fallback_secret',
-//       { expiresIn: '7d' },
-//     )
+//     const adminUser = {
+//       id: 0, // System Admin ID marker
+//       email: ADMIN_EMAIL,
+//       role: 'admin',
+//     }
+
+//     const accessToken = generateAccessToken(adminUser)
+//     const refreshToken = await generateRefreshToken(adminUser)
 
 //     return res.status(200).json({
 //       success: true,
 //       message: 'Admin logged in successfully',
-//       token,
+//       accessToken,
+//       refreshToken,
 //       admin: {
 //         name: 'System Admin',
 //         email: ADMIN_EMAIL,
@@ -47,49 +81,76 @@
 //   }
 // }
 
-// // 1. GET /api/admin/dashboard (Dashboard Metrics & Recent Enrollments)
+// // 1. GET /api/admin/dashboard (Unified Dashboard Metrics & Recent Enrollments)
 // const getAdminOverview = async (req, res) => {
 //   try {
 //     const studentCount = await db.query(
-//       'SELECT COUNT(*) FROM users WHERE role = $1',
-//       ['student'],
+//       'SELECT COUNT(*) FROM users WHERE role = $1 OR student_type = $2',
+//       ['student', 'SCHOLARSHIP'],
 //     )
 //     const revenueResult = await db.query(
 //       'SELECT SUM(amount_paid) AS total_revenue FROM enrollments',
+//     )
+//     const scholarshipRevenue = await db.query(
+//       "SELECT SUM(amount) AS total_scholarship_revenue FROM scholarship_payments WHERE status = 'SUCCESS'",
 //     )
 //     const activeCourses = await db.query(
 //       'SELECT COUNT(DISTINCT course) FROM enrollments',
 //     )
 //     const recentEnrollments = await db.query(
-//       `SELECT e.id, u.name, e.course, e.amount_paid, e.payment_status, e.created_at
+//       `SELECT e.id, u.first_name, u.last_name, e.course, e.amount_paid, e.payment_status, e.created_at
 //        FROM enrollments e JOIN users u ON e.user_id = u.id ORDER BY e.created_at DESC LIMIT 5`,
 //     )
+
+//     const totalRev = parseFloat(revenueResult.rows[0].total_revenue || 0) +
+//                      parseFloat(scholarshipRevenue.rows[0].total_scholarship_revenue || 0)
 
 //     res.status(200).json({
 //       status: 'success',
 //       metrics: {
 //         totalStudents: parseInt(studentCount.rows[0].count),
-//         totalRevenue: parseFloat(revenueResult.rows[0].total_revenue || 0),
+//         totalRevenue: totalRev,
 //         activeCourses: parseInt(activeCourses.rows[0].count),
 //       },
 //       recentEnrollments: recentEnrollments.rows,
 //     })
 //   } catch (err) {
 //     console.error('Admin Overview Error:', err.message)
-//     res
-//       .status(500)
-//       .json({ error: 'Server error while fetching admin overview.' })
+//     res.status(500).json({ error: 'Server error while fetching admin overview.' })
 //   }
 // }
 
-// // 2. GET /api/admin/students (Students Tab)
+// // 2. GET /api/admin/students (Unified Students Tab - Regular & Scholarship)
 // const getAllStudents = async (req, res) => {
 //   try {
-//     const result = await db.query(
-//       'SELECT id, name, email, is_verified, created_at FROM users WHERE role = $1 ORDER BY created_at DESC',
-//       ['student'],
-//     )
-//     res.status(200).json({ status: 'success', students: result.rows })
+//     const { studentType, cohortId } = req.query
+//     let query = `
+//       SELECT u.id, u.first_name, u.last_name, u.email, u.phone, u.student_type, u.scholarship_status, u.cohort_id,
+//              sc.name as cohort_name, sc.code as cohort_code, u.is_verified, u.created_at
+//       FROM users u
+//       LEFT JOIN scholarship_cohorts sc ON u.cohort_id = sc.id
+//       WHERE u.role = 'student' OR u.student_type = 'SCHOLARSHIP'
+//     `
+//     let conditions = []
+//     let params = []
+
+//     if (studentType) {
+//       params.push(studentType)
+//       conditions.push(`u.student_type = $${params.length}`)
+//     }
+//     if (cohortId) {
+//       params.push(cohortId)
+//       conditions.push(`u.cohort_id = $${params.length}`)
+//     }
+
+//     if (conditions.length > 0) {
+//       query += ` AND ` + conditions.join(' AND ')
+//     }
+
+//     query += ` ORDER BY u.created_at DESC`
+
+//     const result = await db.query(query, params)
+//     res.status(200).json({ status: 'success', count: result.rows.length, students: result.rows })
 //   } catch (err) {
 //     console.error('Admin Students Error:', err.message)
 //     res.status(500).json({ error: 'Server error while fetching students.' })
@@ -100,7 +161,7 @@
 // const getAllPayments = async (req, res) => {
 //   try {
 //     const result = await db.query(
-//       `SELECT e.id, u.name as student_name, u.email, e.course, e.total_amount, e.amount_paid,
+//       `SELECT e.id, u.first_name, u.last_name, u.email, e.course, e.total_amount, e.amount_paid,
 //               e.payment_status, e.reference, e.created_at
 //        FROM enrollments e JOIN users u ON e.user_id = u.id ORDER BY e.created_at DESC`,
 //     )
@@ -124,7 +185,7 @@
 //   }
 // }
 
-// // 5. Announcements (Announcements Tab)
+// // 5. Announcements Tab
 // const getAdminAnnouncements = async (req, res) => {
 //   try {
 //     const result = await db.query(
@@ -132,9 +193,7 @@
 //     )
 //     res.status(200).json({ status: 'success', announcements: result.rows })
 //   } catch (err) {
-//     res
-//       .status(500)
-//       .json({ error: 'Server error while fetching announcements.' })
+//     res.status(500).json({ error: 'Server error while fetching announcements.' })
 //   }
 // }
 
@@ -154,7 +213,7 @@
 //   }
 // }
 
-// // 6. Instructors Tab (Fully Implemented)
+// // 6. Instructors Tab
 // const getInstructors = async (req, res) => {
 //   try {
 //     const result = await db.query(
@@ -171,9 +230,7 @@
 //   try {
 //     const { name, email, specialty, role } = req.body
 //     if (!name || !email || !specialty) {
-//       return res
-//         .status(400)
-//         .json({ error: 'Name, email, and specialty are required.' })
+//       return res.status(400).json({ error: 'Name, email, and specialty are required.' })
 //     }
 
 //     const result = await db.query(
@@ -244,15 +301,45 @@
 //   }
 // }
 
-// // 7. Reports Tab Placeholder
+// // 7. Reports Tab
 // const getReports = async (req, res) => {
-//   res.status(200).json({
-//     status: 'success',
-//     reports: { summary: 'System performance normal' },
-//   })
+//   try {
+//     const statsQuery = `
+//       SELECT
+//         (SELECT COUNT(*) FROM assessments) as total_assessments,
+//         (SELECT COUNT(*) FROM student_submissions) as total_submissions,
+//         (SELECT COUNT(*) FROM student_submissions WHERE status = 'graded') as total_graded,
+//         (SELECT COUNT(*) FROM student_submissions WHERE status = 'submitted') as pending_grading;
+//     `
+//     const statsResult = await db.query(statsQuery)
+
+//     const studentPerformanceQuery = `
+//       SELECT
+//         u.id as student_id,
+//         u.first_name,
+//         u.last_name,
+//         u.email,
+//         SUM((COALESCE(s.score, 0) / NULLIF(a.total_marks, 0)) * COALESCE(a.weight, 0)) as cumulative_score
+//       FROM users u
+//       JOIN student_submissions s ON u.id = s.student_id
+//       JOIN assessments a ON s.assessment_id = a.id
+//       WHERE s.status = 'graded'
+//       GROUP BY u.id, u.first_name, u.last_name, u.email;
+//     `
+//     const performanceResult = await db.query(studentPerformanceQuery)
+
+//     res.status(200).json({
+//       status: 'success',
+//       metrics: statsResult.rows[0],
+//       student_aggregates: performanceResult.rows,
+//     })
+//   } catch (err) {
+//     console.error('Grading Reports Error:', err.message)
+//     res.status(500).json({ error: 'Server error while fetching grading reports.' })
+//   }
 // }
 
-// // 8. Settings Tab Placeholder
+// // 8. Settings Tab
 // const getSettings = async (req, res) => {
 //   res.status(200).json({
 //     status: 'success',
@@ -260,14 +347,14 @@
 //   })
 // }
 
-// // PUT /api/admin/students/:id/status - Freeze or Unfreeze account
+// // Account Management Actions
 // const toggleFreezeStudent = async (req, res) => {
 //   try {
 //     const { id } = req.params
-//     const { status } = req.body // e.g., 'frozen' or 'active'
+//     const { status } = req.body
 
 //     const result = await db.query(
-//       `UPDATE users SET status = $1 WHERE id = $2 RETURNING id, name, email, status`,
+//       `UPDATE users SET scholarship_status = $1 WHERE id = $2 RETURNING id, first_name, last_name, email, scholarship_status`,
 //       [status, id],
 //     )
 
@@ -284,7 +371,6 @@
 //   }
 // }
 
-// // DELETE /api/admin/students/:id - Delete student account
 // const deleteStudentAccount = async (req, res) => {
 //   try {
 //     const { id } = req.params
@@ -328,6 +414,269 @@
 //   }
 // }
 
+// // 9. Scholarship Management Methods (Merged into Single Admin Controller)
+// const getScholarshipDashboardMetrics = async (req, res) => {
+//   try {
+//     const { cohortId } = req.query
+//     let cohortFilter = ''
+//     let params = []
+
+//     if (cohortId) {
+//       cohortFilter = 'WHERE cohort_id = $1'
+//       params.push(cohortId)
+//     }
+
+//     const statsQuery = `
+//       SELECT
+//         COUNT(*) as total_applications,
+//         SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END) as pending_applications,
+//         SUM(CASE WHEN status = 'UNDER_REVIEW' THEN 1 ELSE 0 END) as under_review,
+//         SUM(CASE WHEN status = 'APPROVED' OR status = 'AWAITING_PAYMENT' THEN 1 ELSE 0 END) as approved,
+//         SUM(CASE WHEN status = 'REJECTED' THEN 1 ELSE 0 END) as rejected,
+//         SUM(CASE WHEN status = 'PAYMENT_COMPLETED' OR status = 'ENROLLED' THEN 1 ELSE 0 END) as paid_enrolled
+//       FROM scholarship_applications ${cohortFilter};
+//     `
+
+//     const statsResult = await db.query(statsQuery, params)
+//     const cohortResult = await db.query(
+//       `SELECT * FROM scholarship_cohorts WHERE status = 'ACTIVE' LIMIT 1`,
+//     )
+
+//     res.status(200).json({
+//       success: true,
+//       metrics: statsResult.rows[0],
+//       activeCohort: cohortResult.rows[0] || null,
+//     })
+//   } catch (error) {
+//     console.error('Error fetching scholarship metrics:', error)
+//     res.status(500).json({ success: false, message: 'Server error loading scholarship metrics' })
+//   }
+// }
+
+// const getAllApplications = async (req, res) => {
+//   try {
+//     const { cohortId, status } = req.query
+//     let query = `
+//       SELECT sa.*, sc.name as cohort_name, sc.code as cohort_code
+//       FROM scholarship_applications sa
+//       JOIN scholarship_cohorts sc ON sa.cohort_id = sc.id
+//     `
+//     let conditions = []
+//     let params = []
+
+//     if (cohortId) {
+//       params.push(cohortId)
+//       conditions.push(`sa.cohort_id = $${params.length}`)
+//     }
+//     if (status) {
+//       params.push(status)
+//       conditions.push(`sa.status = $${params.length}`)
+//     }
+
+//     if (conditions.length > 0) {
+//       query += ` WHERE ` + conditions.join(' AND ')
+//     }
+
+//     query += ` ORDER BY sa.created_at DESC`
+
+//     const result = await db.query(query, params)
+//     res.status(200).json({ success: true, count: result.rows.length, applications: result.rows })
+//   } catch (error) {
+//     console.error('Error fetching applications:', error)
+//     res.status(500).json({ success: false, message: 'Server error loading applications' })
+//   }
+// }
+
+// const approveApplication = async (req, res) => {
+//   const { id } = req.params
+//   const { adminNotes } = req.body
+
+//   try {
+//     const appResult = await db.query(`SELECT * FROM scholarship_applications WHERE id = $1`, [id])
+//     if (appResult.rows.length === 0) {
+//       return res.status(404).json({ success: false, message: 'Scholarship application not found' })
+//     }
+
+//     const app = appResult.rows[0]
+//     if (app.status === 'APPROVED' || app.status === 'AWAITING_PAYMENT') {
+//       return res.status(400).json({ success: false, message: 'Application is already approved.' })
+//     }
+
+//     await db.query(
+//       `UPDATE scholarship_applications SET status = 'AWAITING_PAYMENT', admin_notes = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+//       [adminNotes || 'Application approved. Proceed to contribution payment.', id],
+//     )
+
+//     const randomHex = crypto.bytesToHex
+//       ? crypto.bytesToHex(crypto.randomBytes(4))
+//       : crypto.randomBytes(4).toString('hex')
+//     const paymentReference = `SCH-${app.cohort_id}-${randomHex.toUpperCase()}`
+
+//     const awardResult = await db.query(
+//       `INSERT INTO scholarship_awards
+//        (application_id, original_amount, student_contribution_percentage, student_amount, scholarship_amount, currency, payment_reference, payment_status, expires_at)
+//        VALUES ($1, 80000.00, 20, 16000.00, 64000.00, 'NGN', $2, 'PENDING', CURRENT_TIMESTAMP + INTERVAL '7 days')
+//        RETURNING *;`,
+//       [id, paymentReference],
+//     )
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'Scholarship application approved successfully! Payment reference generated.',
+//       award: awardResult.rows[0],
+//     })
+//   } catch (error) {
+//     console.error('Error approving application:', error)
+//     res.status(500).json({ success: false, message: 'Server error processing approval' })
+//   }
+// }
+
+// const rejectApplication = async (req, res) => {
+//   const { id } = req.params
+//   const { adminNotes } = req.body
+
+//   try {
+//     const appResult = await db.query(`SELECT * FROM scholarship_applications WHERE id = $1`, [id])
+//     if (appResult.rows.length === 0) {
+//       return res.status(404).json({ success: false, message: 'Scholarship application not found' })
+//     }
+
+//     await db.query(
+//       `UPDATE scholarship_applications SET status = 'REJECTED', admin_notes = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+//       [adminNotes || 'Application rejected.', id],
+//     )
+
+//     res.status(200).json({ success: true, message: 'Scholarship application rejected.' })
+//   } catch (error) {
+//     console.error('Error rejecting application:', error)
+//     res.status(500).json({ success: false, message: 'Server error processing rejection' })
+//   }
+// }
+
+// const createCohort = async (req, res) => {
+//   const { name, code, startDate, endDate, applicationOpenDate, applicationCloseDate } = req.body
+
+//   try {
+//     const result = await db.query(
+//       `INSERT INTO scholarship_cohorts
+//        (name, code, start_date, end_date, application_open_date, application_close_date, status)
+//        VALUES ($1, $2, $3, $4, $5, $6, 'UPCOMING')
+//        RETURNING *;`,
+//       [name, code, startDate, endDate, applicationOpenDate, applicationCloseDate],
+//     )
+
+//     res.status(201).json({
+//       success: true,
+//       message: 'Scholarship cohort created successfully',
+//       cohort: result.rows[0],
+//     })
+//   } catch (error) {
+//     console.error('Error creating cohort:', error)
+//     res.status(500).json({ success: false, message: 'Server error creating cohort' })
+//   }
+// }
+
+// const updateCohortStatus = async (req, res) => {
+//   const { id } = req.params
+//   const { status } = req.body
+
+//   try {
+//     const result = await db.query(
+//       `UPDATE scholarship_cohorts SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *;`,
+//       [status, id],
+//     )
+
+//     if (result.rows.length === 0) {
+//       return res.status(404).json({ success: false, message: 'Cohort not found' })
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'Cohort status updated successfully',
+//       cohort: result.rows[0],
+//     })
+//   } catch (error) {
+//     console.error('Error updating cohort status:', error)
+//     res.status(500).json({ success: false, message: 'Server error updating cohort' })
+//   }
+// }
+
+// const getAllCohorts = async (req, res) => {
+//   try {
+//     const result = await db.query(`SELECT * FROM scholarship_cohorts ORDER BY start_date DESC`)
+//     res.status(200).json({ success: true, cohorts: result.rows })
+//   } catch (error) {
+//     console.error('Error fetching cohorts:', error)
+//     res.status(500).json({ success: false, message: 'Server error fetching cohorts' })
+//   }
+// }
+
+// // Grading & Attendance Supervisory Methods
+// const executeGradeOverride = async (req, res) => {
+//   try {
+//     const { gradeId } = req.params
+//     const { new_score, feedback } = req.body
+//     const adminId = req.user ? req.user.id : 0
+
+//     const query = `
+//       UPDATE student_submissions
+//       SET score = $1, feedback = CONCAT(COALESCE(feedback, ''), ' | [Admin Override ID: ', $2, '] - ', $3), graded_at = CURRENT_TIMESTAMP, status = 'graded'
+//       WHERE id = $4
+//       RETURNING *;
+//     `
+//     const result = await db.query(query, [
+//       new_score,
+//       adminId,
+//       feedback || 'Grade adjusted by Admin',
+//       gradeId,
+//     ])
+
+//     if (result.rows.length === 0) {
+//       return res.status(404).json({ error: 'Submission/Grade record not found.' })
+//     }
+
+//     res.status(200).json({ status: 'success', updated_submission: result.rows[0] })
+//   } catch (err) {
+//     console.error('Grade Override Error:', err.message)
+//     res.status(500).json({ error: 'Server error executing grade override.' })
+//   }
+// }
+
+// const getAttendanceOverview = async (req, res) => {
+//   try {
+//     const { courseId } = req.params
+
+//     const query = `
+//       SELECT
+//         u.id as student_id,
+//         u.first_name,
+//         u.last_name,
+//         u.email,
+//         COUNT(a.id) as total_sessions_logged,
+//         COUNT(a.id) FILTER (WHERE a.status = 'present') as present_count,
+//         COUNT(a.id) FILTER (WHERE a.status = 'absent') as absent_count,
+//         ROUND(
+//           (COUNT(a.id) FILTER (WHERE a.status = 'present')::decimal / NULLIF(COUNT(a.id), 0)) * 100, 2
+//         ) as attendance_percentage
+//       FROM users u
+//       JOIN attendance_logs a ON u.id = a.student_id
+//       WHERE a.course_id = $1
+//       GROUP BY u.id, u.first_name, u.last_name, u.email
+//       ORDER BY attendance_percentage ASC;
+//     `
+//     const result = await db.query(query, [courseId])
+
+//     res.status(200).json({
+//       status: 'success',
+//       course_id: courseId,
+//       cohort_attendance: result.rows,
+//     })
+//   } catch (err) {
+//     console.error('Attendance Overview Error:', err.message)
+//     res.status(500).json({ error: 'Server error fetching attendance overview.' })
+//   }
+// }
+
 // module.exports = {
 //   adminLogin,
 //   getAdminOverview,
@@ -345,9 +694,21 @@
 //   assignTutorToCourse,
 //   getReports,
 //   getSettings,
+//   getScholarshipDashboardMetrics,
+//   getAllApplications,
+//   approveApplication,
+//   rejectApplication,
+//   createCohort,
+//   updateCohortStatus,
+//   getAllCohorts,
+//   executeGradeOverride,
+//   getAttendanceOverview,
 // }
 
+
+// src/controllers/adminController.js
 const jwt = require('jsonwebtoken')
+const crypto = require('crypto')
 const db = require('../config/db')
 
 // Helper: Generate Short-lived Access Token (15 minutes)
@@ -369,7 +730,6 @@ const generateRefreshToken = async (admin) => {
 
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
 
-  // Store refresh token in database (using user_id = 0 for system admin tracker)
   await db.query(
     `INSERT INTO refresh_tokens (user_id, token, expires_at) 
      VALUES ($1, $2, $3)`,
@@ -407,7 +767,6 @@ const adminLogin = async (req, res) => {
       role: 'admin',
     }
 
-    // Generate both Access and Refresh tokens
     const accessToken = generateAccessToken(adminUser)
     const refreshToken = await generateRefreshToken(adminUser)
 
@@ -430,49 +789,76 @@ const adminLogin = async (req, res) => {
   }
 }
 
-// 1. GET /api/admin/dashboard (Dashboard Metrics & Recent Enrollments)
+// 1. GET /api/admin/dashboard (Unified Dashboard Metrics & Recent Enrollments)
 const getAdminOverview = async (req, res) => {
   try {
     const studentCount = await db.query(
-      'SELECT COUNT(*) FROM users WHERE role = $1',
-      ['student'],
+      'SELECT COUNT(*) FROM users WHERE role = $1 OR student_type = $2',
+      ['student', 'SCHOLARSHIP'],
     )
     const revenueResult = await db.query(
       'SELECT SUM(amount_paid) AS total_revenue FROM enrollments',
+    )
+    const scholarshipRevenue = await db.query(
+      "SELECT SUM(amount) AS total_scholarship_revenue FROM scholarship_payments WHERE status = 'SUCCESS'",
     )
     const activeCourses = await db.query(
       'SELECT COUNT(DISTINCT course) FROM enrollments',
     )
     const recentEnrollments = await db.query(
-      `SELECT e.id, u.name, e.course, e.amount_paid, e.payment_status, e.created_at 
+      `SELECT e.id, u.first_name, u.last_name, e.course, e.amount_paid, e.payment_status, e.created_at 
        FROM enrollments e JOIN users u ON e.user_id = u.id ORDER BY e.created_at DESC LIMIT 5`,
     )
+
+    const totalRev = parseFloat(revenueResult.rows[0].total_revenue || 0) + 
+                     parseFloat(scholarshipRevenue.rows[0].total_scholarship_revenue || 0)
 
     res.status(200).json({
       status: 'success',
       metrics: {
         totalStudents: parseInt(studentCount.rows[0].count),
-        totalRevenue: parseFloat(revenueResult.rows[0].total_revenue || 0),
+        totalRevenue: totalRev,
         activeCourses: parseInt(activeCourses.rows[0].count),
       },
       recentEnrollments: recentEnrollments.rows,
     })
   } catch (err) {
     console.error('Admin Overview Error:', err.message)
-    res
-      .status(500)
-      .json({ error: 'Server error while fetching admin overview.' })
+    res.status(500).json({ error: 'Server error while fetching admin overview.' })
   }
 }
 
-// 2. GET /api/admin/students (Students Tab)
+// 2. GET /api/admin/students (Unified Students Tab - Regular & Scholarship)
 const getAllStudents = async (req, res) => {
   try {
-    const result = await db.query(
-      'SELECT id, name, email, is_verified, created_at FROM users WHERE role = $1 ORDER BY created_at DESC',
-      ['student'],
-    )
-    res.status(200).json({ status: 'success', students: result.rows })
+    const { studentType, cohortId } = req.query
+    let query = `
+      SELECT u.id, u.first_name, u.last_name, u.email, u.phone, u.student_type, u.scholarship_status, u.cohort_id, 
+             sc.name as cohort_name, sc.code as cohort_code, u.is_verified, u.created_at 
+      FROM users u
+      LEFT JOIN scholarship_cohorts sc ON u.cohort_id = sc.id
+      WHERE u.role = 'student' OR u.student_type = 'SCHOLARSHIP'
+    `
+    let conditions = []
+    let params = []
+
+    if (studentType) {
+      params.push(studentType)
+      conditions.push(`u.student_type = $${params.length}`)
+    }
+    if (cohortId) {
+      params.push(cohortId)
+      conditions.push(`u.cohort_id = $${params.length}`)
+    }
+
+    if (conditions.length > 0) {
+      query += ` AND ` + conditions.join(' AND ')
+    }
+
+    query += ` ORDER BY u.created_at DESC`
+
+    const result = await db.query(query, params)
+    res.status(200).json({ status: 'success', count: result.rows.length, students: result.rows })
   } catch (err) {
     console.error('Admin Students Error:', err.message)
     res.status(500).json({ error: 'Server error while fetching students.' })
@@ -483,7 +869,7 @@ const getAllStudents = async (req, res) => {
 const getAllPayments = async (req, res) => {
   try {
     const result = await db.query(
-      `SELECT e.id, u.name as student_name, u.email, e.course, e.total_amount, e.amount_paid, 
+      `SELECT e.id, u.first_name, u.last_name, u.email, e.course, e.total_amount, e.amount_paid, 
               e.payment_status, e.reference, e.created_at 
        FROM enrollments e JOIN users u ON e.user_id = u.id ORDER BY e.created_at DESC`,
     )
@@ -507,7 +893,7 @@ const getAllCourses = async (req, res) => {
   }
 }
 
-// 5. Announcements (Announcements Tab)
+// 5. Announcements Tab
 const getAdminAnnouncements = async (req, res) => {
   try {
     const result = await db.query(
@@ -515,9 +901,7 @@ const getAdminAnnouncements = async (req, res) => {
     )
     res.status(200).json({ status: 'success', announcements: result.rows })
   } catch (err) {
-    res
-      .status(500)
-      .json({ error: 'Server error while fetching announcements.' })
+    res.status(500).json({ error: 'Server error while fetching announcements.' })
   }
 }
 
@@ -537,7 +921,7 @@ const createAnnouncement = async (req, res) => {
   }
 }
 
-// 6. Instructors Tab (Fully Implemented)
+// 6. Instructors Tab
 const getInstructors = async (req, res) => {
   try {
     const result = await db.query(
@@ -554,9 +938,7 @@ const createInstructor = async (req, res) => {
   try {
     const { name, email, specialty, role } = req.body
     if (!name || !email || !specialty) {
-      return res
-        .status(400)
-        .json({ error: 'Name, email, and specialty are required.' })
+      return res.status(400).json({ error: 'Name, email, and specialty are required.' })
     }
 
     const result = await db.query(
@@ -642,14 +1024,15 @@ const getReports = async (req, res) => {
     const studentPerformanceQuery = `
       SELECT 
         u.id as student_id,
-        u.name,
+        u.first_name,
+        u.last_name,
         u.email,
         SUM((COALESCE(s.score, 0) / NULLIF(a.total_marks, 0)) * COALESCE(a.weight, 0)) as cumulative_score
       FROM users u
       JOIN student_submissions s ON u.id = s.student_id
       JOIN assessments a ON s.assessment_id = a.id
       WHERE s.status = 'graded'
-      GROUP BY u.id, u.name, u.email;
+      GROUP BY u.id, u.first_name, u.last_name, u.email;
     `
     const performanceResult = await db.query(studentPerformanceQuery)
 
@@ -660,13 +1043,11 @@ const getReports = async (req, res) => {
     })
   } catch (err) {
     console.error('Grading Reports Error:', err.message)
-    res
-      .status(500)
-      .json({ error: 'Server error while fetching grading reports.' })
+    res.status(500).json({ error: 'Server error while fetching grading reports.' })
   }
 }
 
-// 8. Settings Tab Placeholder
+// 8. Settings Tab
 const getSettings = async (req, res) => {
   res.status(200).json({
     status: 'success',
@@ -674,14 +1055,14 @@ const getSettings = async (req, res) => {
   })
 }
 
-// PUT /api/admin/students/:id/status - Freeze or Unfreeze account
+// Account Management Actions
 const toggleFreezeStudent = async (req, res) => {
   try {
     const { id } = req.params
-    const { status } = req.body // e.g., 'frozen' or 'active'
+    const { status } = req.body
 
     const result = await db.query(
-      `UPDATE users SET status = $1 WHERE id = $2 RETURNING id, name, email, status`,
+      `UPDATE users SET scholarship_status = $1 WHERE id = $2 RETURNING id, first_name, last_name, email, scholarship_status`,
       [status, id],
     )
 
@@ -698,7 +1079,6 @@ const toggleFreezeStudent = async (req, res) => {
   }
 }
 
-// DELETE /api/admin/students/:id - Delete student account
 const deleteStudentAccount = async (req, res) => {
   try {
     const { id } = req.params
@@ -742,10 +1122,207 @@ const assignTutorToCourse = async (req, res) => {
   }
 }
 
-// Additional Admin Grading & Attendance Supervisory Methods
+// 9. Scholarship Management Methods (Merged into Single Admin Controller)
+const getScholarshipDashboardMetrics = async (req, res) => {
+  try {
+    const { cohortId } = req.query
+    let cohortFilter = ''
+    let params = []
+
+    if (cohortId) {
+      cohortFilter = 'WHERE cohort_id = $1'
+      params.push(cohortId)
+    }
+
+    const statsQuery = `
+      SELECT 
+        COUNT(*) as total_applications,
+        SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END) as pending_applications,
+        SUM(CASE WHEN status = 'UNDER_REVIEW' THEN 1 ELSE 0 END) as under_review,
+        SUM(CASE WHEN status = 'APPROVED' OR status = 'AWAITING_PAYMENT' THEN 1 ELSE 0 END) as approved,
+        SUM(CASE WHEN status = 'REJECTED' THEN 1 ELSE 0 END) as rejected,
+        SUM(CASE WHEN status = 'PAYMENT_COMPLETED' OR status = 'ENROLLED' THEN 1 ELSE 0 END) as paid_enrolled
+      FROM scholarship_applications ${cohortFilter};
+    `
+
+    const statsResult = await db.query(statsQuery, params)
+    const cohortResult = await db.query(
+      `SELECT * FROM scholarship_cohorts WHERE status = 'ACTIVE' LIMIT 1`,
+    )
+
+    res.status(200).json({
+      success: true,
+      metrics: statsResult.rows[0],
+      activeCohort: cohortResult.rows[0] || null,
+    })
+  } catch (error) {
+    console.error('Error fetching scholarship metrics:', error)
+    res.status(500).json({ success: false, message: 'Server error loading scholarship metrics' })
+  }
+}
+
+const getAllApplications = async (req, res) => {
+  try {
+    const { cohortId, status } = req.query
+    let query = `
+      SELECT sa.*, sc.name as cohort_name, sc.code as cohort_code 
+      FROM scholarship_applications sa
+      JOIN scholarship_cohorts sc ON sa.cohort_id = sc.id
+    `
+    let conditions = []
+    let params = []
+
+    if (cohortId) {
+      params.push(cohortId)
+      conditions.push(`sa.cohort_id = $${params.length}`)
+    }
+    if (status) {
+      params.push(status)
+      conditions.push(`sa.status = $${params.length}`)
+    }
+
+    if (conditions.length > 0) {
+      query += ` WHERE ` + conditions.join(' AND ')
+    }
+
+    query += ` ORDER BY sa.created_at DESC`
+
+    const result = await db.query(query, params)
+    res.status(200).json({ success: true, count: result.rows.length, applications: result.rows })
+  } catch (error) {
+    console.error('Error fetching applications:', error)
+    res.status(500).json({ success: false, message: 'Server error loading applications' })
+  }
+}
+
+const approveApplication = async (req, res) => {
+  const { id } = req.params
+  const { adminNotes } = req.body
+
+  try {
+    const appResult = await db.query(`SELECT * FROM scholarship_applications WHERE id = $1`, [id])
+    if (appResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Scholarship application not found' })
+    }
+
+    const app = appResult.rows[0]
+    if (app.status === 'APPROVED' || app.status === 'AWAITING_PAYMENT') {
+      return res.status(400).json({ success: false, message: 'Application is already approved.' })
+    }
+
+    await db.query(
+      `UPDATE scholarship_applications SET status = 'AWAITING_PAYMENT', admin_notes = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+      [adminNotes || 'Application approved. Proceed to contribution payment.', id],
+    )
+
+    const randomHex = crypto.bytesToHex
+      ? crypto.bytesToHex(crypto.randomBytes(4))
+      : crypto.randomBytes(4).toString('hex')
+    const paymentReference = `SCH-${app.cohort_id}-${randomHex.toUpperCase()}`
+
+    const awardResult = await db.query(
+      `INSERT INTO scholarship_awards 
+       (application_id, original_amount, student_contribution_percentage, student_amount, scholarship_amount, currency, payment_reference, payment_status, expires_at)
+       VALUES ($1, 80000.00, 20, 16000.00, 64000.00, 'NGN', $2, 'PENDING', CURRENT_TIMESTAMP + INTERVAL '7 days')
+       RETURNING *;`,
+      [id, paymentReference],
+    )
+
+    res.status(200).json({
+      success: true,
+      message: 'Scholarship application approved successfully! Payment reference generated.',
+      award: awardResult.rows[0],
+    })
+  } catch (error) {
+    console.error('Error approving application:', error)
+    res.status(500).json({ success: false, message: 'Server error processing approval' })
+  }
+}
+
+const rejectApplication = async (req, res) => {
+  const { id } = req.params
+  const { adminNotes } = req.body
+
+  try {
+    const appResult = await db.query(`SELECT * FROM scholarship_applications WHERE id = $1`, [id])
+    if (appResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Scholarship application not found' })
+    }
+
+    await db.query(
+      `UPDATE scholarship_applications SET status = 'REJECTED', admin_notes = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+      [adminNotes || 'Application rejected.', id],
+    )
+
+    res.status(200).json({ success: true, message: 'Scholarship application rejected.' })
+  } catch (error) {
+    console.error('Error rejecting application:', error)
+    res.status(500).json({ success: false, message: 'Server error processing rejection' })
+  }
+}
+
+const createCohort = async (req, res) => {
+  const { name, code, startDate, endDate, applicationOpenDate, applicationCloseDate } = req.body
+
+  try {
+    const result = await db.query(
+      `INSERT INTO scholarship_cohorts 
+       (name, code, start_date, end_date, application_open_date, application_close_date, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'UPCOMING')
+       RETURNING *;`,
+      [name, code, startDate, endDate, applicationOpenDate, applicationCloseDate],
+    )
+
+    res.status(201).json({
+      success: true,
+      message: 'Scholarship cohort created successfully',
+      cohort: result.rows[0],
+    })
+  } catch (error) {
+    console.error('Error creating cohort:', error)
+    res.status(500).json({ success: false, message: 'Server error creating cohort' })
+  }
+}
+
+const updateCohortStatus = async (req, res) => {
+  const { id } = req.params
+  const { status } = req.body
+
+  try {
+    const result = await db.query(
+      `UPDATE scholarship_cohorts SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *;`,
+      [status, id],
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Cohort not found' })
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Cohort status updated successfully',
+      cohort: result.rows[0],
+    })
+  } catch (error) {
+    console.error('Error updating cohort status:', error)
+    res.status(500).json({ success: false, message: 'Server error updating cohort' })
+  }
+}
+
+const getAllCohorts = async (req, res) => {
+  try {
+    const result = await db.query(`SELECT * FROM scholarship_cohorts ORDER BY start_date DESC`)
+    res.status(200).json({ success: true, cohorts: result.rows })
+  } catch (error) {
+    console.error('Error fetching cohorts:', error)
+    res.status(500).json({ success: false, message: 'Server error fetching cohorts' })
+  }
+}
+
+// Grading & Attendance Supervisory Methods
 const executeGradeOverride = async (req, res) => {
   try {
-    const { gradeId } = req.params // submission id
+    const { gradeId } = req.params
     const { new_score, feedback } = req.body
     const adminId = req.user ? req.user.id : 0
 
@@ -763,14 +1340,10 @@ const executeGradeOverride = async (req, res) => {
     ])
 
     if (result.rows.length === 0) {
-      return res
-        .status(404)
-        .json({ error: 'Submission/Grade record not found.' })
+      return res.status(404).json({ error: 'Submission/Grade record not found.' })
     }
 
-    res
-      .status(200)
-      .json({ status: 'success', updated_submission: result.rows[0] })
+    res.status(200).json({ status: 'success', updated_submission: result.rows[0] })
   } catch (err) {
     console.error('Grade Override Error:', err.message)
     res.status(500).json({ error: 'Server error executing grade override.' })
@@ -784,7 +1357,8 @@ const getAttendanceOverview = async (req, res) => {
     const query = `
       SELECT 
         u.id as student_id,
-        u.name,
+        u.first_name,
+        u.last_name,
         u.email,
         COUNT(a.id) as total_sessions_logged,
         COUNT(a.id) FILTER (WHERE a.status = 'present') as present_count,
@@ -795,7 +1369,7 @@ const getAttendanceOverview = async (req, res) => {
       FROM users u
       JOIN attendance_logs a ON u.id = a.student_id
       WHERE a.course_id = $1
-      GROUP BY u.id, u.name, u.email
+      GROUP BY u.id, u.first_name, u.last_name, u.email
       ORDER BY attendance_percentage ASC;
     `
     const result = await db.query(query, [courseId])
@@ -807,9 +1381,7 @@ const getAttendanceOverview = async (req, res) => {
     })
   } catch (err) {
     console.error('Attendance Overview Error:', err.message)
-    res
-      .status(500)
-      .json({ error: 'Server error fetching attendance overview.' })
+    res.status(500).json({ error: 'Server error fetching attendance overview.' })
   }
 }
 
@@ -830,6 +1402,13 @@ module.exports = {
   assignTutorToCourse,
   getReports,
   getSettings,
+  getScholarshipDashboardMetrics,
+  getAllApplications,
+  approveApplication,
+  rejectApplication,
+  createCohort,
+  updateCohortStatus,
+  getAllCohorts,
   executeGradeOverride,
   getAttendanceOverview,
 }

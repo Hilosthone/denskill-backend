@@ -4,6 +4,34 @@
 // const jwt = require('jsonwebtoken')
 // const sendEmail = require('../utils/sendEmail')
 
+// // Helper: Generate Short-lived Access Token (15 minutes)
+// const generateAccessToken = (user) => {
+//   return jwt.sign(
+//     { id: user.id, email: user.email, role: user.role || 'student' },
+//     process.env.JWT_SECRET || 'fallback_secret',
+//     { expiresIn: '15m' }
+//   )
+// }
+
+// // Helper: Generate Long-lived Refresh Token (7 days) & Store in DB
+// const generateRefreshToken = async (user) => {
+//   const refreshToken = jwt.sign(
+//     { id: user.id, email: user.email, role: user.role || 'student' },
+//     process.env.JWT_REFRESH_SECRET || 'fallback_refresh_secret',
+//     { expiresIn: '7d' }
+//   )
+
+//   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+
+//   await db.query(
+//     `INSERT INTO refresh_tokens (user_id, token, expires_at)
+//      VALUES ($1, $2, $3)`,
+//     [user.id, refreshToken, expiresAt]
+//   )
+
+//   return refreshToken
+// }
+
 // // @desc    Register a new user
 // // @route   POST /api/auth/signup
 // // @access  Public
@@ -48,7 +76,7 @@
 //   }
 // }
 
-// // @desc    Authenticate user & get token
+// // @desc    Authenticate user & get tokens
 // // @route   POST /api/auth/signin
 // // @access  Public
 // exports.signin = async (req, res) => {
@@ -63,31 +91,32 @@
 //     }
 
 //     // Find user by email
-//     const user = await db.query('SELECT * FROM users WHERE email = $1', [email])
-//     if (user.rows.length === 0) {
+//     const userResult = await db.query('SELECT * FROM users WHERE email = $1', [email])
+//     if (userResult.rows.length === 0) {
 //       return res.status(400).json({ error: 'Invalid email or password.' })
 //     }
 
+//     const user = userResult.rows[0]
+
 //     // Compare submitted password with hashed password
-//     const isMatch = await bcrypt.compare(password, user.rows[0].password)
+//     const isMatch = await bcrypt.compare(password, user.password)
 //     if (!isMatch) {
 //       return res.status(400).json({ error: 'Invalid email or password.' })
 //     }
 
-//     // Generate JWT token
-//     const token = jwt.sign(
-//       { id: user.rows[0].id, email: user.rows[0].email },
-//       process.env.JWT_SECRET,
-//       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' },
-//     )
+//     // Generate Access & Refresh tokens
+//     const accessToken = generateAccessToken(user)
+//     const refreshToken = await generateRefreshToken(user)
 
 //     res.status(200).json({
 //       message: 'Logged in successfully!',
-//       token,
+//       accessToken,
+//       refreshToken,
 //       user: {
-//         id: user.rows[0].id,
-//         name: user.rows[0].name,
-//         email: user.rows[0].email,
+//         id: user.id,
+//         name: user.name,
+//         email: user.email,
+//         role: user.role || 'student',
 //       },
 //     })
 //   } catch (err) {
@@ -96,13 +125,77 @@
 //   }
 // }
 
-// // @desc    Logout user
+// // @desc    Exchange refresh token for a new access token
+// // @route   POST /api/auth/refresh
+// // @access  Public
+// exports.refreshToken = async (req, res) => {
+//   try {
+//     const { refreshToken } = req.body
+
+//     if (!refreshToken) {
+//       return res.status(401).json({ success: false, error: 'Refresh token required' })
+//     }
+
+//     // 1. Check if token exists in database
+//     const dbResult = await db.query(
+//       'SELECT * FROM refresh_tokens WHERE token = $1',
+//       [refreshToken]
+//     )
+
+//     if (dbResult.rows.length === 0) {
+//       return res.status(403).json({ success: false, error: 'Invalid or expired refresh token' })
+//     }
+
+//     const tokenRecord = dbResult.rows[0]
+
+//     // 2. Check if token has expired in DB
+//     if (new Date() > new Date(tokenRecord.expires_at)) {
+//       await db.query('DELETE FROM refresh_tokens WHERE id = $1', [tokenRecord.id])
+//       return res.status(403).json({ success: false, error: 'Refresh token has expired' })
+//     }
+
+//     // 3. Verify JWT signature of the refresh token
+//     jwt.verify(
+//       refreshToken,
+//       process.env.JWT_REFRESH_SECRET || 'fallback_refresh_secret',
+//       (err, decoded) => {
+//         if (err) {
+//           return res.status(403).json({ success: false, error: 'Invalid refresh token signature' })
+//         }
+
+//         // 4. Issue a new Access Token
+//         const newAccessToken = generateAccessToken({
+//           id: decoded.id,
+//           email: decoded.email,
+//           role: decoded.role,
+//         })
+
+//         return res.status(200).json({
+//           success: true,
+//           accessToken: newAccessToken,
+//         })
+//       }
+//     )
+//   } catch (err) {
+//     console.error('Refresh Token Error:', err)
+//     return res.status(500).json({ success: false, error: 'Server error during token refresh' })
+//   }
+// }
+
+// // @desc    Logout user & revoke refresh token session
 // // @route   POST /api/auth/logout
-// // @access  Private
+// // @access  Public / Private
 // exports.logout = async (req, res) => {
 //   try {
+//     const { refreshToken } = req.body
+
+//     if (refreshToken) {
+//       await db.query('DELETE FROM refresh_tokens WHERE token = $1', [refreshToken])
+//     }
+
 //     return res.status(200).json({ message: 'Logged out successfully.' })
 //   } catch (error) {
+//     console.error('Logout Error:', error.message)
 //     return res.status(500).json({ error: error.message })
 //   }
 // }
@@ -220,7 +313,7 @@
 // }
 
 
-//src/controllers/authController.js
+// src/controllers/authController.js
 const db = require('../config/db')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
@@ -231,7 +324,7 @@ const generateAccessToken = (user) => {
   return jwt.sign(
     { id: user.id, email: user.email, role: user.role || 'student' },
     process.env.JWT_SECRET || 'fallback_secret',
-    { expiresIn: '15m' }
+    { expiresIn: '15m' },
   )
 }
 
@@ -240,7 +333,7 @@ const generateRefreshToken = async (user) => {
   const refreshToken = jwt.sign(
     { id: user.id, email: user.email, role: user.role || 'student' },
     process.env.JWT_REFRESH_SECRET || 'fallback_refresh_secret',
-    { expiresIn: '7d' }
+    { expiresIn: '7d' },
   )
 
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
@@ -248,13 +341,23 @@ const generateRefreshToken = async (user) => {
   await db.query(
     `INSERT INTO refresh_tokens (user_id, token, expires_at) 
      VALUES ($1, $2, $3)`,
-    [user.id, refreshToken, expiresAt]
+    [user.id, refreshToken, expiresAt],
   )
 
   return refreshToken
 }
 
-// @desc    Register a new user
+// Helper: Generate Custom Regular Student ID (e.g., DEN-REG-001)
+const generateRegularStudentId = async () => {
+  const result = await db.query(
+    "SELECT COUNT(*) FROM users WHERE student_type = 'REGULAR'",
+  )
+  const count = parseInt(result.rows[0].count, 10) + 1
+  const paddedNumber = String(count).padStart(3, '0')
+  return `DEN-REG-${paddedNumber}`
+}
+
+// @desc    Register a new normal/regular student
 // @route   POST /api/auth/signup
 // @access  Public
 exports.signup = async (req, res) => {
@@ -278,14 +381,19 @@ exports.signup = async (req, res) => {
         .json({ error: 'User already exists with this email.' })
     }
 
+    // Generate custom unique student ID for normal students
+    const studentIdNumber = await generateRegularStudentId()
+
     // Hash password securely
     const salt = await bcrypt.genSalt(10)
     const hashedPassword = await bcrypt.hash(password, salt)
 
-    // Insert user into database
+    // Insert user into database including student_type and student_id_number
     const newUser = await db.query(
-      'INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id, name, email, created_at',
-      [name, email, hashedPassword],
+      `INSERT INTO users (name, email, password, student_type, student_id_number) 
+       VALUES ($1, $2, $3, 'REGULAR', $4) 
+       RETURNING id, name, email, student_type, student_id_number, created_at`,
+      [name, email, hashedPassword, studentIdNumber],
     )
 
     res.status(201).json({
@@ -313,7 +421,9 @@ exports.signin = async (req, res) => {
     }
 
     // Find user by email
-    const userResult = await db.query('SELECT * FROM users WHERE email = $1', [email])
+    const userResult = await db.query('SELECT * FROM users WHERE email = $1', [
+      email,
+    ])
     if (userResult.rows.length === 0) {
       return res.status(400).json({ error: 'Invalid email or password.' })
     }
@@ -339,6 +449,8 @@ exports.signin = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role || 'student',
+        student_type: user.student_type,
+        student_id_number: user.student_id_number,
       },
     })
   } catch (err) {
@@ -355,25 +467,33 @@ exports.refreshToken = async (req, res) => {
     const { refreshToken } = req.body
 
     if (!refreshToken) {
-      return res.status(401).json({ success: false, error: 'Refresh token required' })
+      return res
+        .status(401)
+        .json({ success: false, error: 'Refresh token required' })
     }
 
     // 1. Check if token exists in database
     const dbResult = await db.query(
       'SELECT * FROM refresh_tokens WHERE token = $1',
-      [refreshToken]
+      [refreshToken],
     )
 
     if (dbResult.rows.length === 0) {
-      return res.status(403).json({ success: false, error: 'Invalid or expired refresh token' })
+      return res
+        .status(403)
+        .json({ success: false, error: 'Invalid or expired refresh token' })
     }
 
     const tokenRecord = dbResult.rows[0]
 
     // 2. Check if token has expired in DB
     if (new Date() > new Date(tokenRecord.expires_at)) {
-      await db.query('DELETE FROM refresh_tokens WHERE id = $1', [tokenRecord.id])
-      return res.status(403).json({ success: false, error: 'Refresh token has expired' })
+      await db.query('DELETE FROM refresh_tokens WHERE id = $1', [
+        tokenRecord.id,
+      ])
+      return res
+        .status(403)
+        .json({ success: false, error: 'Refresh token has expired' })
     }
 
     // 3. Verify JWT signature of the refresh token
@@ -382,7 +502,9 @@ exports.refreshToken = async (req, res) => {
       process.env.JWT_REFRESH_SECRET || 'fallback_refresh_secret',
       (err, decoded) => {
         if (err) {
-          return res.status(403).json({ success: false, error: 'Invalid refresh token signature' })
+          return res
+            .status(403)
+            .json({ success: false, error: 'Invalid refresh token signature' })
         }
 
         // 4. Issue a new Access Token
@@ -396,11 +518,13 @@ exports.refreshToken = async (req, res) => {
           success: true,
           accessToken: newAccessToken,
         })
-      }
+      },
     )
   } catch (err) {
     console.error('Refresh Token Error:', err)
-    return res.status(500).json({ success: false, error: 'Server error during token refresh' })
+    return res
+      .status(500)
+      .json({ success: false, error: 'Server error during token refresh' })
   }
 }
 
@@ -412,7 +536,9 @@ exports.logout = async (req, res) => {
     const { refreshToken } = req.body
 
     if (refreshToken) {
-      await db.query('DELETE FROM refresh_tokens WHERE token = $1', [refreshToken])
+      await db.query('DELETE FROM refresh_tokens WHERE token = $1', [
+        refreshToken,
+      ])
     }
 
     return res.status(200).json({ message: 'Logged out successfully.' })
@@ -482,11 +608,9 @@ exports.resetPassword = async (req, res) => {
     const { email, otp, newPassword, confirmPassword } = req.body
 
     if (!email || !otp || !newPassword || !confirmPassword) {
-      return res
-        .status(400)
-        .json({
-          error: 'Please provide email, OTP, new password, and confirmation.',
-        })
+      return res.status(400).json({
+        error: 'Please provide email, OTP, new password, and confirmation.',
+      })
     }
 
     if (newPassword !== confirmPassword) {

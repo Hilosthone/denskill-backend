@@ -1,8 +1,38 @@
+// //src/controllers/tutorController.js
 // const pool = require('../config/db')
 // const jwt = require('jsonwebtoken')
 // const bcrypt = require('bcryptjs')
 
-// // 0. Tutor Login Controller
+// /**
+//  * @swagger
+//  * /api/tutors/login:
+//  *   post:
+//  *     summary: Tutor login endpoint
+//  *     tags: [Tutors]
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             required:
+//  *               - email
+//  *               - password
+//  *             properties:
+//  *               email:
+//  *                 type: string
+//  *               password:
+//  *                 type: string
+//  *     responses:
+//  *       200:
+//  *         description: Tutor logged in successfully
+//  *       400:
+//  *         description: Please provide email and password
+//  *       401:
+//  *         description: Invalid tutor credentials
+//  *       500:
+//  *         description: Server error during tutor login
+//  */
 // exports.tutorLogin = async (req, res) => {
 //   try {
 //     const { email, password } = req.body
@@ -62,7 +92,13 @@
 //   }
 // }
 
-// // 1. Create a new Quiz, Assessment, Assignment, or Milestone with Duration/Deadline
+// /**
+//  * @swagger
+//  * /api/tutors/assessments:
+//  *   post:
+//  *     summary: Create a new assessment
+//  *     tags: [Tutors]
+//  */
 // exports.createAssessment = async (req, res) => {
 //   try {
 //     const {
@@ -102,7 +138,13 @@
 //   }
 // }
 
-// // 2. Fetch all assessments for a course
+// /**
+//  * @swagger
+//  * /api/tutors/courses/{courseId}/assessments:
+//  *   get:
+//  *     summary: Fetch all assessments for a course
+//  *     tags: [Tutors]
+//  */
 // exports.getAssessmentsByCourse = async (req, res) => {
 //   try {
 //     const { courseId } = req.params
@@ -119,7 +161,13 @@
 //   }
 // }
 
-// // 3. Update an existing assessment/quiz/assignment
+// /**
+//  * @swagger
+//  * /api/tutors/assessments/{assessmentId}:
+//  *   put:
+//  *     summary: Update an existing assessment
+//  *     tags: [Tutors]
+//  */
 // exports.updateAssessment = async (req, res) => {
 //   try {
 //     const { assessmentId } = req.params
@@ -132,7 +180,8 @@
 //           type = COALESCE($3, type),
 //           total_marks = COALESCE($4, total_marks),
 //           weight = COALESCE($5, weight),
-//           due_date = COALESCE($6, due_date)
+//           due_date = COALESCE($6, due_date),
+//           updated_at = CURRENT_TIMESTAMP
 //       WHERE id = $7
 //       RETURNING *;
 //     `
@@ -162,7 +211,13 @@
 //   }
 // }
 
-// // 4. Delete an assessment/quiz/assignment
+// /**
+//  * @swagger
+//  * /api/tutors/assessments/{assessmentId}:
+//  *   delete:
+//  *     summary: Delete an assessment
+//  *     tags: [Tutors]
+//  */
 // exports.deleteAssessment = async (req, res) => {
 //   try {
 //     const { assessmentId } = req.params
@@ -189,7 +244,13 @@
 //   }
 // }
 
-// // 5. Get all student submissions for a specific assessment item
+// /**
+//  * @swagger
+//  * /api/tutors/assessments/{assessmentId}/submissions:
+//  *   get:
+//  *     summary: Get all student submissions for a specific assessment item
+//  *     tags: [Tutors]
+//  */
 // exports.getSubmissionsByAssessment = async (req, res) => {
 //   try {
 //     const { assessmentId } = req.params
@@ -209,7 +270,13 @@
 //   }
 // }
 
-// // 6. Submit Score and qualitative feedback for student work item
+// /**
+//  * @swagger
+//  * /api/tutors/submissions/{submissionId}/grade:
+//  *   post:
+//  *     summary: Submit score and qualitative feedback for student work item
+//  *     tags: [Tutors]
+//  */
 // exports.gradeSubmission = async (req, res) => {
 //   try {
 //     const { submissionId } = req.params
@@ -244,12 +311,28 @@
 //   }
 // }
 
-// // 7. Log daily attendance records for students in a course session
+// /**
+//  * @swagger
+//  * /api/tutors/attendance:
+//  *   post:
+//  *     summary: Log daily attendance records for students in a course session
+//  *     tags: [Tutors]
+//  */
 // exports.logAttendance = async (req, res) => {
+//   const client = await pool.connect()
 //   try {
 //     const { course_id, attendance_records } = req.body
 //     const tutorId = req.user.id
 //     const sessionDate = new Date().toISOString().split('T')[0]
+
+//     if (!attendance_records || !Array.isArray(attendance_records)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'attendance_records must be a valid array.',
+//       })
+//     }
+
+//     await client.query('BEGIN')
 
 //     const query = `
 //       INSERT INTO attendance_logs (course_id, student_id, session_date, status, logged_by)
@@ -268,9 +351,11 @@
 //         record.status,
 //         tutorId,
 //       ]
-//       const result = await pool.query(query, values)
+//       const result = await client.query(query, values)
 //       savedLogs.push(result.rows[0])
 //     }
+
+//     await client.query('COMMIT')
 
 //     res.status(200).json({
 //       success: true,
@@ -278,16 +363,23 @@
 //       logs: savedLogs,
 //     })
 //   } catch (err) {
+//     await client.query('ROLLBACK')
 //     console.error('Error logging attendance:', err)
 //     res
 //       .status(500)
 //       .json({ success: false, message: 'Server error logging attendance.' })
+//   } finally {
+//     client.release()
 //   }
 // }
 
-// // ==========================================
-// // 8. COURSE CONTENT & RESOURCE MANAGEMENT
-// // ==========================================
+// /**
+//  * @swagger
+//  * /api/tutors/modules:
+//  *   post:
+//  *     summary: Upload course module
+//  *     tags: [Tutors]
+//  */
 // exports.uploadCourseModule = async (req, res) => {
 //   try {
 //     const {
@@ -309,7 +401,7 @@
 //       course_id,
 //       title,
 //       week_number,
-//       content_type,
+//       content_type || 'video',
 //       resource_url,
 //       description,
 //       tutorId,
@@ -326,6 +418,13 @@
 //   }
 // }
 
+// /**
+//  * @swagger
+//  * /api/tutors/courses/{courseId}/modules:
+//  *   get:
+//  *     summary: Get course modules
+//  *     tags: [Tutors]
+//  */
 // exports.getCourseModules = async (req, res) => {
 //   try {
 //     const { courseId } = req.params
@@ -342,9 +441,13 @@
 //   }
 // }
 
-// // ==========================================
-// // 9. LIVE SESSION & OFFICE HOURS MANAGEMENT
-// // ==========================================
+// /**
+//  * @swagger
+//  * /api/tutors/live-sessions:
+//  *   post:
+//  *     summary: Schedule Live Session
+//  *     tags: [Tutors]
+//  */
 // exports.scheduleLiveSession = async (req, res) => {
 //   try {
 //     const {
@@ -374,15 +477,20 @@
 //     res.status(201).json({ success: true, session: result.rows[0] })
 //   } catch (err) {
 //     console.error('Error scheduling live session:', err)
-//     res
-//       .status(500)
-//       .json({
-//         success: false,
-//         message: 'Server error scheduling live session.',
-//       })
+//     res.status(500).json({
+//       success: false,
+//       message: 'Server error scheduling live session.',
+//     })
 //   }
 // }
 
+// /**
+//  * @swagger
+//  * /api/tutors/courses/{courseId}/live-sessions:
+//  *   get:
+//  *     summary: Get Live Sessions
+//  *     tags: [Tutors]
+//  */
 // exports.getLiveSessions = async (req, res) => {
 //   try {
 //     const { courseId } = req.params
@@ -399,9 +507,13 @@
 //   }
 // }
 
-// // ==========================================
-// // 10. STUDENT ROSTER & COHORT TRACKING
-// // ==========================================
+// /**
+//  * @swagger
+//  * /api/tutors/courses/{courseId}/roster:
+//  *   get:
+//  *     summary: Student Roster & Cohort Tracking
+//  *     tags: [Tutors]
+//  */
 // exports.getCourseRoster = async (req, res) => {
 //   try {
 //     const { courseId } = req.params
@@ -410,7 +522,7 @@
 //              (SELECT COUNT(*) FROM student_submissions s JOIN assessments a ON s.assessment_id = a.id WHERE s.student_id = u.id AND a.course_id = $1) as submissions_count
 //       FROM enrollments e
 //       JOIN users u ON e.user_id = u.id
-//       WHERE e.course = (SELECT title FROM courses WHERE id = $1 OR title = $1)
+//       WHERE e.course_id = $1
 //     `
 //     const result = await pool.query(query, [courseId])
 //     res.status(200).json({ success: true, roster: result.rows })
@@ -422,9 +534,13 @@
 //   }
 // }
 
-// // ==========================================
-// // 11. ADVANCED PROJECT & CODE REVIEW WORKFLOWS
-// // ==========================================
+// /**
+//  * @swagger
+//  * /api/tutors/submissions/{submissionId}/review:
+//  *   patch:
+//  *     summary: Advanced Project & Code Review Workflows
+//  *     tags: [Tutors]
+//  */
 // exports.submitIterativeFeedback = async (req, res) => {
 //   try {
 //     const { submissionId } = req.params
@@ -456,18 +572,20 @@
 //     res.status(200).json({ success: true, submission: result.rows[0] })
 //   } catch (err) {
 //     console.error('Error submitting review:', err)
-//     res
-//       .status(500)
-//       .json({
-//         success: false,
-//         message: 'Server error updating repository review.',
-//       })
+//     res.status(500).json({
+//       success: false,
+//       message: 'Server error updating repository review.',
+//     })
 //   }
 // }
 
-// // ==========================================
-// // 12. COURSE-SPECIFIC ANNOUNCEMENTS
-// // ==========================================
+// /**
+//  * @swagger
+//  * /api/tutors/announcements:
+//  *   post:
+//  *     summary: Course-Specific Announcements
+//  *     tags: [Tutors]
+//  */
 // exports.createCourseAnnouncement = async (req, res) => {
 //   try {
 //     const { course_id, title, content } = req.body
@@ -488,9 +606,13 @@
 //   }
 // }
 
-// // ==========================================
-// // 13. CLASS ANALYTICS & PERFORMANCE REPORTS
-// // ==========================================
+// /**
+//  * @swagger
+//  * /api/tutors/courses/{courseId}/analytics:
+//  *   get:
+//  *     summary: Class Analytics & Performance Reports
+//  *     tags: [Tutors]
+//  */
 // exports.getClassAnalytics = async (req, res) => {
 //   try {
 //     const { courseId } = req.params
@@ -511,7 +633,7 @@
 //       SELECT u.id, u.name, u.email
 //       FROM users u
 //       JOIN enrollments e ON u.id = e.user_id
-//       WHERE e.course = (SELECT title FROM courses WHERE id = $1 OR title = $1)
+//       WHERE e.course_id = $1
 //       AND u.id NOT IN (
 //         SELECT DISTINCT s.student_id
 //         FROM student_submissions s
@@ -530,27 +652,19 @@
 //     })
 //   } catch (err) {
 //     console.error('Error fetching analytics:', err)
-//     res
-//       .status(500)
-//       .json({
-//         success: false,
-//         message: 'Server error generating class analytics.',
-//       })
+//     res.status(500).json({
+//       success: false,
+//       message: 'Server error generating class analytics.',
+//     })
 //   }
 // }
 
 
-
-
-
-// ==========================================
-// 1. TUTOR CONTROLLER (tutorController.js)
-// ==========================================
+// src/controllers/tutorController.js
 const pool = require('../config/db')
 const jwt = require('jsonwebtoken')
 const bcrypt = require('bcryptjs')
 
-// 0. Tutor Login Controller
 exports.tutorLogin = async (req, res) => {
   try {
     const { email, password } = req.body
@@ -610,7 +724,6 @@ exports.tutorLogin = async (req, res) => {
   }
 }
 
-// 1. Create a new Quiz, Assessment, Assignment, or Milestone
 exports.createAssessment = async (req, res) => {
   try {
     const {
@@ -650,7 +763,6 @@ exports.createAssessment = async (req, res) => {
   }
 }
 
-// 2. Fetch all assessments for a course
 exports.getAssessmentsByCourse = async (req, res) => {
   try {
     const { courseId } = req.params
@@ -667,14 +779,13 @@ exports.getAssessmentsByCourse = async (req, res) => {
   }
 }
 
-// 3. Update an existing assessment
 exports.updateAssessment = async (req, res) => {
   try {
     const { assessmentId } = req.params
     const { title, description, type, total_marks, weight, due_date } = req.body
 
     const query = `
-      UPDATE assessments 
+      UPDATE assessments
       SET title = COALESCE($1, title),
           description = COALESCE($2, description),
           type = COALESCE($3, type),
@@ -711,7 +822,6 @@ exports.updateAssessment = async (req, res) => {
   }
 }
 
-// 4. Delete an assessment
 exports.deleteAssessment = async (req, res) => {
   try {
     const { assessmentId } = req.params
@@ -738,12 +848,11 @@ exports.deleteAssessment = async (req, res) => {
   }
 }
 
-// 5. Get all student submissions for a specific assessment item
 exports.getSubmissionsByAssessment = async (req, res) => {
   try {
     const { assessmentId } = req.params
     const query = `
-      SELECT s.*, u.name, u.email 
+      SELECT s.*, u.name, u.email
       FROM student_submissions s
       JOIN users u ON s.student_id = u.id
       WHERE s.assessment_id = $1
@@ -758,7 +867,6 @@ exports.getSubmissionsByAssessment = async (req, res) => {
   }
 }
 
-// 6. Submit Score and qualitative feedback for student work item
 exports.gradeSubmission = async (req, res) => {
   try {
     const { submissionId } = req.params
@@ -766,7 +874,7 @@ exports.gradeSubmission = async (req, res) => {
     const tutorId = req.user.id
 
     const query = `
-      UPDATE student_submissions 
+      UPDATE student_submissions
       SET score = $1, feedback = $2, graded_by = $3, status = 'graded', graded_at = CURRENT_TIMESTAMP
       WHERE id = $4
       RETURNING *;
@@ -793,7 +901,6 @@ exports.gradeSubmission = async (req, res) => {
   }
 }
 
-// 7. Log daily attendance records for students in a course session
 exports.logAttendance = async (req, res) => {
   const client = await pool.connect()
   try {
@@ -813,7 +920,7 @@ exports.logAttendance = async (req, res) => {
     const query = `
       INSERT INTO attendance_logs (course_id, student_id, session_date, status, logged_by)
       VALUES ($1, $2, $3, $4, $5)
-      ON CONFLICT (student_id, course_id, session_date) 
+      ON CONFLICT (student_id, course_id, session_date)
       DO UPDATE SET status = EXCLUDED.status, logged_by = EXCLUDED.logged_by
       RETURNING *;
     `
@@ -849,7 +956,6 @@ exports.logAttendance = async (req, res) => {
   }
 }
 
-// 8. Upload course module
 exports.uploadCourseModule = async (req, res) => {
   try {
     const {
@@ -879,11 +985,15 @@ exports.uploadCourseModule = async (req, res) => {
     res.status(201).json({ success: true, module: result.rows[0] })
   } catch (err) {
     console.error('Error uploading module:', err)
-    res.status(500).json({ success: false, message: 'Server error uploading course module.' })
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: 'Server error uploading course module.',
+      })
   }
 }
 
-// 9. Get course modules
 exports.getCourseModules = async (req, res) => {
   try {
     const { courseId } = req.params
@@ -894,11 +1004,12 @@ exports.getCourseModules = async (req, res) => {
     res.status(200).json({ success: true, modules: result.rows })
   } catch (err) {
     console.error('Error fetching modules:', err)
-    res.status(500).json({ success: false, message: 'Server error fetching modules.' })
+    res
+      .status(500)
+      .json({ success: false, message: 'Server error fetching modules.' })
   }
 }
 
-// 10. Schedule Live Session
 exports.scheduleLiveSession = async (req, res) => {
   try {
     const {
@@ -928,11 +1039,13 @@ exports.scheduleLiveSession = async (req, res) => {
     res.status(201).json({ success: true, session: result.rows[0] })
   } catch (err) {
     console.error('Error scheduling live session:', err)
-    res.status(500).json({ success: false, message: 'Server error scheduling live session.' })
+    res.status(500).json({
+      success: false,
+      message: 'Server error scheduling live session.',
+    })
   }
 }
 
-// 11. Get Live Sessions
 exports.getLiveSessions = async (req, res) => {
   try {
     const { courseId } = req.params
@@ -943,11 +1056,12 @@ exports.getLiveSessions = async (req, res) => {
     res.status(200).json({ success: true, sessions: result.rows })
   } catch (err) {
     console.error('Error fetching sessions:', err)
-    res.status(500).json({ success: false, message: 'Server error fetching live sessions.' })
+    res
+      .status(500)
+      .json({ success: false, message: 'Server error fetching live sessions.' })
   }
 }
 
-// 12. Student Roster & Cohort Tracking
 exports.getCourseRoster = async (req, res) => {
   try {
     const { courseId } = req.params
@@ -962,11 +1076,12 @@ exports.getCourseRoster = async (req, res) => {
     res.status(200).json({ success: true, roster: result.rows })
   } catch (err) {
     console.error('Error fetching roster:', err)
-    res.status(500).json({ success: false, message: 'Server error fetching course roster.' })
+    res
+      .status(500)
+      .json({ success: false, message: 'Server error fetching course roster.' })
   }
 }
 
-// 13. Advanced Project & Code Review Workflows
 exports.submitIterativeFeedback = async (req, res) => {
   try {
     const { submissionId } = req.params
@@ -974,7 +1089,7 @@ exports.submitIterativeFeedback = async (req, res) => {
     const tutorId = req.user.id
 
     const query = `
-      UPDATE student_submissions 
+      UPDATE student_submissions
       SET score = COALESCE($1, score),
           feedback = $2,
           status = COALESCE($3, status),
@@ -991,16 +1106,20 @@ exports.submitIterativeFeedback = async (req, res) => {
       submissionId,
     ])
     if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Submission not found.' })
+      return res
+        .status(404)
+        .json({ success: false, message: 'Submission not found.' })
     }
     res.status(200).json({ success: true, submission: result.rows[0] })
   } catch (err) {
     console.error('Error submitting review:', err)
-    res.status(500).json({ success: false, message: 'Server error updating repository review.' })
+    res.status(500).json({
+      success: false,
+      message: 'Server error updating repository review.',
+    })
   }
 }
 
-// 14. Course-Specific Announcements
 exports.createCourseAnnouncement = async (req, res) => {
   try {
     const { course_id, title, content } = req.body
@@ -1015,17 +1134,18 @@ exports.createCourseAnnouncement = async (req, res) => {
     res.status(201).json({ success: true, announcement: result.rows[0] })
   } catch (err) {
     console.error('Error creating course announcement:', err)
-    res.status(500).json({ success: false, message: 'Server error creating announcement.' })
+    res
+      .status(500)
+      .json({ success: false, message: 'Server error creating announcement.' })
   }
 }
 
-// 15. Class Analytics & Performance Reports
 exports.getClassAnalytics = async (req, res) => {
   try {
     const { courseId } = req.params
 
     const statsQuery = `
-      SELECT 
+      SELECT
         AVG(s.score) as average_score,
         MAX(s.score) as highest_score,
         MIN(s.score) as lowest_score,
@@ -1042,9 +1162,9 @@ exports.getClassAnalytics = async (req, res) => {
       JOIN enrollments e ON u.id = e.user_id
       WHERE e.course_id = $1
       AND u.id NOT IN (
-        SELECT DISTINCT s.student_id 
-        FROM student_submissions s 
-        JOIN assessments a ON s.assessment_id = a.id 
+        SELECT DISTINCT s.student_id
+        FROM student_submissions s
+        JOIN assessments a ON s.assessment_id = a.id
         WHERE a.course_id = $1
       );
     `
@@ -1059,6 +1179,28 @@ exports.getClassAnalytics = async (req, res) => {
     })
   } catch (err) {
     console.error('Error fetching analytics:', err)
-    res.status(500).json({ success: false, message: 'Server error generating class analytics.' })
+    res.status(500).json({
+      success: false,
+      message: 'Server error generating class analytics.',
+    })
+  }
+}
+
+exports.getAssignedCohortStudents = async (req, res) => {
+  try {
+    const { cohortId } = req.query
+    let query = `SELECT id, first_name, last_name, email, phone, scholarship_status FROM users WHERE student_type = 'SCHOLARSHIP'`
+    let params = []
+
+    if (cohortId) {
+      query += ` AND cohort_id = $1`
+      params.push(cohortId)
+    }
+
+    const result = await pool.query(query, params)
+    res.status(200).json({ success: true, students: result.rows })
+  } catch (error) {
+    console.error('Error fetching tutor students:', error)
+    res.status(500).json({ success: false, message: 'Server error' })
   }
 }

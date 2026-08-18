@@ -1,3 +1,4 @@
+// src/middleware/authMiddleware.js
 const jwt = require('jsonwebtoken')
 
 const protect = async (req, res, next) => {
@@ -17,7 +18,7 @@ const protect = async (req, res, next) => {
       // Attach user to the request object
       req.user = decoded
 
-      next()
+      return next()
     } catch (error) {
       console.error('Token verification failed:', error.message)
       return res.status(401).json({ error: 'Not authorized, token failed' })
