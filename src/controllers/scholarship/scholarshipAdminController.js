@@ -288,6 +288,36 @@ const formatCohortResponse = (row) => {
   }
 }
 
+/**
+ * Helper utility to normalize application database fields from snake_case 
+ * to camelCase for safe consumption by the frontend admin dashboard.
+ */
+const formatApplicationResponse = (row) => {
+  if (!row) return null
+  return {
+    id: row.id,
+    cohortId: row.cohort_id,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    fullName: `${row.first_name || ''} ${row.last_name || ''}`.trim(),
+    email: row.email,
+    phone: row.phone,
+    country: row.country,
+    course: row.course,
+    educationalBackground: row.educational_background,
+    technicalBackground: row.technical_background,
+    reasonForApplying: row.reason_for_applying,
+    motivation: row.motivation,
+    portfolioUrl: row.portfolio_url,
+    adminNotes: row.admin_notes,
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    cohortName: row.cohort_name,
+    cohortCode: row.cohort_code,
+  }
+}
+
 const getScholarshipDashboardMetrics = async (req, res) => {
   try {
     const { cohortId } = req.query
@@ -353,7 +383,13 @@ const getAllApplications = async (req, res) => {
     query += ` ORDER BY sa.created_at DESC`
 
     const result = await db.query(query, params)
-    res.status(200).json({ success: true, count: result.rows.length, applications: result.rows })
+    const formattedApplications = result.rows.map(formatApplicationResponse)
+
+    res.status(200).json({ 
+      success: true, 
+      count: formattedApplications.length, 
+      applications: formattedApplications 
+    })
   } catch (error) {
     console.error('Error fetching applications:', error)
     res.status(500).json({ success: false, message: 'Server error loading applications' })
@@ -524,7 +560,6 @@ const updateCohortStatus = async (req, res) => {
   }
 }
 
-// Edit / Update Cohort Details
 const updateCohort = async (req, res) => {
   const { id } = req.params
   const { name, code, startDate, endDate, applicationOpenDate, applicationCloseDate, status } = req.body
@@ -560,7 +595,6 @@ const updateCohort = async (req, res) => {
   }
 }
 
-// Activate Cohort Status
 const activateCohort = async (req, res) => {
   const { id } = req.params
 
@@ -588,7 +622,6 @@ const activateCohort = async (req, res) => {
   }
 }
 
-// Deactivate Cohort Status
 const deactivateCohort = async (req, res) => {
   const { id } = req.params
 
@@ -616,7 +649,6 @@ const deactivateCohort = async (req, res) => {
   }
 }
 
-// Delete Cohort
 const deleteCohort = async (req, res) => {
   const { id } = req.params
 
