@@ -546,51 +546,9 @@ router.get('/cohorts', getAllCohorts)
  */
 router.post('/cohorts', createCohort)
 
-/**
- * @swagger
- * /api/admin/scholarships/cohorts/{id}:
- *   put:
- *     summary: Edit or update scholarship cohort details
- *     tags: [Scholarship Admin]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Cohort ID
- *     requestBody:
- *       required: false
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *               code:
- *                 type: string
- *               startDate:
- *                 type: string
- *                 format: date
- *               endDate:
- *                 type: string
- *                 format: date
- *               applicationOpenDate:
- *                 type: string
- *                 format: date
- *               applicationCloseDate:
- *                 type: string
- *                 format: date
- *               status:
- *                 type: string
- *     responses:
- *       200:
- *         description: Cohort updated successfully
- */
-router.put('/cohorts/:id', updateCohort)
+// ==========================================
+// COHORT SUB-ROUTES (Specific first)
+// ==========================================
 
 /**
  * @swagger
@@ -666,6 +624,56 @@ router.patch('/cohorts/:id/activate', activateCohort)
  *         description: Cohort deactivated successfully
  */
 router.patch('/cohorts/:id/deactivate', deactivateCohort)
+
+// ==========================================
+// COHORT GENERAL ROUTES (Parameterized last)
+// ==========================================
+
+/**
+ * @swagger
+ * /api/admin/scholarships/cohorts/{id}:
+ *   put:
+ *     summary: Edit or update scholarship cohort details
+ *     tags: [Scholarship Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Cohort ID
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               code:
+ *                 type: string
+ *               startDate:
+ *                 type: string
+ *                 format: date
+ *               endDate:
+ *                 type: string
+ *                 format: date
+ *               applicationOpenDate:
+ *                 type: string
+ *                 format: date
+ *               applicationCloseDate:
+ *                 type: string
+ *                 format: date
+ *               status:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Cohort updated successfully
+ */
+router.put('/cohorts/:id', updateCohort)
 
 /**
  * @swagger

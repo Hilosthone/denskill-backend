@@ -268,6 +268,26 @@ const crypto = require('crypto')
 const bcrypt = require('bcryptjs')
 const db = require('../../config/db')
 
+/**
+ * Helper utility to normalize cohort database fields from snake_case 
+ * to camelCase for safe consumption by frontend date parsers.
+ */
+const formatCohortResponse = (row) => {
+  if (!row) return null
+  return {
+    id: row.id,
+    name: row.name,
+    code: row.code,
+    status: row.status,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    applicationOpenDate: row.application_open_date,
+    applicationCloseDate: row.application_close_date,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
 const getScholarshipDashboardMetrics = async (req, res) => {
   try {
     const { cohortId } = req.query
@@ -298,7 +318,7 @@ const getScholarshipDashboardMetrics = async (req, res) => {
     res.status(200).json({
       success: true,
       metrics: statsResult.rows[0],
-      activeCohort: cohortResult.rows[0] || null,
+      activeCohort: formatCohortResponse(cohortResult.rows[0]) || null,
     })
   } catch (error) {
     console.error('Error fetching scholarship metrics:', error)
@@ -471,7 +491,7 @@ const createCohort = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Scholarship cohort created successfully',
-      cohort: result.rows[0],
+      cohort: formatCohortResponse(result.rows[0]),
     })
   } catch (error) {
     console.error('Error creating cohort:', error)
@@ -496,7 +516,7 @@ const updateCohortStatus = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Cohort status updated successfully',
-      cohort: result.rows[0],
+      cohort: formatCohortResponse(result.rows[0]),
     })
   } catch (error) {
     console.error('Error updating cohort status:', error)
@@ -532,7 +552,7 @@ const updateCohort = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Cohort updated successfully',
-      cohort: result.rows[0],
+      cohort: formatCohortResponse(result.rows[0]),
     })
   } catch (error) {
     console.error('Error updating cohort:', error)
@@ -560,7 +580,7 @@ const activateCohort = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Cohort activated successfully',
-      cohort: result.rows[0],
+      cohort: formatCohortResponse(result.rows[0]),
     })
   } catch (error) {
     console.error('Error activating cohort:', error)
@@ -588,7 +608,7 @@ const deactivateCohort = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Cohort deactivated successfully',
-      cohort: result.rows[0],
+      cohort: formatCohortResponse(result.rows[0]),
     })
   } catch (error) {
     console.error('Error deactivating cohort:', error)
@@ -623,7 +643,9 @@ const deleteCohort = async (req, res) => {
 const getAllCohorts = async (req, res) => {
   try {
     const result = await db.query(`SELECT * FROM scholarship_cohorts ORDER BY start_date DESC`)
-    res.status(200).json({ success: true, cohorts: result.rows })
+    const formattedCohorts = result.rows.map(formatCohortResponse)
+    
+    res.status(200).json({ success: true, cohorts: formattedCohorts })
   } catch (error) {
     console.error('Error fetching cohorts:', error)
     res.status(500).json({ success: false, message: 'Server error fetching cohorts' })
