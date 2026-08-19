@@ -448,14 +448,21 @@
 
 
 // src/routes/adminRoutes.js
+
+
+
+// src/routes/adminRoutes.js
 const express = require('express')
 const router = express.Router()
+
 const { protect } = require('../middleware/authMiddleware')
 const { isAdmin } = require('../middleware/adminMiddleware')
+
 const {
   adminLogin,
   getAdminOverview,
   getAllStudents,
+  manualOnboardStudent,
   getAllPayments,
   getAllCourses,
   getAdminAnnouncements,
@@ -471,17 +478,7 @@ const {
   getSettings,
   executeGradeOverride,
   getAttendanceOverview,
-  getScholarshipDashboardMetrics,
-  getAllApplications,
-  approveApplication,
-  rejectApplication,
-  getAllCohorts,
-  createCohort,
-  updateCohortStatus,
 } = require('../controllers/adminController')
-const {
-  manualOnboardStudent,
-} = require('../controllers/adminEnrollmentController')
 
 // ==========================================
 // 1. PUBLIC ADMIN ROUTES (No Auth Required)
@@ -899,126 +896,5 @@ router.get('/settings', getSettings)
  *         description: Validation error or student already exists.
  */
 router.post('/enrollments/manual-onboard', manualOnboardStudent)
-
-// ==========================================
-// 3. SCHOLARSHIP MANAGEMENT ROUTES
-// ==========================================
-
-/**
- * @swagger
- * /api/admin/scholarships/metrics:
- *   get:
- *     summary: Get scholarship dashboard metrics
- *     tags: [Admin - Scholarships]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Scholarship metrics retrieved successfully
- */
-router.get('/scholarships/metrics', getScholarshipDashboardMetrics)
-
-/**
- * @swagger
- * /api/admin/scholarships/applications:
- *   get:
- *     summary: Get all scholarship applications
- *     tags: [Admin - Scholarships]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Applications retrieved successfully
- */
-router.get('/scholarships/applications', getAllApplications)
-
-/**
- * @swagger
- * /api/admin/scholarships/applications/{id}/approve:
- *   patch:
- *     summary: Approve a scholarship application
- *     tags: [Admin - Scholarships]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Application approved successfully
- */
-router.patch('/scholarships/applications/:id/approve', approveApplication)
-
-/**
- * @swagger
- * /api/admin/scholarships/applications/{id}/reject:
- *   patch:
- *     summary: Reject a scholarship application
- *     tags: [Admin - Scholarships]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Application rejected successfully
- */
-router.patch('/scholarships/applications/:id/reject', rejectApplication)
-
-/**
- * @swagger
- * /api/admin/scholarships/cohorts:
- *   get:
- *     summary: Get all scholarship cohorts
- *     tags: [Admin - Scholarships]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Cohorts retrieved successfully
- *   post:
- *     summary: Create a new scholarship cohort
- *     tags: [Admin - Scholarships]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *     responses:
- *       201:
- *         description: Cohort created successfully
- */
-router.get('/scholarships/cohorts', getAllCohorts)
-router.post('/scholarships/cohorts', createCohort)
-
-/**
- * @swagger
- * /api/admin/scholarships/cohorts/{id}/status:
- *   patch:
- *     summary: Update a scholarship cohort's status
- *     tags: [Admin - Scholarships]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Cohort status updated successfully
- */
-router.patch('/scholarships/cohorts/:id/status', updateCohortStatus)
 
 module.exports = router

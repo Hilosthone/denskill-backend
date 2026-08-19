@@ -197,6 +197,7 @@
 const express = require('express')
 const cors = require('cors')
 const helmet = require('helmet')
+const morgan = require('morgan')
 require('dotenv').config()
 
 // Import database connection and Swagger documentation setup
@@ -206,8 +207,12 @@ const { initTokenCleanupCron } = require('./utils/tokenCleanup')
 
 const app = express()
 
+// Trust proxy for cloud deployments (Render, Heroku, etc.)
+app.set('trust proxy', 1)
+
 // Security & Utility Middleware
 app.use(helmet())
+app.use(morgan('dev'))
 
 // Configure CORS properly at the top so preflight requests succeed for all domains
 app.use(
@@ -242,6 +247,9 @@ const tutorRoutes = require('./routes/tutorRoutes')
 const scholarshipAuthRoutes = require('./routes/scholarship/scholarshipAuthRoutes')
 const scholarshipEnrollmentRoutes = require('./routes/scholarship/scholarshipEnrollmentRoutes')
 
+// Import Scholarship Admin Routes (For managing cohorts, applications, and manual scholarship onboarding)
+const scholarshipAdminRoutes = require('./routes/scholarship/scholarshipAdminRoutes')
+
 // Mount System Routes (Handles root '/' and '/health')
 app.use('/', systemRoutes)
 
@@ -252,9 +260,12 @@ app.use('/api/enrollments', enrollmentRoutes)
 app.use('/api/dashboard', dashboardRoutes) // Handles all student dashboards (Normal & Scholarship)
 app.use('/api/tutors', tutorRoutes)        // Handles all tutor workflows & assigned cohort students
 
-// Mount Admin Routes (Handles platform metrics, user management, and scholarship cohorts/applications)
+// Mount Admin Routes (Handles platform metrics, user management, etc.)
 app.use('/api/admin/auth', adminAuthRoutes)
 app.use('/api/admin', adminRoutes)
+
+// Mount Scholarship Admin Routes (Handles scholarship metrics, cohort management, application approvals, & manual student onboarding)
+app.use('/api/admin/scholarships', scholarshipAdminRoutes)
 
 // Mount Public Scholarship Application Routes (Pre-admission only)
 app.use('/api/scholarship/auth', scholarshipAuthRoutes)

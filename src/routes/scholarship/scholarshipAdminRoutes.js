@@ -29,3 +29,47 @@
 // )
 
 // module.exports = router
+
+
+
+
+// src/routes/scholarship/scholarshipAdminRoutes.js
+const express = require('express')
+const router = express.Router()
+
+const { protect } = require('../../middleware/authMiddleware')
+const { isAdmin } = require('../../middleware/adminMiddleware')
+
+const {
+  getScholarshipDashboardMetrics,
+  getAllApplications,
+  approveApplication,
+  rejectApplication,
+  manualOnboardScholarshipStudent,
+  createCohort,
+  updateCohortStatus,
+  getAllCohorts,
+} = require('../../controllers/scholarship/scholarshipAdminController')
+
+// ==========================================
+// PROTECTED SCHOLARSHIP ADMIN ROUTES
+// ==========================================
+router.use(protect, isAdmin)
+
+// Dashboard Metrics
+router.get('/metrics', getScholarshipDashboardMetrics)
+
+// Scholarship Applications Management
+router.get('/applications', getAllApplications)
+router.put('/applications/:id/approve', approveApplication)
+router.put('/applications/:id/reject', rejectApplication)
+
+// Manual Student Onboarding
+router.post('/students/manual-onboard', manualOnboardScholarshipStudent)
+
+// Cohort Management
+router.get('/cohorts', getAllCohorts)
+router.post('/cohorts', createCohort)
+router.put('/cohorts/:id/status', updateCohortStatus)
+
+module.exports = router
