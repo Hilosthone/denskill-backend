@@ -251,19 +251,22 @@ pool
   )
   .catch((err) => console.error('❌ Migration error:', err.message))
 
-// Automatically ensure first_name, middle_name, last_name columns exist on users table
+// Automatically ensure first_name, middle_name, last_name, and phone columns exist on users table
 pool
   .query(
     `
     ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(255);
     ALTER TABLE users ADD COLUMN IF NOT EXISTS middle_name VARCHAR(255);
     ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(255);
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
   `,
   )
   .then(() =>
-    console.log('✅ Database migration checked: user name columns verified.'),
+    console.log(
+      '✅ Database migration checked: user profile name & phone columns verified.',
+    ),
   )
-  .catch((err) => console.error('❌ Migration error (user names):', err.message))
+  .catch((err) => console.error('❌ Migration error (user columns):', err.message))
 
 // Automatically ensure courses table exists and has tutor_id column
 pool
