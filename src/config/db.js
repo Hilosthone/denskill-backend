@@ -210,7 +210,7 @@
 // }
 
 
-//src/config/db.js
+// src/config/db.js
 const { Pool } = require('pg')
 require('dotenv').config()
 
@@ -250,6 +250,20 @@ pool
     console.log('✅ Database migration checked: status column verified.'),
   )
   .catch((err) => console.error('❌ Migration error:', err.message))
+
+// Automatically ensure first_name, middle_name, last_name columns exist on users table
+pool
+  .query(
+    `
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(255);
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS middle_name VARCHAR(255);
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(255);
+  `,
+  )
+  .then(() =>
+    console.log('✅ Database migration checked: user name columns verified.'),
+  )
+  .catch((err) => console.error('❌ Migration error (user names):', err.message))
 
 // Automatically ensure courses table exists and has tutor_id column
 pool
@@ -341,6 +355,7 @@ pool
     ALTER TABLE users ADD COLUMN IF NOT EXISTS scholarship_status VARCHAR(50) DEFAULT NULL;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS cohort_id INT DEFAULT NULL;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS student_id_number VARCHAR(100) UNIQUE DEFAULT NULL;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT false;
 
     -- 2. Scholarship Cohorts
     CREATE TABLE IF NOT EXISTS scholarship_cohorts (
@@ -417,6 +432,60 @@ pool
   )
   .catch((err) =>
     console.error('❌ Migration error (scholarship):', err.message),
+  )
+
+// Automatically ensure instructors, assessments, student_submissions, and attendance_logs tables exist on startup
+pool
+  .query(
+    `
+    -- 1. Instructors Table
+    CREATE TABLE IF NOT EXISTS instructors (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) UNIQUE NOT NULL,
+      specialty VARCHAR(255) NOT NULL,
+      role VARCHAR(100) DEFAULT 'Instructor',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- 2. Assessments Table
+    CREATE TABLE IF NOT EXISTS assessments (
+      id SERIAL PRIMARY KEY,
+      title VARCHAR(255) NOT NULL,
+      total_marks INTEGER DEFAULT 100,
+      weight NUMERIC DEFAULT 1.0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- 3. Student Submissions Table
+    CREATE TABLE IF NOT EXISTS student_submissions (
+      id SERIAL PRIMARY KEY,
+      student_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      assessment_id INTEGER REFERENCES assessments(id) ON DELETE CASCADE,
+      score NUMERIC,
+      status VARCHAR(50) DEFAULT 'submitted',
+      feedback TEXT,
+      graded_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- 4. Attendance Logs Table
+    CREATE TABLE IF NOT EXISTS attendance_logs (
+      id SERIAL PRIMARY KEY,
+      student_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      course_id VARCHAR(255),
+      status VARCHAR(50) DEFAULT 'present',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `,
+  )
+  .then(() =>
+    console.log(
+      '✅ Database migration checked: instructors, assessments, submissions & attendance tables verified.',
+    ),
+  )
+  .catch((err) =>
+    console.error('❌ Migration error (extra admin tables):', err.message),
   )
 
 module.exports = {
