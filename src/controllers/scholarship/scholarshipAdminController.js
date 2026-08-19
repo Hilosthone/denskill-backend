@@ -311,8 +311,11 @@ const getScholarshipDashboardMetrics = async (req, res) => {
     `
 
     const statsResult = await db.query(statsQuery, params)
+    // const cohortResult = await db.query(
+    //   `SELECT * FROM scholarship_cohorts WHERE status = 'ACTIVE' LIMIT 1`,
+    // )
     const cohortResult = await db.query(
-      `SELECT * FROM scholarship_cohorts WHERE status = 'ACTIVE' LIMIT 1`,
+      `SELECT * FROM scholarship_cohorts WHERE UPPER(status) = 'ACTIVE' LIMIT 1`,
     )
 
     res.status(200).json({
