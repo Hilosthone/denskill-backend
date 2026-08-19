@@ -1,25 +1,9 @@
-// const db = require('../../config/db')
+// // src/controllers/scholarship/scholarshipAdminController.js
 // const crypto = require('crypto')
-// const { sendApprovalEmail } = require('../../services/emailService')
+// const bcrypt = require('bcryptjs')
+// const db = require('../../config/db')
 
-// /**
-//  * @swagger
-//  * /api/scholarship/admin/metrics:
-//  *   get:
-//  *     summary: Get scholarship dashboard metrics and statistics
-//  *     tags: [Scholarship Admin]
-//  *     parameters:
-//  *       - in: query
-//  *         name: cohortId
-//  *         schema:
-//  *           type: integer
-//  *     responses:
-//  *       200:
-//  *         description: Metrics retrieved successfully
-//  *       500:
-//  *         description: Server error loading metrics
-//  */
-// exports.getScholarshipDashboardMetrics = async (req, res) => {
+// const getScholarshipDashboardMetrics = async (req, res) => {
 //   try {
 //     const { cohortId } = req.query
 //     let cohortFilter = ''
@@ -42,8 +26,6 @@
 //     `
 
 //     const statsResult = await db.query(statsQuery, params)
-
-//     // Get Active Cohort Info
 //     const cohortResult = await db.query(
 //       `SELECT * FROM scholarship_cohorts WHERE status = 'ACTIVE' LIMIT 1`,
 //     )
@@ -55,35 +37,11 @@
 //     })
 //   } catch (error) {
 //     console.error('Error fetching scholarship metrics:', error)
-//     res.status(500).json({
-//       success: false,
-//       message: 'Server error loading scholarship metrics',
-//     })
+//     res.status(500).json({ success: false, message: 'Server error loading scholarship metrics' })
 //   }
 // }
 
-// /**
-//  * @swagger
-//  * /api/scholarship/admin/applications:
-//  *   get:
-//  *     summary: Get all scholarship applications
-//  *     tags: [Scholarship Admin]
-//  *     parameters:
-//  *       - in: query
-//  *         name: cohortId
-//  *         schema:
-//  *           type: integer
-//  *       - in: query
-//  *         name: status
-//  *         schema:
-//  *           type: string
-//  *     responses:
-//  *       200:
-//  *         description: Applications retrieved successfully
-//  *       500:
-//  *         description: Server error loading applications
-//  */
-// exports.getAllApplications = async (req, res) => {
+// const getAllApplications = async (req, res) => {
 //   try {
 //     const { cohortId, status } = req.query
 //     let query = `
@@ -110,89 +68,38 @@
 //     query += ` ORDER BY sa.created_at DESC`
 
 //     const result = await db.query(query, params)
-//     res.status(200).json({
-//       success: true,
-//       count: result.rows.length,
-//       applications: result.rows,
-//     })
+//     res.status(200).json({ success: true, count: result.rows.length, applications: result.rows })
 //   } catch (error) {
 //     console.error('Error fetching applications:', error)
-//     res
-//       .status(500)
-//       .json({ success: false, message: 'Server error loading applications' })
+//     res.status(500).json({ success: false, message: 'Server error loading applications' })
 //   }
 // }
 
-// /**
-//  * @swagger
-//  * /api/scholarship/admin/applications/{id}/approve:
-//  *   patch:
-//  *     summary: Approve scholarship application and generate award/payment reference
-//  *     tags: [Scholarship Admin]
-//  *     parameters:
-//  *       - in: path
-//  *         name: id
-//  *         required: true
-//  *         schema:
-//  *           type: integer
-//  *     requestBody:
-//  *       content:
-//  *         application/json:
-//  *           schema:
-//  *             type: object
-//  *             properties:
-//  *               adminNotes:
-//  *                 type: string
-//  *     responses:
-//  *       200:
-//  *         description: Application approved and reference generated successfully
-//  *       400:
-//  *         description: Application is already approved
-//  *       404:
-//  *         description: Scholarship application not found
-//  *       500:
-//  *         description: Server error processing approval
-//  */
-// exports.approveApplication = async (req, res) => {
+// const approveApplication = async (req, res) => {
 //   const { id } = req.params
 //   const { adminNotes } = req.body
 
 //   try {
-//     // Check if application exists
-//     const appResult = await db.query(
-//       `SELECT * FROM scholarship_applications WHERE id = $1`,
-//       [id],
-//     )
+//     const appResult = await db.query(`SELECT * FROM scholarship_applications WHERE id = $1`, [id])
 //     if (appResult.rows.length === 0) {
-//       return res
-//         .status(404)
-//         .json({ success: false, message: 'Scholarship application not found' })
+//       return res.status(404).json({ success: false, message: 'Scholarship application not found' })
 //     }
 
 //     const app = appResult.rows[0]
-
 //     if (app.status === 'APPROVED' || app.status === 'AWAITING_PAYMENT') {
-//       return res
-//         .status(400)
-//         .json({ success: false, message: 'Application is already approved.' })
+//       return res.status(400).json({ success: false, message: 'Application is already approved.' })
 //     }
 
-//     // Update application status
 //     await db.query(
 //       `UPDATE scholarship_applications SET status = 'AWAITING_PAYMENT', admin_notes = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
-//       [
-//         adminNotes || 'Application approved. Proceed to contribution payment.',
-//         id,
-//       ],
+//       [adminNotes || 'Application approved. Proceed to contribution payment.', id],
 //     )
 
-//     // Generate Unique Payment Reference
 //     const randomHex = crypto.bytesToHex
 //       ? crypto.bytesToHex(crypto.randomBytes(4))
 //       : crypto.randomBytes(4).toString('hex')
 //     const paymentReference = `SCH-${app.cohort_id}-${randomHex.toUpperCase()}`
 
-//     // Create Scholarship Award record (80000 original, 20% = 16000 student contribution)
 //     const awardResult = await db.query(
 //       `INSERT INTO scholarship_awards
 //        (application_id, original_amount, student_contribution_percentage, student_amount, scholarship_amount, currency, payment_reference, payment_status, expires_at)
@@ -201,65 +108,25 @@
 //       [id, paymentReference],
 //     )
 
-//     // Trigger Approval Email notification to student with payment link & reference
-//     const paymentLink = `https://denskill.com/scholarship/pay?ref=${paymentReference}`
-//     await sendApprovalEmail(app.email, app.first_name, paymentLink)
-
 //     res.status(200).json({
 //       success: true,
-//       message:
-//         'Scholarship application approved successfully! Payment reference generated & email sent.',
+//       message: 'Scholarship application approved successfully! Payment reference generated.',
 //       award: awardResult.rows[0],
 //     })
 //   } catch (error) {
 //     console.error('Error approving application:', error)
-//     res
-//       .status(500)
-//       .json({ success: false, message: 'Server error processing approval' })
+//     res.status(500).json({ success: false, message: 'Server error processing approval' })
 //   }
 // }
 
-// /**
-//  * @swagger
-//  * /api/scholarship/admin/applications/{id}/reject:
-//  *   patch:
-//  *     summary: Reject scholarship application
-//  *     tags: [Scholarship Admin]
-//  *     parameters:
-//  *       - in: path
-//  *         name: id
-//  *         required: true
-//  *         schema:
-//  *           type: integer
-//  *     requestBody:
-//  *       content:
-//  *         application/json:
-//  *           schema:
-//  *             type: object
-//  *             properties:
-//  *               adminNotes:
-//  *                 type: string
-//  *     responses:
-//  *       200:
-//  *         description: Scholarship application rejected
-//  *       404:
-//  *         description: Scholarship application not found
-//  *       500:
-//  *         description: Server error processing rejection
-//  */
-// exports.rejectApplication = async (req, res) => {
+// const rejectApplication = async (req, res) => {
 //   const { id } = req.params
 //   const { adminNotes } = req.body
 
 //   try {
-//     const appResult = await db.query(
-//       `SELECT * FROM scholarship_applications WHERE id = $1`,
-//       [id],
-//     )
+//     const appResult = await db.query(`SELECT * FROM scholarship_applications WHERE id = $1`, [id])
 //     if (appResult.rows.length === 0) {
-//       return res
-//         .status(404)
-//         .json({ success: false, message: 'Scholarship application not found' })
+//       return res.status(404).json({ success: false, message: 'Scholarship application not found' })
 //     }
 
 //     await db.query(
@@ -267,68 +134,66 @@
 //       [adminNotes || 'Application rejected.', id],
 //     )
 
-//     res
-//       .status(200)
-//       .json({ success: true, message: 'Scholarship application rejected.' })
+//     res.status(200).json({ success: true, message: 'Scholarship application rejected.' })
 //   } catch (error) {
 //     console.error('Error rejecting application:', error)
-//     res
-//       .status(500)
-//       .json({ success: false, message: 'Server error processing rejection' })
+//     res.status(500).json({ success: false, message: 'Server error processing rejection' })
 //   }
 // }
 
-// /**
-//  * @swagger
-//  * /api/scholarship/admin/cohorts:
-//  *   post:
-//  *     summary: Create a new scholarship cohort
-//  *     tags: [Scholarship Admin]
-//  *     requestBody:
-//  *       required: true
-//  *       content:
-//  *         application/json:
-//  *           schema:
-//  *             type: object
-//  *             required:
-//  *               - name
-//  *               - code
-//  *               - startDate
-//  *               - endDate
-//  *               - applicationOpenDate
-//  *               - applicationCloseDate
-//  *             properties:
-//  *               name:
-//  *                 type: string
-//  *               code:
-//  *                 type: string
-//  *               startDate:
-//  *                 type: string
-//  *                 format: date
-//  *               endDate:
-//  *                 type: string
-//  *                 format: date
-//  *               applicationOpenDate:
-//  *                 type: string
-//  *                 format: date
-//  *               applicationCloseDate:
-//  *                 type: string
-//  *                 format: date
-//  *     responses:
-//  *       201:
-//  *         description: Scholarship cohort created successfully
-//  *       500:
-//  *         description: Server error creating cohort
-//  */
-// exports.createCohort = async (req, res) => {
-//   const {
-//     name,
-//     code,
-//     startDate,
-//     endDate,
-//     applicationOpenDate,
-//     applicationCloseDate,
-//   } = req.body
+// const manualOnboardScholarshipStudent = async (req, res) => {
+//   try {
+//     const { firstName, middleName, lastName, email, phone, cohortId, course, password } = req.body
+
+//     if (!firstName || !lastName || !email || !cohortId) {
+//       return res.status(400).json({ success: false, message: 'First name, last name, email, and cohort ID are required.' })
+//     }
+
+//     // Verify cohort exists
+//     const cohortCheck = await db.query('SELECT * FROM scholarship_cohorts WHERE id = $1', [cohortId])
+//     if (cohortCheck.rows.length === 0) {
+//       return res.status(404).json({ success: false, message: 'Scholarship cohort not found.' })
+//     }
+
+//     const cohort = cohortCheck.rows[0]
+//     const rawPassword = password || 'denskill123'
+//     const hashedPassword = await bcrypt.hash(rawPassword, 10)
+
+//     const randomHex = crypto.randomBytes(2).toString('hex').toUpperCase()
+//     const studentIdCode = `DEN-SCH-${cohort.code || 'COH'}-${randomHex}`
+
+//     const existingUser = await db.query('SELECT id FROM users WHERE email = $1', [email])
+//     let userId
+
+//     if (existingUser.rows.length > 0) {
+//       userId = existingUser.rows[0].id
+//       await db.query(
+//         `UPDATE users SET student_type = 'SCHOLARSHIP', scholarship_status = 'ACTIVE', cohort_id = $1, student_id_code = COALESCE(student_id_code, $2) WHERE id = $3`,
+//         [cohortId, studentIdCode, userId]
+//       )
+//     } else {
+//       const userResult = await db.query(
+//         `INSERT INTO users (first_name, middle_name, last_name, email, phone, student_type, scholarship_status, cohort_id, student_id_code, password, role, is_verified)
+//          VALUES ($1, $2, $3, $4, $5, 'SCHOLARSHIP', 'ACTIVE', $6, $7, $8, 'student', true) RETURNING id, email, student_id_code`,
+//         [firstName, middleName || null, lastName, email, phone || null, cohortId, studentIdCode, hashedPassword]
+//       )
+//       userId = userResult.rows[0].id
+//     }
+
+//     return res.status(201).json({
+//       success: true,
+//       message: 'Scholarship student manually onboarded successfully.',
+//       userId,
+//       studentIdCode,
+//     })
+//   } catch (error) {
+//     console.error('Scholarship Manual Onboard Error:', error)
+//     return res.status(500).json({ success: false, message: 'Server error during scholarship manual onboarding.' })
+//   }
+// }
+
+// const createCohort = async (req, res) => {
+//   const { name, code, startDate, endDate, applicationOpenDate, applicationCloseDate } = req.body
 
 //   try {
 //     const result = await db.query(
@@ -336,14 +201,7 @@
 //        (name, code, start_date, end_date, application_open_date, application_close_date, status)
 //        VALUES ($1, $2, $3, $4, $5, $6, 'UPCOMING')
 //        RETURNING *;`,
-//       [
-//         name,
-//         code,
-//         startDate,
-//         endDate,
-//         applicationOpenDate,
-//         applicationCloseDate,
-//       ],
+//       [name, code, startDate, endDate, applicationOpenDate, applicationCloseDate],
 //     )
 
 //     res.status(201).json({
@@ -353,45 +211,11 @@
 //     })
 //   } catch (error) {
 //     console.error('Error creating cohort:', error)
-//     res
-//       .status(500)
-//       .json({ success: false, message: 'Server error creating cohort' })
+//     res.status(500).json({ success: false, message: 'Server error creating cohort' })
 //   }
 // }
 
-// /**
-//  * @swagger
-//  * /api/scholarship/admin/cohorts/{id}/status:
-//  *   patch:
-//  *     summary: Update cohort status
-//  *     tags: [Scholarship Admin]
-//  *     parameters:
-//  *       - in: path
-//  *         name: id
-//  *         required: true
-//  *         schema:
-//  *           type: integer
-//  *     requestBody:
-//  *       required: true
-//  *       content:
-//  *         application/json:
-//  *           schema:
-//  *             type: object
-//  *             required:
-//  *               - status
-//  *             properties:
-//  *               status:
-//  *                 type: string
-//  *                 enum: [UPCOMING, APPLICATION_OPEN, APPLICATION_CLOSED, ACTIVE, COMPLETED, CANCELLED]
-//  *     responses:
-//  *       200:
-//  *         description: Cohort status updated successfully
-//  *       404:
-//  *         description: Cohort not found
-//  *       500:
-//  *         description: Server error updating cohort
-//  */
-// exports.updateCohortStatus = async (req, res) => {
+// const updateCohortStatus = async (req, res) => {
 //   const { id } = req.params
 //   const { status } = req.body
 
@@ -402,9 +226,7 @@
 //     )
 
 //     if (result.rows.length === 0) {
-//       return res
-//         .status(404)
-//         .json({ success: false, message: 'Cohort not found' })
+//       return res.status(404).json({ success: false, message: 'Cohort not found' })
 //     }
 
 //     res.status(200).json({
@@ -414,36 +236,29 @@
 //     })
 //   } catch (error) {
 //     console.error('Error updating cohort status:', error)
-//     res
-//       .status(500)
-//       .json({ success: false, message: 'Server error updating cohort' })
+//     res.status(500).json({ success: false, message: 'Server error updating cohort' })
 //   }
 // }
 
-// /**
-//  * @swagger
-//  * /api/scholarship/admin/cohorts:
-//  *   get:
-//  *     summary: Get all scholarship cohorts
-//  *     tags: [Scholarship Admin]
-//  *     responses:
-//  *       200:
-//  *         description: Cohorts fetched successfully
-//  *       500:
-//  *         description: Server error fetching cohorts
-//  */
-// exports.getAllCohorts = async (req, res) => {
+// const getAllCohorts = async (req, res) => {
 //   try {
-//     const result = await db.query(
-//       `SELECT * FROM scholarship_cohorts ORDER BY start_date DESC`,
-//     )
+//     const result = await db.query(`SELECT * FROM scholarship_cohorts ORDER BY start_date DESC`)
 //     res.status(200).json({ success: true, cohorts: result.rows })
 //   } catch (error) {
 //     console.error('Error fetching cohorts:', error)
-//     res
-//       .status(500)
-//       .json({ success: false, message: 'Server error fetching cohorts' })
+//     res.status(500).json({ success: false, message: 'Server error fetching cohorts' })
 //   }
+// }
+
+// module.exports = {
+//   getScholarshipDashboardMetrics,
+//   getAllApplications,
+//   approveApplication,
+//   rejectApplication,
+//   manualOnboardScholarshipStudent,
+//   createCohort,
+//   updateCohortStatus,
+//   getAllCohorts,
 // }
 
 
@@ -599,7 +414,6 @@ const manualOnboardScholarshipStudent = async (req, res) => {
       return res.status(400).json({ success: false, message: 'First name, last name, email, and cohort ID are required.' })
     }
 
-    // Verify cohort exists
     const cohortCheck = await db.query('SELECT * FROM scholarship_cohorts WHERE id = $1', [cohortId])
     if (cohortCheck.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Scholarship cohort not found.' })
@@ -690,6 +504,122 @@ const updateCohortStatus = async (req, res) => {
   }
 }
 
+// Edit / Update Cohort Details
+const updateCohort = async (req, res) => {
+  const { id } = req.params
+  const { name, code, startDate, endDate, applicationOpenDate, applicationCloseDate, status } = req.body
+
+  try {
+    const result = await db.query(
+      `UPDATE scholarship_cohorts 
+       SET name = COALESCE($1, name), 
+           code = COALESCE($2, code), 
+           start_date = COALESCE($3, start_date), 
+           end_date = COALESCE($4, end_date), 
+           application_open_date = COALESCE($5, application_open_date), 
+           application_close_date = COALESCE($6, application_close_date), 
+           status = COALESCE($7, status),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $8 
+       RETURNING *;`,
+      [name, code, startDate, endDate, applicationOpenDate, applicationCloseDate, status, id],
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Cohort not found' })
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Cohort updated successfully',
+      cohort: result.rows[0],
+    })
+  } catch (error) {
+    console.error('Error updating cohort:', error)
+    res.status(500).json({ success: false, message: 'Server error updating cohort' })
+  }
+}
+
+// Activate Cohort Status
+const activateCohort = async (req, res) => {
+  const { id } = req.params
+
+  try {
+    const result = await db.query(
+      `UPDATE scholarship_cohorts 
+       SET status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $1 
+       RETURNING *;`,
+      [id],
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Cohort not found' })
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Cohort activated successfully',
+      cohort: result.rows[0],
+    })
+  } catch (error) {
+    console.error('Error activating cohort:', error)
+    res.status(500).json({ success: false, message: 'Server error activating cohort' })
+  }
+}
+
+// Deactivate Cohort Status
+const deactivateCohort = async (req, res) => {
+  const { id } = req.params
+
+  try {
+    const result = await db.query(
+      `UPDATE scholarship_cohorts 
+       SET status = 'INACTIVE', updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $1 
+       RETURNING *;`,
+      [id],
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Cohort not found' })
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Cohort deactivated successfully',
+      cohort: result.rows[0],
+    })
+  } catch (error) {
+    console.error('Error deactivating cohort:', error)
+    res.status(500).json({ success: false, message: 'Server error deactivating cohort' })
+  }
+}
+
+// Delete Cohort
+const deleteCohort = async (req, res) => {
+  const { id } = req.params
+
+  try {
+    const result = await db.query(
+      `DELETE FROM scholarship_cohorts WHERE id = $1 RETURNING *;`,
+      [id],
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Cohort not found' })
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Cohort deleted successfully',
+    })
+  } catch (error) {
+    console.error('Error deleting cohort:', error)
+    res.status(500).json({ success: false, message: 'Server error deleting cohort' })
+  }
+}
+
 const getAllCohorts = async (req, res) => {
   try {
     const result = await db.query(`SELECT * FROM scholarship_cohorts ORDER BY start_date DESC`)
@@ -708,5 +638,9 @@ module.exports = {
   manualOnboardScholarshipStudent,
   createCohort,
   updateCohortStatus,
+  updateCohort,
+  activateCohort,
+  deactivateCohort,
+  deleteCohort,
   getAllCohorts,
 }
