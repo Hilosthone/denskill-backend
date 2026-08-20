@@ -82,10 +82,12 @@
 //   }
 // }
 
+//src/services/emailService.js
 const { Resend } = require('resend')
 require('dotenv').config()
 
-const senderEmail = 'D Enskill Academy <support@denskill.com>' // Ensure your domain is verified in Resend
+const senderEmail =
+  process.env.EMAIL_FROM || 'D Enskill Academy <onboarding@denskill.com>'
 
 const scholarshipApprovalEmail = require('../templates/scholarshipApprovalEmail')
 const classAnnouncementEmail = require('../templates/classAnnouncementEmail')
