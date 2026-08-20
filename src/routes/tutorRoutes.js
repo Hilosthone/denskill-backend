@@ -207,9 +207,7 @@
 
 // module.exports = router
 
-
 // src/routes/tutorRoutes.js
-
 const express = require('express')
 const router = express.Router()
 const tutorController = require('../controllers/tutorController')
@@ -233,11 +231,15 @@ const { protect } = require('../middleware/authMiddleware')
  *             properties:
  *               email:
  *                 type: string
+ *                 example: tutor@denskill.com
  *               password:
  *                 type: string
+ *                 example: admin@denskill123
  *     responses:
  *       200:
  *         description: Tutor logged in successfully, returns JWT token
+ *       401:
+ *         description: Invalid tutor credentials
  */
 router.post('/auth/login', tutorController.tutorLogin)
 
@@ -252,6 +254,37 @@ router.use(protect)
  *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - course_id
+ *               - title
+ *             properties:
+ *               course_id:
+ *                 type: integer
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               type:
+ *                 type: string
+ *                 example: assignment
+ *               total_marks:
+ *                 type: integer
+ *                 example: 100
+ *               weight:
+ *                 type: number
+ *                 example: 1.5
+ *               due_date:
+ *                 type: string
+ *                 format: date-time
+ *     responses:
+ *       201:
+ *         description: Assessment created successfully
  */
 router.post('/assessments', tutorController.createAssessment)
 
@@ -263,6 +296,15 @@ router.post('/assessments', tutorController.createAssessment)
  *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: courseId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: List of assessments retrieved successfully
  */
 router.get('/assessments/:courseId', tutorController.getAssessmentsByCourse)
 
@@ -274,6 +316,34 @@ router.get('/assessments/:courseId', tutorController.getAssessmentsByCourse)
  *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: assessmentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               type:
+ *                 type: string
+ *               total_marks:
+ *                 type: integer
+ *               weight:
+ *                 type: number
+ *               due_date:
+ *                 type: string
+ *                 format: date-time
+ *     responses:
+ *       200:
+ *         description: Assessment updated successfully
  */
 router.put('/assessments/:assessmentId', tutorController.updateAssessment)
 
@@ -285,6 +355,15 @@ router.put('/assessments/:assessmentId', tutorController.updateAssessment)
  *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: assessmentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Assessment deleted successfully
  */
 router.delete('/assessments/:assessmentId', tutorController.deleteAssessment)
 
@@ -296,6 +375,15 @@ router.delete('/assessments/:assessmentId', tutorController.deleteAssessment)
  *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: assessmentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Submissions retrieved successfully
  */
 router.get(
   '/submissions/:assessmentId',
@@ -310,6 +398,30 @@ router.get(
  *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: submissionId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - score
+ *             properties:
+ *               score:
+ *                 type: number
+ *                 example: 85
+ *               feedback:
+ *                 type: string
+ *                 example: Great job implementing the endpoint logic!
+ *     responses:
+ *       200:
+ *         description: Submission graded successfully
  */
 router.put('/submissions/:submissionId/grade', tutorController.gradeSubmission)
 
@@ -321,6 +433,28 @@ router.put('/submissions/:submissionId/grade', tutorController.gradeSubmission)
  *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: submissionId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               score:
+ *                 type: number
+ *               feedback:
+ *                 type: string
+ *               review_status:
+ *                 type: string
+ *                 example: needs_revision
+ *     responses:
+ *       200:
+ *         description: Review feedback submitted successfully
  */
 router.put(
   '/submissions/:submissionId/review',
@@ -335,6 +469,31 @@ router.put(
  *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - course_id
+ *               - attendance_records
+ *             properties:
+ *               course_id:
+ *                 type: integer
+ *               attendance_records:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     student_id:
+ *                       type: integer
+ *                     status:
+ *                       type: string
+ *                       example: present
+ *     responses:
+ *       200:
+ *         description: Attendance logged successfully
  */
 router.post('/attendance', tutorController.logAttendance)
 
@@ -346,6 +505,33 @@ router.post('/attendance', tutorController.logAttendance)
  *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - course_id
+ *               - title
+ *             properties:
+ *               course_id:
+ *                 type: integer
+ *               title:
+ *                 type: string
+ *               week_number:
+ *                 type: integer
+ *                 example: 1
+ *               content_type:
+ *                 type: string
+ *                 example: video
+ *               resource_url:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Course module uploaded successfully
  */
 router.post('/modules', tutorController.uploadCourseModule)
 
@@ -357,6 +543,15 @@ router.post('/modules', tutorController.uploadCourseModule)
  *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: courseId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Course modules retrieved successfully
  */
 router.get('/modules/:courseId', tutorController.getCourseModules)
 
@@ -368,6 +563,36 @@ router.get('/modules/:courseId', tutorController.getCourseModules)
  *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - course_id
+ *               - title
+ *               - meeting_link
+ *               - scheduled_at
+ *             properties:
+ *               course_id:
+ *                 type: integer
+ *               title:
+ *                 type: string
+ *               session_type:
+ *                 type: string
+ *                 example: lecture
+ *               meeting_link:
+ *                 type: string
+ *                 example: https://zoom.us/j/123456789
+ *               scheduled_at:
+ *                 type: string
+ *                 format: date-time
+ *               description:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Live session scheduled successfully
  */
 router.post('/sessions', tutorController.scheduleLiveSession)
 
@@ -379,6 +604,15 @@ router.post('/sessions', tutorController.scheduleLiveSession)
  *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: courseId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Live sessions retrieved successfully
  */
 router.get('/sessions/:courseId', tutorController.getLiveSessions)
 
@@ -390,6 +624,15 @@ router.get('/sessions/:courseId', tutorController.getLiveSessions)
  *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: courseId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Course roster retrieved successfully
  */
 router.get('/roster/:courseId', tutorController.getCourseRoster)
 
@@ -401,6 +644,26 @@ router.get('/roster/:courseId', tutorController.getCourseRoster)
  *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - course_id
+ *               - title
+ *               - content
+ *             properties:
+ *               course_id:
+ *                 type: integer
+ *               title:
+ *                 type: string
+ *               content:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Announcement created successfully
  */
 router.post('/announcements', tutorController.createCourseAnnouncement)
 
@@ -412,6 +675,15 @@ router.post('/announcements', tutorController.createCourseAnnouncement)
  *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: courseId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Class analytics generated successfully
  */
 router.get('/analytics/:courseId', tutorController.getClassAnalytics)
 
