@@ -1,6 +1,6 @@
 // // src/controllers/adminController.js
 // const jwt = require('jsonwebtoken')
-// const crypto = require('crypto')
+// const bcrypt = require('bcryptjs')
 // const db = require('../config/db')
 
 // // Helper: Generate Short-lived Access Token (15 minutes)
@@ -31,7 +31,7 @@
 //   return refreshToken
 // }
 
-// // @desc    Admin login
+// // @desc   Admin login
 // // @route   POST /api/admin/auth/login
 // // @access  Public
 // const adminLogin = async (req, res) => {
@@ -157,7 +157,52 @@
 //   }
 // }
 
-// // 3. GET /api/admin/payments (Payments Tab)
+// // 3. POST /api/admin/enrollments/manual-onboard (Manual Student Onboarding)
+// const manualOnboardStudent = async (req, res) => {
+//   try {
+//     const { firstName, middleName, lastName, country, phone, email, course, amountPaid, password, referredBy, reason } = req.body
+
+//     if (!firstName || !lastName || !email || !course) {
+//       return res.status(400).json({ success: false, message: 'First name, last name, email, and course are required.' })
+//     }
+
+//     // Check if user already exists
+//     const existingUser = await db.query('SELECT id FROM users WHERE email = $1', [email])
+//     let userId
+
+//     const rawPassword = password || 'denskill123'
+//     const hashedPassword = await bcrypt.hash(rawPassword, 10)
+
+//     if (existingUser.rows.length > 0) {
+//       userId = existingUser.rows[0].id
+//     } else {
+//       const userResult = await db.query(
+//         `INSERT INTO users (first_name, middle_name, last_name, country, phone, email, password, role, student_type, is_verified)
+//          VALUES ($1, $2, $3, $4, $5, $6, $7, 'student', 'REGULAR', true) RETURNING id`,
+//         [firstName, middleName || null, lastName, country || 'Nigeria', phone || null, email, hashedPassword]
+//       )
+//       userId = userResult.rows[0].id
+//     }
+
+//     // Create enrollment record
+//     const enrollmentResult = await db.query(
+//       `INSERT INTO enrollments (user_id, course, total_amount, amount_paid, payment_status, reference)
+//        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+//       [userId, course, amountPaid || 0, amountPaid || 0, 'COMPLETED', `MANUAL-${Date.now()}`]
+//     )
+
+//     return res.status(201).json({
+//       success: true,
+//       message: 'Student manually onboarded successfully.',
+//       enrollment: enrollmentResult.rows[0],
+//     })
+//   } catch (err) {
+//     console.error('Manual Onboard Error:', err.message)
+//     return res.status(500).json({ success: false, error: 'Server error during manual student onboarding.' })
+//   }
+// }
+
+// // 4. GET /api/admin/payments (Payments Tab)
 // const getAllPayments = async (req, res) => {
 //   try {
 //     const result = await db.query(
@@ -172,7 +217,7 @@
 //   }
 // }
 
-// // 4. GET /api/admin/courses (Courses Tab)
+// // 5. GET /api/admin/courses (Courses Tab)
 // const getAllCourses = async (req, res) => {
 //   try {
 //     const result = await db.query(
@@ -185,7 +230,7 @@
 //   }
 // }
 
-// // 5. Announcements Tab
+// // 6. Announcements Tab
 // const getAdminAnnouncements = async (req, res) => {
 //   try {
 //     const result = await db.query(
@@ -213,7 +258,7 @@
 //   }
 // }
 
-// // 6. Instructors Tab
+// // 7. Instructors Tab
 // const getInstructors = async (req, res) => {
 //   try {
 //     const result = await db.query(
@@ -301,7 +346,7 @@
 //   }
 // }
 
-// // 7. Reports Tab
+// // 8. Reports Tab
 // const getReports = async (req, res) => {
 //   try {
 //     const statsQuery = `
@@ -339,7 +384,7 @@
 //   }
 // }
 
-// // 8. Settings Tab
+// // 9. Settings Tab
 // const getSettings = async (req, res) => {
 //   res.status(200).json({
 //     status: 'success',
@@ -414,203 +459,6 @@
 //   }
 // }
 
-// // 9. Scholarship Management Methods (Merged into Single Admin Controller)
-// const getScholarshipDashboardMetrics = async (req, res) => {
-//   try {
-//     const { cohortId } = req.query
-//     let cohortFilter = ''
-//     let params = []
-
-//     if (cohortId) {
-//       cohortFilter = 'WHERE cohort_id = $1'
-//       params.push(cohortId)
-//     }
-
-//     const statsQuery = `
-//       SELECT
-//         COUNT(*) as total_applications,
-//         SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END) as pending_applications,
-//         SUM(CASE WHEN status = 'UNDER_REVIEW' THEN 1 ELSE 0 END) as under_review,
-//         SUM(CASE WHEN status = 'APPROVED' OR status = 'AWAITING_PAYMENT' THEN 1 ELSE 0 END) as approved,
-//         SUM(CASE WHEN status = 'REJECTED' THEN 1 ELSE 0 END) as rejected,
-//         SUM(CASE WHEN status = 'PAYMENT_COMPLETED' OR status = 'ENROLLED' THEN 1 ELSE 0 END) as paid_enrolled
-//       FROM scholarship_applications ${cohortFilter};
-//     `
-
-//     const statsResult = await db.query(statsQuery, params)
-//     const cohortResult = await db.query(
-//       `SELECT * FROM scholarship_cohorts WHERE status = 'ACTIVE' LIMIT 1`,
-//     )
-
-//     res.status(200).json({
-//       success: true,
-//       metrics: statsResult.rows[0],
-//       activeCohort: cohortResult.rows[0] || null,
-//     })
-//   } catch (error) {
-//     console.error('Error fetching scholarship metrics:', error)
-//     res.status(500).json({ success: false, message: 'Server error loading scholarship metrics' })
-//   }
-// }
-
-// const getAllApplications = async (req, res) => {
-//   try {
-//     const { cohortId, status } = req.query
-//     let query = `
-//       SELECT sa.*, sc.name as cohort_name, sc.code as cohort_code
-//       FROM scholarship_applications sa
-//       JOIN scholarship_cohorts sc ON sa.cohort_id = sc.id
-//     `
-//     let conditions = []
-//     let params = []
-
-//     if (cohortId) {
-//       params.push(cohortId)
-//       conditions.push(`sa.cohort_id = $${params.length}`)
-//     }
-//     if (status) {
-//       params.push(status)
-//       conditions.push(`sa.status = $${params.length}`)
-//     }
-
-//     if (conditions.length > 0) {
-//       query += ` WHERE ` + conditions.join(' AND ')
-//     }
-
-//     query += ` ORDER BY sa.created_at DESC`
-
-//     const result = await db.query(query, params)
-//     res.status(200).json({ success: true, count: result.rows.length, applications: result.rows })
-//   } catch (error) {
-//     console.error('Error fetching applications:', error)
-//     res.status(500).json({ success: false, message: 'Server error loading applications' })
-//   }
-// }
-
-// const approveApplication = async (req, res) => {
-//   const { id } = req.params
-//   const { adminNotes } = req.body
-
-//   try {
-//     const appResult = await db.query(`SELECT * FROM scholarship_applications WHERE id = $1`, [id])
-//     if (appResult.rows.length === 0) {
-//       return res.status(404).json({ success: false, message: 'Scholarship application not found' })
-//     }
-
-//     const app = appResult.rows[0]
-//     if (app.status === 'APPROVED' || app.status === 'AWAITING_PAYMENT') {
-//       return res.status(400).json({ success: false, message: 'Application is already approved.' })
-//     }
-
-//     await db.query(
-//       `UPDATE scholarship_applications SET status = 'AWAITING_PAYMENT', admin_notes = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
-//       [adminNotes || 'Application approved. Proceed to contribution payment.', id],
-//     )
-
-//     const randomHex = crypto.bytesToHex
-//       ? crypto.bytesToHex(crypto.randomBytes(4))
-//       : crypto.randomBytes(4).toString('hex')
-//     const paymentReference = `SCH-${app.cohort_id}-${randomHex.toUpperCase()}`
-
-//     const awardResult = await db.query(
-//       `INSERT INTO scholarship_awards
-//        (application_id, original_amount, student_contribution_percentage, student_amount, scholarship_amount, currency, payment_reference, payment_status, expires_at)
-//        VALUES ($1, 80000.00, 20, 16000.00, 64000.00, 'NGN', $2, 'PENDING', CURRENT_TIMESTAMP + INTERVAL '7 days')
-//        RETURNING *;`,
-//       [id, paymentReference],
-//     )
-
-//     res.status(200).json({
-//       success: true,
-//       message: 'Scholarship application approved successfully! Payment reference generated.',
-//       award: awardResult.rows[0],
-//     })
-//   } catch (error) {
-//     console.error('Error approving application:', error)
-//     res.status(500).json({ success: false, message: 'Server error processing approval' })
-//   }
-// }
-
-// const rejectApplication = async (req, res) => {
-//   const { id } = req.params
-//   const { adminNotes } = req.body
-
-//   try {
-//     const appResult = await db.query(`SELECT * FROM scholarship_applications WHERE id = $1`, [id])
-//     if (appResult.rows.length === 0) {
-//       return res.status(404).json({ success: false, message: 'Scholarship application not found' })
-//     }
-
-//     await db.query(
-//       `UPDATE scholarship_applications SET status = 'REJECTED', admin_notes = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
-//       [adminNotes || 'Application rejected.', id],
-//     )
-
-//     res.status(200).json({ success: true, message: 'Scholarship application rejected.' })
-//   } catch (error) {
-//     console.error('Error rejecting application:', error)
-//     res.status(500).json({ success: false, message: 'Server error processing rejection' })
-//   }
-// }
-
-// const createCohort = async (req, res) => {
-//   const { name, code, startDate, endDate, applicationOpenDate, applicationCloseDate } = req.body
-
-//   try {
-//     const result = await db.query(
-//       `INSERT INTO scholarship_cohorts
-//        (name, code, start_date, end_date, application_open_date, application_close_date, status)
-//        VALUES ($1, $2, $3, $4, $5, $6, 'UPCOMING')
-//        RETURNING *;`,
-//       [name, code, startDate, endDate, applicationOpenDate, applicationCloseDate],
-//     )
-
-//     res.status(201).json({
-//       success: true,
-//       message: 'Scholarship cohort created successfully',
-//       cohort: result.rows[0],
-//     })
-//   } catch (error) {
-//     console.error('Error creating cohort:', error)
-//     res.status(500).json({ success: false, message: 'Server error creating cohort' })
-//   }
-// }
-
-// const updateCohortStatus = async (req, res) => {
-//   const { id } = req.params
-//   const { status } = req.body
-
-//   try {
-//     const result = await db.query(
-//       `UPDATE scholarship_cohorts SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *;`,
-//       [status, id],
-//     )
-
-//     if (result.rows.length === 0) {
-//       return res.status(404).json({ success: false, message: 'Cohort not found' })
-//     }
-
-//     res.status(200).json({
-//       success: true,
-//       message: 'Cohort status updated successfully',
-//       cohort: result.rows[0],
-//     })
-//   } catch (error) {
-//     console.error('Error updating cohort status:', error)
-//     res.status(500).json({ success: false, message: 'Server error updating cohort' })
-//   }
-// }
-
-// const getAllCohorts = async (req, res) => {
-//   try {
-//     const result = await db.query(`SELECT * FROM scholarship_cohorts ORDER BY start_date DESC`)
-//     res.status(200).json({ success: true, cohorts: result.rows })
-//   } catch (error) {
-//     console.error('Error fetching cohorts:', error)
-//     res.status(500).json({ success: false, message: 'Server error fetching cohorts' })
-//   }
-// }
-
 // // Grading & Attendance Supervisory Methods
 // const executeGradeOverride = async (req, res) => {
 //   try {
@@ -681,6 +529,7 @@
 //   adminLogin,
 //   getAdminOverview,
 //   getAllStudents,
+//   manualOnboardStudent,
 //   getAllPayments,
 //   getAllCourses,
 //   getAdminAnnouncements,
@@ -694,16 +543,10 @@
 //   assignTutorToCourse,
 //   getReports,
 //   getSettings,
-//   getScholarshipDashboardMetrics,
-//   getAllApplications,
-//   approveApplication,
-//   rejectApplication,
-//   createCohort,
-//   updateCohortStatus,
-//   getAllCohorts,
 //   executeGradeOverride,
 //   getAttendanceOverview,
 // }
+
 
 
 // src/controllers/adminController.js
@@ -739,15 +582,15 @@ const generateRefreshToken = async (admin) => {
   return refreshToken
 }
 
-// @desc   Admin login
+// @desc   Admin login (Credentials loaded from environment variables)
 // @route   POST /api/admin/auth/login
 // @access  Public
 const adminLogin = async (req, res) => {
   try {
     const { email, password } = req.body
 
-    const ADMIN_EMAIL = 'lluxury692@gmail.com'
-    const ADMIN_PASS = 'admin@denskill123'
+    const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'lluxury692@gmail.com'
+    const ADMIN_PASS = process.env.ADMIN_PASSWORD || 'admin@denskill123'
 
     if (!email || !password) {
       return res
@@ -874,7 +717,6 @@ const manualOnboardStudent = async (req, res) => {
       return res.status(400).json({ success: false, message: 'First name, last name, email, and course are required.' })
     }
 
-    // Check if user already exists
     const existingUser = await db.query('SELECT id FROM users WHERE email = $1', [email])
     let userId
 
@@ -892,7 +734,6 @@ const manualOnboardStudent = async (req, res) => {
       userId = userResult.rows[0].id
     }
 
-    // Create enrollment record
     const enrollmentResult = await db.query(
       `INSERT INTO enrollments (user_id, course, total_amount, amount_paid, payment_status, reference) 
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
@@ -966,7 +807,7 @@ const createAnnouncement = async (req, res) => {
   }
 }
 
-// 7. Instructors Tab
+// 7. Instructors / Tutors Tab
 const getInstructors = async (req, res) => {
   try {
     const result = await db.query(
@@ -981,20 +822,24 @@ const getInstructors = async (req, res) => {
 
 const createInstructor = async (req, res) => {
   try {
-    const { name, email, specialty, role } = req.body
+    const { name, email, specialty, role, password } = req.body
     if (!name || !email || !specialty) {
       return res.status(400).json({ error: 'Name, email, and specialty are required.' })
     }
 
+    const rawPassword = password || 'tutor123!'
+    const hashedPassword = await bcrypt.hash(rawPassword, 10)
+
     const result = await db.query(
-      'INSERT INTO instructors (name, email, specialty, role) VALUES ($1, $2, $3, $4) RETURNING *',
-      [name, email, specialty, role || 'Instructor'],
+      'INSERT INTO instructors (name, email, specialty, role, password) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, email, specialty, role, created_at',
+      [name, email, specialty, role || 'Instructor', hashedPassword],
     )
 
     res.status(201).json({
       status: 'success',
-      message: 'Instructor created successfully.',
+      message: 'Instructor/Tutor created successfully with login credentials.',
       instructor: result.rows[0],
+      assignedPassword: rawPassword // Returned so admin can share it with the tutor if generated automatically
     })
   } catch (err) {
     console.error('Create Instructor Error:', err.message)
@@ -1005,17 +850,26 @@ const createInstructor = async (req, res) => {
 const updateInstructor = async (req, res) => {
   try {
     const { id } = req.params
-    const { name, email, specialty, role } = req.body
+    const { name, email, specialty, role, password } = req.body
 
-    const result = await db.query(
-      `UPDATE instructors 
-       SET name = COALESCE($1, name), 
-           email = COALESCE($2, email), 
-           specialty = COALESCE($3, specialty), 
-           role = COALESCE($4, role) 
-       WHERE id = $5 RETURNING *`,
-      [name, email, specialty, role, id],
-    )
+    let queryParams = [name, email, specialty, role, id]
+    let updateQuery = `
+      UPDATE instructors 
+      SET name = COALESCE($1, name), 
+          email = COALESCE($2, email), 
+          specialty = COALESCE($3, specialty), 
+          role = COALESCE($4, role)
+    `
+
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10)
+      updateQuery += `, password = $5 WHERE id = $6 RETURNING id, name, email, specialty, role, created_at`
+      queryParams = [name, email, specialty, role, hashedPassword, id]
+    } else {
+      updateQuery += ` WHERE id = $5 RETURNING id, name, email, specialty, role, created_at`
+    }
+
+    const result = await db.query(updateQuery, queryParams)
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Instructor not found.' })

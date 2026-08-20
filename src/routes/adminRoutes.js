@@ -1,12 +1,15 @@
 // // src/routes/adminRoutes.js
 // const express = require('express')
 // const router = express.Router()
+
 // const { protect } = require('../middleware/authMiddleware')
 // const { isAdmin } = require('../middleware/adminMiddleware')
+
 // const {
-//   adminLogin, // <--- Make sure adminLogin is imported from adminController
+//   adminLogin,
 //   getAdminOverview,
 //   getAllStudents,
+//   manualOnboardStudent,
 //   getAllPayments,
 //   getAllCourses,
 //   getAdminAnnouncements,
@@ -23,9 +26,6 @@
 //   executeGradeOverride,
 //   getAttendanceOverview,
 // } = require('../controllers/adminController')
-// const {
-//   manualOnboardStudent,
-// } = require('../controllers/adminEnrollmentController')
 
 // // ==========================================
 // // 1. PUBLIC ADMIN ROUTES (No Auth Required)
@@ -447,9 +447,6 @@
 // module.exports = router
 
 
-// src/routes/adminRoutes.js
-
-
 
 // src/routes/adminRoutes.js
 const express = require('express')
@@ -700,7 +697,7 @@ router.post('/announcements', createAnnouncement)
  *       200:
  *         description: Instructors retrieved successfully
  *   post:
- *     summary: Create a new instructor
+ *     summary: Create a new instructor/tutor with login credentials
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
@@ -710,6 +707,10 @@ router.post('/announcements', createAnnouncement)
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - name
+ *               - email
+ *               - specialty
  *             properties:
  *               name:
  *                 type: string
@@ -719,9 +720,11 @@ router.post('/announcements', createAnnouncement)
  *                 type: string
  *               role:
  *                 type: string
+ *               password:
+ *                 type: string
  *     responses:
  *       201:
- *         description: Instructor created successfully
+ *         description: Instructor created successfully with login credentials
  */
 router.get('/instructors', getInstructors)
 router.post('/instructors', createInstructor)
