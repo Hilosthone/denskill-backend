@@ -178,6 +178,8 @@ const express = require('express')
 const router = express.Router()
 const scholarshipEnrollmentController = require('../../controllers/scholarship/scholarshipEnrollmentController')
 
+console.log('🔥 Scholarship Enrollment Routes file loaded successfully!')
+
 /**
  * @swagger
  * tags:
