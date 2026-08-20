@@ -90,7 +90,6 @@
 
 // src/config/swagger.js
 const swaggerJSDoc = require('swagger-jsdoc')
-const swaggerUi = require('swagger-ui-express')
 
 const options = {
   definition: {
@@ -112,42 +111,15 @@ const options = {
       },
     ],
     tags: [
-      {
-        name: 'System',
-        description: 'Liveness and readiness health checks',
-      },
-      {
-        name: 'Auth',
-        description: 'User authentication and account management',
-      },
-      {
-        name: 'Dashboard',
-        description: 'Student portal overview, courses, and assessments (Normal & Scholarship)',
-      },
-      {
-        name: 'Enrollments',
-        description: 'Student registration and payment flows',
-      },
-      {
-        name: 'Scholarship Enrollment',
-        description: 'Public scholarship applications and pre-admission tracking',
-      },
-      {
-        name: 'Scholarship Auth',
-        description: 'Scholarship applicant authentication',
-      },
-      {
-        name: 'Admin Auth',
-        description: 'System administrator authentication',
-      },
-      {
-        name: 'Admin',
-        description: 'Platform management, oversight, scholarship cohorts, and application reviews',
-      },
-      {
-        name: 'Tutors',
-        description: 'Instructor authentication, assessment, grading, attendance portal, and assigned cohort student tracking',
-      },
+      { name: 'System', description: 'Liveness and readiness health checks' },
+      { name: 'Auth', description: 'User authentication and account management' },
+      { name: 'Dashboard', description: 'Student portal overview, courses, and assessments (Normal & Scholarship)' },
+      { name: 'Enrollments', description: 'Student registration and payment flows' },
+      { name: 'Scholarship Enrollment', description: 'Public scholarship applications and pre-admission tracking' },
+      { name: 'Scholarship Auth', description: 'Scholarship applicant authentication' },
+      { name: 'Admin Auth', description: 'System administrator authentication' },
+      { name: 'Admin', description: 'Platform management, oversight, scholarship cohorts, and application reviews' },
+      { name: 'Tutors', description: 'Instructor authentication, assessment, grading, attendance portal, and assigned cohort student tracking' },
     ],
     components: {
       securitySchemes: {
@@ -170,15 +142,48 @@ const options = {
 const swaggerSpec = swaggerJSDoc(options)
 
 const swaggerDocs = (app) => {
-  const swaggerOptions = {
-    customCssUrl: 'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.min.css',
-    customJs: [
-      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-bundle.js',
-      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-standalone-preset.js',
-    ],
-  }
+  // Serve raw JSON spec
+  app.get('/api-docs.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json')
+    res.send(swaggerSpec)
+  })
 
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerOptions))
+  // Serve Swagger UI HTML using official CDN assets (Bypasses serverless static routing bugs)
+  app.get('/api-docs', (req, res) => {
+    res.send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <title>D Enskill Academy API Docs</title>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.min.css" />
+        <style>
+          html { box-sizing: border-box; overflow: -moz-scrollbars-vertical; overflow-y: scroll; }
+          *, *:before, *:after { box-sizing: inherit; }
+          body { margin: background: #fafafa; }
+        </style>
+      </head>
+      <body>
+        <div id="swagger-ui"></div>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-bundle.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-standalone-preset.js"></script>
+        <script>
+          window.onload = function() {
+            window.ui = SwaggerUIBundle({
+              url: '/api-docs.json',
+              dom_id: '#swagger-ui',
+              presets: [
+                SwaggerUIBundle.presets.apis,
+                SwaggerUIStandalonePreset
+              ],
+              layout: "StandaloneLayout"
+            });
+          };
+        </script>
+      </body>
+      </html>
+    `)
+  })
 }
 
 module.exports = { swaggerDocs }

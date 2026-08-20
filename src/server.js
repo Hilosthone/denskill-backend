@@ -177,16 +177,16 @@ const { initTokenCleanupCron } = require('./utils/tokenCleanup')
 
 const app = express()
 
-// Trust proxy for cloud deployments (Render, Heroku, etc.)
+// Trust proxy for cloud deployments (Render, Vercel, etc.)
 app.set('trust proxy', 1)
 
-// Security & Utility Middleware (Configured to allow Swagger CDN assets)
+// Security & Utility Middleware (Configured to allow Swagger CDN assets and inline scripts)
 app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdnjs.cloudflare.com"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
         imgSrc: ["'self'", "data:", "https:"],
       },
