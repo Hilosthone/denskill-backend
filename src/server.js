@@ -310,16 +310,48 @@ app.use((err, req, res, next) => {
   })
 })
 
+// // Port Configuration & Server Startup
+// const PORT = process.env.PORT || 5000
+
+// // Start the server
+// app.listen(PORT, () => {
+//   console.log(
+//     `🚀 Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`,
+//   )
+//   console.log(`📄 Swagger Docs available at http://localhost:${PORT}/api-docs`)
+
+//   // Start the automated token cleanup cron job
+//   initTokenCleanupCron()
+// })
+
+
+
+
+
+// Centralized Error Handling Middleware (Keep this right above)
+app.use((err, req, res, next) => {
+  console.error(err.stack)
+  res.status(err.status || 500).json({
+    status: 'error',
+    message: err.message || 'Internal Server Error',
+  })
+})
+
 // Port Configuration & Server Startup
 const PORT = process.env.PORT || 5000
 
-// Start the server
-app.listen(PORT, () => {
-  console.log(
-    `🚀 Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`,
-  )
-  console.log(`📄 Swagger Docs available at http://localhost:${PORT}/api-docs`)
-
-  // Start the automated token cleanup cron job
+// Only call app.listen in local development. 
+// Vercel handles production requests via the exported app module.
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT} in development mode`)
+    console.log(`📄 Swagger Docs available at http://localhost:${PORT}/api-docs`)
+    initTokenCleanupCron()
+  })
+} else {
+  // Ensure background jobs like cron still run in production if needed
   initTokenCleanupCron()
-})
+}
+
+// Export the app for Vercel serverless execution
+module.exports = app
