@@ -253,12 +253,24 @@ const scholarshipAdminRoutes = require('./routes/scholarship/scholarshipAdminRou
 
 
 // Standalone public debug route
+// Expanded debug route to check all potential tables
 app.get('/debug-applications', async (req, res) => {
   try {
-    const result = await db.query('SELECT id, first_name, last_name, email, status, created_at FROM scholarship_applications ORDER BY created_at DESC')
+    const scholarshipRes = await db.query('SELECT COUNT(*) FROM scholarship_applications');
+    const enrollmentRes = await db.query('SELECT COUNT(*) FROM enrollments');
+    const userRes = await db.query('SELECT COUNT(*) FROM users');
+
+    const recentEnrollments = await db.query('SELECT id, first_name, last_name, email, course, created_at FROM enrollments ORDER BY created_at DESC LIMIT 20');
+    const recentUsers = await db.query('SELECT id, email, first_name, last_name, created_at FROM users ORDER BY created_at DESC LIMIT 20');
+
     res.json({
-      totalCount: result.rows.length,
-      applications: result.rows,
+      summary: {
+        scholarshipApplicationsCount: scholarshipRes.rows[0].count,
+        enrollmentsCount: enrollmentRes.rows[0].count,
+        totalUsersCount: userRes.rows[0].count,
+      },
+      recentEnrollments: recentEnrollments.rows,
+      recentUsers: recentUsers.rows,
     })
   } catch (err) {
     res.status(500).json({ error: err.message })
