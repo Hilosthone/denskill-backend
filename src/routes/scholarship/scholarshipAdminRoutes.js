@@ -416,6 +416,22 @@
 const express = require('express')
 const router = express.Router()
 
+
+router.get('/debug/all-applications', async (req, res) => {
+  try {
+    const db = require('../../config/db')
+    const result = await db.query(
+      'SELECT id, first_name, last_name, email, status, created_at FROM scholarship_applications ORDER BY created_at DESC',
+    )
+    res.json({
+      totalCount: result.rows.length,
+      applications: result.rows,
+    })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 const { protect } = require('../../middleware/authMiddleware')
 const { isAdmin } = require('../../middleware/adminMiddleware')
 
@@ -443,21 +459,6 @@ const {
  *   name: Scholarship Admin
  *   description: Platform management, scholarship cohort creation, application reviews, and manual onboarding
  */
-
-
-// Temporarily public debug route (remove after checking!)
-router.get('/debug/all-applications', async (req, res) => {
-  try {
-    const db = require('../../config/db');
-    const result = await db.query('SELECT id, first_name, last_name, email, status, created_at FROM scholarship_applications ORDER BY created_at DESC');
-    res.json({
-      totalCount: result.rows.length,
-      applications: result.rows
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 // ==========================================
 // PROTECTED SCHOLARSHIP ADMIN ROUTES
