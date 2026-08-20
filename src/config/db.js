@@ -177,11 +177,15 @@
 //         reason_for_applying TEXT,
 //         motivation TEXT,
 //         portfolio_url TEXT,
+//         referred_by VARCHAR(255),
 //         status VARCHAR(50) DEFAULT 'PENDING',
 //         admin_notes TEXT,
 //         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 //         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 //     );
+
+//     -- Safety check: Ensure column exists if table was previously created without it
+//     ALTER TABLE scholarship_applications ADD COLUMN IF NOT EXISTS referred_by VARCHAR(255);
 
 //     -- 4. Scholarship Awards
 //     CREATE TABLE IF NOT EXISTS scholarship_awards (
@@ -516,19 +520,21 @@ pool
     console.error('❌ Migration error (scholarship):', err.message),
   )
 
-// Automatically ensure instructors, assessments, student_submissions, and attendance_logs tables exist on startup
+// Automatically ensure instructors, assessments, student_submissions, attendance, modules, sessions & announcements tables exist on startup
 pool
   .query(
     `
-    -- 1. Instructors Table
+    -- 1. Instructors Table (With password column safety)
     CREATE TABLE IF NOT EXISTS instructors (
       id SERIAL PRIMARY KEY,
       name VARCHAR(255) NOT NULL,
       email VARCHAR(255) UNIQUE NOT NULL,
       specialty VARCHAR(255) NOT NULL,
       role VARCHAR(100) DEFAULT 'Instructor',
+      password VARCHAR(255),
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+    ALTER TABLE instructors ADD COLUMN IF NOT EXISTS password VARCHAR(255);
 
     -- 2. Assessments Table
     CREATE TABLE IF NOT EXISTS assessments (
@@ -559,11 +565,40 @@ pool
       status VARCHAR(50) DEFAULT 'present',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+
+    -- 5. Course Modules Table (Supports /api/tutors/modules)
+    CREATE TABLE IF NOT EXISTS course_modules (
+      id SERIAL PRIMARY KEY,
+      course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
+      title VARCHAR(255) NOT NULL,
+      content TEXT,
+      resource_url TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- 6. Live Sessions Table (Supports /api/tutors/sessions)
+    CREATE TABLE IF NOT EXISTS live_sessions (
+      id SERIAL PRIMARY KEY,
+      course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
+      title VARCHAR(255) NOT NULL,
+      meeting_link TEXT NOT NULL,
+      scheduled_at TIMESTAMP NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- 7. Announcements Table (Supports /api/tutors/announcements)
+    CREATE TABLE IF NOT EXISTS announcements (
+      id SERIAL PRIMARY KEY,
+      course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
+      title VARCHAR(255) NOT NULL,
+      message TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
   `,
   )
   .then(() =>
     console.log(
-      '✅ Database migration checked: instructors, assessments, submissions & attendance tables verified.',
+      '✅ Database migration checked: instructors, assessments, submissions, attendance, modules, sessions & announcements tables verified.',
     ),
   )
   .catch((err) =>
