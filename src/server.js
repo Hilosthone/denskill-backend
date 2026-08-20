@@ -250,6 +250,21 @@ const scholarshipEnrollmentRoutes = require('./routes/scholarship/scholarshipEnr
 // Import Scholarship Admin Routes (For managing cohorts, applications, and manual scholarship onboarding)
 const scholarshipAdminRoutes = require('./routes/scholarship/scholarshipAdminRoutes')
 
+
+
+// Standalone public debug route
+app.get('/debug-applications', async (req, res) => {
+  try {
+    const result = await db.query('SELECT id, first_name, last_name, email, status, created_at FROM scholarship_applications ORDER BY created_at DESC')
+    res.json({
+      totalCount: result.rows.length,
+      applications: result.rows,
+    })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // Mount System Routes (Handles root '/' and '/health')
 app.use('/', systemRoutes)
 
