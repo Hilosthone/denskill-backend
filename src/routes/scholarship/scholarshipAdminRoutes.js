@@ -13,6 +13,10 @@
 //   manualOnboardScholarshipStudent,
 //   createCohort,
 //   updateCohortStatus,
+//   updateCohort,
+//   activateCohort,
+//   deactivateCohort,
+//   deleteCohort,
 //   getAllCohorts,
 // } = require('../../controllers/scholarship/scholarshipAdminController')
 
@@ -175,7 +179,7 @@
 //  *                 example: "+2348012345678"
 //  *               cohortId:
 //  *                 type: string
-//  *                 example: "123e4567-e89b-12d3-a456-426614174000"
+//  *                 example: "1"
 //  *               course:
 //  *                 type: string
 //  *                 example: "Full-Stack Development"
@@ -252,6 +256,10 @@
 //  */
 // router.post('/cohorts', createCohort)
 
+// // ==========================================
+// // COHORT SUB-ROUTES (Specific first)
+// // ==========================================
+
 // /**
 //  * @swagger
 //  * /api/admin/scholarships/cohorts/{id}/status:
@@ -285,7 +293,123 @@
 //  */
 // router.put('/cohorts/:id/status', updateCohortStatus)
 
+// /**
+//  * @swagger
+//  * /api/admin/scholarships/cohorts/{id}/activate:
+//  *   patch:
+//  *     summary: Activate a scholarship cohort
+//  *     tags: [Scholarship Admin]
+//  *     security:
+//  *       - BearerAuth: []
+//  *     parameters:
+//  *       - in: path
+//  *         name: id
+//  *         required: true
+//  *         schema:
+//  *           type: string
+//  *         description: Cohort ID
+//  *     responses:
+//  *       200:
+//  *         description: Cohort activated successfully
+//  */
+// router.patch('/cohorts/:id/activate', activateCohort)
+
+// /**
+//  * @swagger
+//  * /api/admin/scholarships/cohorts/{id}/deactivate:
+//  *   patch:
+//  *     summary: Deactivate a scholarship cohort
+//  *     tags: [Scholarship Admin]
+//  *     security:
+//  *       - BearerAuth: []
+//  *     parameters:
+//  *       - in: path
+//  *         name: id
+//  *         required: true
+//  *         schema:
+//  *           type: string
+//  *         description: Cohort ID
+//  *     responses:
+//  *       200:
+//  *         description: Cohort deactivated successfully
+//  */
+// router.patch('/cohorts/:id/deactivate', deactivateCohort)
+
+// // ==========================================
+// // COHORT GENERAL ROUTES (Parameterized last)
+// // ==========================================
+
+// /**
+//  * @swagger
+//  * /api/admin/scholarships/cohorts/{id}:
+//  *   put:
+//  *     summary: Edit or update scholarship cohort details
+//  *     tags: [Scholarship Admin]
+//  *     security:
+//  *       - BearerAuth: []
+//  *     parameters:
+//  *       - in: path
+//  *         name: id
+//  *         required: true
+//  *         schema:
+//  *           type: string
+//  *         description: Cohort ID
+//  *     requestBody:
+//  *       required: false
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             properties:
+//  *               name:
+//  *                 type: string
+//  *               code:
+//  *                 type: string
+//  *               startDate:
+//  *                 type: string
+//  *                 format: date
+//  *               endDate:
+//  *                 type: string
+//  *                 format: date
+//  *               applicationOpenDate:
+//  *                 type: string
+//  *                 format: date
+//  *               applicationCloseDate:
+//  *                 type: string
+//  *                 format: date
+//  *               status:
+//  *                 type: string
+//  *     responses:
+//  *       200:
+//  *         description: Cohort updated successfully
+//  */
+// router.put('/cohorts/:id', updateCohort)
+
+// /**
+//  * @swagger
+//  * /api/admin/scholarships/cohorts/{id}:
+//  *   delete:
+//  *     summary: Delete a scholarship cohort
+//  *     tags: [Scholarship Admin]
+//  *     security:
+//  *       - BearerAuth: []
+//  *     parameters:
+//  *       - in: path
+//  *         name: id
+//  *         required: true
+//  *         schema:
+//  *           type: string
+//  *         description: Cohort ID
+//  *     responses:
+//  *       200:
+//  *         description: Cohort deleted successfully
+//  */
+// router.delete('/cohorts/:id', deleteCohort)
+
 // module.exports = router
+
+
+
 
 
 // src/routes/scholarship/scholarshipAdminRoutes.js
@@ -298,6 +422,9 @@ const { isAdmin } = require('../../middleware/adminMiddleware')
 const {
   getScholarshipDashboardMetrics,
   getAllApplications,
+  getPendingApplications,
+  getAwaitingPaymentApplications,
+  getPaidAndEnrolledStudents,
   approveApplication,
   rejectApplication,
   manualOnboardScholarshipStudent,
@@ -369,6 +496,69 @@ router.get('/metrics', getScholarshipDashboardMetrics)
  *         description: Applications retrieved successfully
  */
 router.get('/applications', getAllApplications)
+
+/**
+ * @swagger
+ * /api/admin/scholarships/applications/pending:
+ *   get:
+ *     summary: Get all pending scholarship applications
+ *     tags: [Scholarship Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: cohortId
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Filter pending applications by cohort ID
+ *     responses:
+ *       200:
+ *         description: Pending applications retrieved successfully
+ */
+router.get('/applications/pending', getPendingApplications)
+
+/**
+ * @swagger
+ * /api/admin/scholarships/applications/awaiting-payment:
+ *   get:
+ *     summary: Get applications approved and awaiting student contribution payment
+ *     tags: [Scholarship Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: cohortId
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Filter by cohort ID
+ *     responses:
+ *       200:
+ *         description: Awaiting payment applications retrieved successfully
+ */
+router.get('/applications/awaiting-payment', getAwaitingPaymentApplications)
+
+/**
+ * @swagger
+ * /api/admin/scholarships/applications/paid:
+ *   get:
+ *     summary: Get successfully paid and enrolled scholarship students + revenue total
+ *     tags: [Scholarship Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: cohortId
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Filter by cohort ID
+ *     responses:
+ *       200:
+ *         description: Paid students and revenue retrieved successfully
+ */
+router.get('/applications/paid', getPaidAndEnrolledStudents)
 
 /**
  * @swagger

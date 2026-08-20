@@ -12,23 +12,44 @@
 // const getFlwSecretKey = () => process.env.FLW_SECRET_KEY || 'FLWSECK-a1e';
 
 // /**
+//  * Helper utility to normalize cohort database fields from snake_case
+//  * to camelCase for safe consumption by frontend date parsers.
+//  */
+// const formatCohortResponse = (row) => {
+//   if (!row) return null
+//   return {
+//     id: row.id,
+//     name: row.name,
+//     code: row.code,
+//     status: row.status,
+//     startDate: row.start_date,
+//     endDate: row.end_date,
+//     applicationOpenDate: row.application_open_date,
+//     applicationCloseDate: row.application_close_date,
+//     createdAt: row.created_at,
+//     updatedAt: row.updated_at,
+//   }
+// }
+
+// /**
 //  * @swagger
 //  * /api/scholarship/enrollment/cohorts/active:
-//  *   get:
-//  *     summary: Get active scholarship cohorts
-//  *     tags: [Scholarship Enrollment]
-//  *     responses:
-//  *       200:
-//  *         description: List of open cohorts retrieved successfully
-//  *       500:
-//  *         description: Server error fetching cohorts
+//  *  get:
+//  *    summary: Get active scholarship cohorts
+//  *    tags: [Scholarship Enrollment]
+//  *    responses:
+//  *      200:
+//  *        description: List of open cohorts retrieved successfully
+//  *      500:
+//  *        description: Server error fetching cohorts
 //  */
 // exports.getActiveCohorts = async (req, res) => {
 //   try {
 //     const result = await db.query(
-//       `SELECT * FROM scholarship_cohorts WHERE status = 'APPLICATION_OPEN' ORDER BY start_date ASC`,
+//       `SELECT * FROM scholarship_cohorts WHERE UPPER(status) = 'ACTIVE' ORDER BY start_date ASC`,
 //     )
-//     res.status(200).json({ success: true, cohorts: result.rows })
+//     const formattedCohorts = result.rows.map(formatCohortResponse)
+//     res.status(200).json({ success: true, cohorts: formattedCohorts })
 //   } catch (error) {
 //     console.error('Error fetching cohorts:', error)
 //     res
@@ -40,55 +61,55 @@
 // /**
 //  * @swagger
 //  * /api/scholarship/enrollment/apply:
-//  *   post:
-//  *     summary: Submit a new scholarship application
-//  *     tags: [Scholarship Enrollment]
-//  *     requestBody:
-//  *       required: true
-//  *       content:
-//  *         application/json:
-//  *           schema:
-//  *             type: object
-//  *             required:
-//  *               - cohortId
-//  *               - firstName
-//  *               - lastName
-//  *               - email
-//  *               - phone
-//  *               - country
-//  *               - course
-//  *             properties:
-//  *               cohortId:
-//  *                 type: integer
-//  *               firstName:
-//  *                 type: string
-//  *               lastName:
-//  *                 type: string
-//  *               email:
-//  *                 type: string
-//  *               phone:
-//  *                 type: string
-//  *               country:
-//  *                 type: string
-//  *               course:
-//  *                 type: string
-//  *               educationalBackground:
-//  *                 type: string
-//  *               technicalBackground:
-//  *                 type: string
-//  *               reasonForApplying:
-//  *                 type: string
-//  *               motivation:
-//  *                 type: string
-//  *               portfolioUrl:
-//  *                 type: string
-//  *     responses:
-//  *       201:
-//  *         description: Scholarship application submitted successfully
-//  *       400:
-//  *         description: Invalid input or duplicate application
-//  *       500:
-//  *         description: Server error processing scholarship application
+//  *  post:
+//  *    summary: Submit a new scholarship application
+//  *    tags: [Scholarship Enrollment]
+//  *    requestBody:
+//  *      required: true
+//  *      content:
+//  *        application/json:
+//  *          schema:
+//  *            type: object
+//  *            required:
+//  *              - cohortId
+//  *              - firstName
+//  *              - lastName
+//  *              - email
+//  *              - phone
+//  *              - country
+//  *              - course
+//  *            properties:
+//  *              cohortId:
+//  *                type: integer
+//  *              firstName:
+//  *                type: string
+//  *              lastName:
+//  *                type: string
+//  *              email:
+//  *                type: string
+//  *              phone:
+//  *                type: string
+//  *              country:
+//  *                type: string
+//  *              course:
+//  *                type: string
+//  *              educationalBackground:
+//  *                type: string
+//  *              technicalBackground:
+//  *                type: string
+//  *              reasonForApplying:
+//  *                type: string
+//  *              motivation:
+//  *                type: string
+//  *              portfolioUrl:
+//  *                type: string
+//  *    responses:
+//  *      201:
+//  *        description: Scholarship application submitted successfully
+//  *      400:
+//  *        description: Invalid input or duplicate application
+//  *      500:
+//  *        description: Server error processing scholarship application
 //  */
 // exports.submitApplication = async (req, res) => {
 //   const {
@@ -108,7 +129,7 @@
 
 //   try {
 //     const cohortCheck = await db.query(
-//       `SELECT * FROM scholarship_cohorts WHERE id = $1 AND status = 'APPLICATION_OPEN'`,
+//       `SELECT * FROM scholarship_cohorts WHERE id = $1 AND UPPER(status) = 'ACTIVE'`,
 //       [cohortId],
 //     )
 
@@ -172,24 +193,24 @@
 // /**
 //  * @swagger
 //  * /api/scholarship/enrollment/status:
-//  *   get:
-//  *     summary: Check scholarship application status
-//  *     tags: [Scholarship Enrollment]
-//  *     parameters:
-//  *       - in: query
-//  *         name: email
-//  *         required: true
-//  *         schema:
-//  *           type: string
-//  *     responses:
-//  *       200:
-//  *         description: Application status retrieved successfully
-//  *       400:
-//  *         description: Email query parameter is required
-//  *       404:
-//  *         description: No scholarship applications found for this email
-//  *       500:
-//  *         description: Server error retrieving status
+//  *  get:
+//  *    summary: Check scholarship application status
+//  *    tags: [Scholarship Enrollment]
+//  *    parameters:
+//  *      - in: query
+//  *        name: email
+//  *        required: true
+//  *        schema:
+//  *          type: string
+//  *    responses:
+//  *      200:
+//  *        description: Application status retrieved successfully
+//  *      400:
+//  *        description: Email query parameter is required
+//  *      404:
+//  *        description: No scholarship applications found for this email
+//  *      500:
+//  *        description: Server error retrieving status
 //  */
 // exports.getApplicationStatus = async (req, res) => {
 //   const { email } = req.query
@@ -237,9 +258,9 @@
 // /**
 //  * @swagger
 //  * /api/scholarship/enrollment/payment/initialize:
-//  *   post:
-//  *     summary: Initialize Flutterwave payment for scholarship student contribution (₦16,000)
-//  *     tags: [Scholarship Enrollment]
+//  *  post:
+//  *    summary: Initialize Flutterwave payment for scholarship student contribution (₦16,000)
+//  *    tags: [Scholarship Enrollment]
 //  */
 // exports.initializeScholarshipPayment = async (req, res) => {
 //   const { email, cohortId } = req.body
@@ -320,9 +341,9 @@
 // /**
 //  * @swagger
 //  * /api/scholarship/enrollment/payment/verify:
-//  *   post:
-//  *     summary: Verify Flutterwave transaction and update payment status
-//  *     tags: [Scholarship Enrollment]
+//  *  post:
+//  *    summary: Verify Flutterwave transaction and update payment status
+//  *    tags: [Scholarship Enrollment]
 //  */
 // exports.verifyScholarshipPayment = async (req, res) => {
 //   const { transactionId, email, cohortId } = req.body
@@ -388,9 +409,9 @@
 // /**
 //  * @swagger
 //  * /api/scholarship/enrollment/claim:
-//  *   post:
-//  *     summary: Claim scholarship offer and activate student account with password
-//  *     tags: [Scholarship Enrollment]
+//  *  post:
+//  *    summary: Claim scholarship offer and activate student account with password
+//  *    tags: [Scholarship Enrollment]
 //  */
 // exports.claimScholarship = async (req, res) => {
 //   const client = await db.getClient()
@@ -622,6 +643,8 @@ exports.getActiveCohorts = async (req, res) => {
  *                type: string
  *              portfolioUrl:
  *                type: string
+ *              referredBy:
+ *                type: string
  *    responses:
  *      201:
  *        description: Scholarship application submitted successfully
@@ -644,6 +667,7 @@ exports.submitApplication = async (req, res) => {
     reasonForApplying,
     motivation,
     portfolioUrl,
+    referredBy,
   } = req.body
 
   try {
@@ -673,8 +697,8 @@ exports.submitApplication = async (req, res) => {
 
     const insertQuery = `
       INSERT INTO scholarship_applications 
-      (cohort_id, first_name, last_name, email, phone, country, course, educational_background, technical_background, reason_for_applying, motivation, portfolio_url, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'PENDING')
+      (cohort_id, first_name, last_name, email, phone, country, course, educational_background, technical_background, reason_for_applying, motivation, portfolio_url, referred_by, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'PENDING')
       RETURNING *;
     `
 
@@ -691,6 +715,7 @@ exports.submitApplication = async (req, res) => {
       reasonForApplying,
       motivation,
       portfolioUrl,
+      referredBy || null,
     ]
 
     const newApp = await db.query(insertQuery, values)
@@ -786,14 +811,14 @@ exports.initializeScholarshipPayment = async (req, res) => {
 
   try {
     const appResult = await db.query(
-      `SELECT * FROM scholarship_applications WHERE email = $1 AND cohort_id = $2 AND status = 'ACCEPTED'`,
+      `SELECT * FROM scholarship_applications WHERE email = $1 AND cohort_id = $2 AND status IN ('ACCEPTED', 'APPROVED', 'AWAITING_PAYMENT')`,
       [email, cohortId]
     )
 
     if (appResult.rows.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'No accepted scholarship application found for this email and cohort.',
+        message: 'No eligible scholarship application found for this email and cohort.',
       })
     }
 
@@ -956,7 +981,7 @@ exports.claimScholarship = async (req, res) => {
       `SELECT sa.*, sc.code as cohort_code 
        FROM scholarship_applications sa
        JOIN scholarship_cohorts sc ON sa.cohort_id = sc.id
-       WHERE sa.email = $1 AND sa.cohort_id = $2 AND (sa.status = 'PAYMENT_COMPLETED' OR sa.status = 'ACCEPTED')`,
+       WHERE sa.email = $1 AND sa.cohort_id = $2 AND (sa.status = 'PAYMENT_COMPLETED' OR sa.status = 'ACCEPTED' OR sa.status = 'APPROVED')`,
       [email, cohortId]
     )
 

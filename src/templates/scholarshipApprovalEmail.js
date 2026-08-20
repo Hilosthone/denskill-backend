@@ -1,3 +1,4 @@
+//src/templates/scholarshipApprovalEmail.js
 // Scholarship Approval Email Template
 const scholarshipApprovalEmail = (firstName, paymentLink) => {
   return `

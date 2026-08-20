@@ -3,6 +3,56 @@
 // const bcrypt = require('bcryptjs')
 // const db = require('../../config/db')
 
+// /**
+//  * Helper utility to normalize cohort database fields from snake_case
+//  * to camelCase for safe consumption by frontend date parsers.
+//  */
+// const formatCohortResponse = (row) => {
+//   if (!row) return null
+//   return {
+//     id: row.id,
+//     name: row.name,
+//     code: row.code,
+//     status: row.status,
+//     startDate: row.start_date,
+//     endDate: row.end_date,
+//     applicationOpenDate: row.application_open_date,
+//     applicationCloseDate: row.application_close_date,
+//     createdAt: row.created_at,
+//     updatedAt: row.updated_at,
+//   }
+// }
+
+// /**
+//  * Helper utility to normalize application database fields from snake_case
+//  * to camelCase for safe consumption by the frontend admin dashboard.
+//  */
+// const formatApplicationResponse = (row) => {
+//   if (!row) return null
+//   return {
+//     id: row.id,
+//     cohortId: row.cohort_id,
+//     firstName: row.first_name,
+//     lastName: row.last_name,
+//     fullName: `${row.first_name || ''} ${row.last_name || ''}`.trim(),
+//     email: row.email,
+//     phone: row.phone,
+//     country: row.country,
+//     course: row.course,
+//     educationalBackground: row.educational_background,
+//     technicalBackground: row.technical_background,
+//     reasonForApplying: row.reason_for_applying,
+//     motivation: row.motivation,
+//     portfolioUrl: row.portfolio_url,
+//     adminNotes: row.admin_notes,
+//     status: row.status,
+//     createdAt: row.created_at,
+//     updatedAt: row.updated_at,
+//     cohortName: row.cohort_name,
+//     cohortCode: row.cohort_code,
+//   }
+// }
+
 // const getScholarshipDashboardMetrics = async (req, res) => {
 //   try {
 //     const { cohortId } = req.query
@@ -27,13 +77,13 @@
 
 //     const statsResult = await db.query(statsQuery, params)
 //     const cohortResult = await db.query(
-//       `SELECT * FROM scholarship_cohorts WHERE status = 'ACTIVE' LIMIT 1`,
+//       `SELECT * FROM scholarship_cohorts WHERE UPPER(status) = 'ACTIVE' LIMIT 1`,
 //     )
 
 //     res.status(200).json({
 //       success: true,
 //       metrics: statsResult.rows[0],
-//       activeCohort: cohortResult.rows[0] || null,
+//       activeCohort: formatCohortResponse(cohortResult.rows[0]) || null,
 //     })
 //   } catch (error) {
 //     console.error('Error fetching scholarship metrics:', error)
@@ -68,7 +118,13 @@
 //     query += ` ORDER BY sa.created_at DESC`
 
 //     const result = await db.query(query, params)
-//     res.status(200).json({ success: true, count: result.rows.length, applications: result.rows })
+//     const formattedApplications = result.rows.map(formatApplicationResponse)
+
+//     res.status(200).json({
+//       success: true,
+//       count: formattedApplications.length,
+//       applications: formattedApplications
+//     })
 //   } catch (error) {
 //     console.error('Error fetching applications:', error)
 //     res.status(500).json({ success: false, message: 'Server error loading applications' })
@@ -149,7 +205,6 @@
 //       return res.status(400).json({ success: false, message: 'First name, last name, email, and cohort ID are required.' })
 //     }
 
-//     // Verify cohort exists
 //     const cohortCheck = await db.query('SELECT * FROM scholarship_cohorts WHERE id = $1', [cohortId])
 //     if (cohortCheck.rows.length === 0) {
 //       return res.status(404).json({ success: false, message: 'Scholarship cohort not found.' })
@@ -207,7 +262,7 @@
 //     res.status(201).json({
 //       success: true,
 //       message: 'Scholarship cohort created successfully',
-//       cohort: result.rows[0],
+//       cohort: formatCohortResponse(result.rows[0]),
 //     })
 //   } catch (error) {
 //     console.error('Error creating cohort:', error)
@@ -232,7 +287,7 @@
 //     res.status(200).json({
 //       success: true,
 //       message: 'Cohort status updated successfully',
-//       cohort: result.rows[0],
+//       cohort: formatCohortResponse(result.rows[0]),
 //     })
 //   } catch (error) {
 //     console.error('Error updating cohort status:', error)
@@ -240,10 +295,124 @@
 //   }
 // }
 
+// const updateCohort = async (req, res) => {
+//   const { id } = req.params
+//   const { name, code, startDate, endDate, applicationOpenDate, applicationCloseDate, status } = req.body
+
+//   try {
+//     const result = await db.query(
+//       `UPDATE scholarship_cohorts
+//        SET name = COALESCE($1, name),
+//            code = COALESCE($2, code),
+//            start_date = COALESCE($3, start_date),
+//            end_date = COALESCE($4, end_date),
+//            application_open_date = COALESCE($5, application_open_date),
+//            application_close_date = COALESCE($6, application_close_date),
+//            status = COALESCE($7, status),
+//            updated_at = CURRENT_TIMESTAMP
+//        WHERE id = $8
+//        RETURNING *;`,
+//       [name, code, startDate, endDate, applicationOpenDate, applicationCloseDate, status, id],
+//     )
+
+//     if (result.rows.length === 0) {
+//       return res.status(404).json({ success: false, message: 'Cohort not found' })
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'Cohort updated successfully',
+//       cohort: formatCohortResponse(result.rows[0]),
+//     })
+//   } catch (error) {
+//     console.error('Error updating cohort:', error)
+//     res.status(500).json({ success: false, message: 'Server error updating cohort' })
+//   }
+// }
+
+// const activateCohort = async (req, res) => {
+//   const { id } = req.params
+
+//   try {
+//     const result = await db.query(
+//       `UPDATE scholarship_cohorts
+//        SET status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP
+//        WHERE id = $1
+//        RETURNING *;`,
+//       [id],
+//     )
+
+//     if (result.rows.length === 0) {
+//       return res.status(404).json({ success: false, message: 'Cohort not found' })
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'Cohort activated successfully',
+//       cohort: formatCohortResponse(result.rows[0]),
+//     })
+//   } catch (error) {
+//     console.error('Error activating cohort:', error)
+//     res.status(500).json({ success: false, message: 'Server error activating cohort' })
+//   }
+// }
+
+// const deactivateCohort = async (req, res) => {
+//   const { id } = req.params
+
+//   try {
+//     const result = await db.query(
+//       `UPDATE scholarship_cohorts
+//        SET status = 'INACTIVE', updated_at = CURRENT_TIMESTAMP
+//        WHERE id = $1
+//        RETURNING *;`,
+//       [id],
+//     )
+
+//     if (result.rows.length === 0) {
+//       return res.status(404).json({ success: false, message: 'Cohort not found' })
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'Cohort deactivated successfully',
+//       cohort: formatCohortResponse(result.rows[0]),
+//     })
+//   } catch (error) {
+//     console.error('Error deactivating cohort:', error)
+//     res.status(500).json({ success: false, message: 'Server error deactivating cohort' })
+//   }
+// }
+
+// const deleteCohort = async (req, res) => {
+//   const { id } = req.params
+
+//   try {
+//     const result = await db.query(
+//       `DELETE FROM scholarship_cohorts WHERE id = $1 RETURNING *;`,
+//       [id],
+//     )
+
+//     if (result.rows.length === 0) {
+//       return res.status(404).json({ success: false, message: 'Cohort not found' })
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'Cohort deleted successfully',
+//     })
+//   } catch (error) {
+//     console.error('Error deleting cohort:', error)
+//     res.status(500).json({ success: false, message: 'Server error deleting cohort' })
+//   }
+// }
+
 // const getAllCohorts = async (req, res) => {
 //   try {
 //     const result = await db.query(`SELECT * FROM scholarship_cohorts ORDER BY start_date DESC`)
-//     res.status(200).json({ success: true, cohorts: result.rows })
+//     const formattedCohorts = result.rows.map(formatCohortResponse)
+    
+//     res.status(200).json({ success: true, cohorts: formattedCohorts })
 //   } catch (error) {
 //     console.error('Error fetching cohorts:', error)
 //     res.status(500).json({ success: false, message: 'Server error fetching cohorts' })
@@ -258,8 +427,14 @@
 //   manualOnboardScholarshipStudent,
 //   createCohort,
 //   updateCohortStatus,
+//   updateCohort,
+//   activateCohort,
+//   deactivateCohort,
+//   deleteCohort,
 //   getAllCohorts,
 // }
+
+
 
 
 
@@ -267,6 +442,8 @@
 const crypto = require('crypto')
 const bcrypt = require('bcryptjs')
 const db = require('../../config/db')
+const sendEmail = require('../../utils/sendEmail')
+const scholarshipApprovalEmail = require('../../templates/scholarshipApprovalEmail')
 
 /**
  * Helper utility to normalize cohort database fields from snake_case 
@@ -309,8 +486,12 @@ const formatApplicationResponse = (row) => {
     reasonForApplying: row.reason_for_applying,
     motivation: row.motivation,
     portfolioUrl: row.portfolio_url,
+    referredBy: row.referred_by || null, // Added referral mapping here
     adminNotes: row.admin_notes,
     status: row.status,
+    paymentStatus: row.payment_status || 'PENDING',
+    amountPaid: row.student_amount || 0,
+    paymentReference: row.payment_reference || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     cohortName: row.cohort_name,
@@ -322,32 +503,50 @@ const getScholarshipDashboardMetrics = async (req, res) => {
   try {
     const { cohortId } = req.query
     let cohortFilter = ''
+    let awardCohortFilter = ''
     let params = []
 
     if (cohortId) {
-      cohortFilter = 'WHERE cohort_id = $1'
+      cohortFilter = 'WHERE sa.cohort_id = $1'
+      awardCohortFilter = 'WHERE sa.cohort_id = $1'
       params.push(cohortId)
     }
 
     const statsQuery = `
       SELECT 
-        COUNT(*) as total_applications,
-        SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END) as pending_applications,
-        SUM(CASE WHEN status = 'UNDER_REVIEW' THEN 1 ELSE 0 END) as under_review,
-        SUM(CASE WHEN status = 'APPROVED' OR status = 'AWAITING_PAYMENT' THEN 1 ELSE 0 END) as approved,
-        SUM(CASE WHEN status = 'REJECTED' THEN 1 ELSE 0 END) as rejected,
-        SUM(CASE WHEN status = 'PAYMENT_COMPLETED' OR status = 'ENROLLED' THEN 1 ELSE 0 END) as paid_enrolled
-      FROM scholarship_applications ${cohortFilter};
+        COUNT(sa.*) as total_applications,
+        SUM(CASE WHEN sa.status = 'PENDING' THEN 1 ELSE 0 END) as pending_applications,
+        SUM(CASE WHEN sa.status = 'UNDER_REVIEW' THEN 1 ELSE 0 END) as under_review,
+        SUM(CASE WHEN sa.status = 'APPROVED' OR sa.status = 'AWAITING_PAYMENT' THEN 1 ELSE 0 END) as approved_awaiting_payment,
+        SUM(CASE WHEN sa.status = 'REJECTED' THEN 1 ELSE 0 END) as rejected,
+        SUM(CASE WHEN sa.status = 'PAYMENT_COMPLETED' OR sa.status = 'ENROLLED' THEN 1 ELSE 0 END) as paid_enrolled
+      FROM scholarship_applications sa ${cohortFilter};
+    `
+
+    const revenueQuery = `
+      SELECT 
+        COALESCE(SUM(saw.student_amount), 0) as total_revenue,
+        COUNT(CASE WHEN saw.payment_status = 'COMPLETED' OR saw.payment_status = 'SUCCESS' THEN 1 END) as paid_count
+      FROM scholarship_awards saw
+      JOIN scholarship_applications sa ON saw.application_id = sa.id
+      ${awardCohortFilter};
     `
 
     const statsResult = await db.query(statsQuery, params)
+    const revenueResult = await db.query(revenueQuery, params)
     const cohortResult = await db.query(
       `SELECT * FROM scholarship_cohorts WHERE UPPER(status) = 'ACTIVE' LIMIT 1`,
     )
 
+    const metrics = {
+      ...statsResult.rows[0],
+      totalRevenue: Number(revenueResult.rows[0].total_revenue),
+      completedPaymentsCount: Number(revenueResult.rows[0].paid_count),
+    }
+
     res.status(200).json({
       success: true,
-      metrics: statsResult.rows[0],
+      metrics,
       activeCohort: formatCohortResponse(cohortResult.rows[0]) || null,
     })
   } catch (error) {
@@ -360,9 +559,11 @@ const getAllApplications = async (req, res) => {
   try {
     const { cohortId, status } = req.query
     let query = `
-      SELECT sa.*, sc.name as cohort_name, sc.code as cohort_code 
+      SELECT sa.*, sc.name as cohort_name, sc.code as cohort_code, 
+             saw.payment_status, saw.student_amount, saw.payment_reference
       FROM scholarship_applications sa
       JOIN scholarship_cohorts sc ON sa.cohort_id = sc.id
+      LEFT JOIN scholarship_awards saw ON sa.id = saw.application_id
     `
     let conditions = []
     let params = []
@@ -393,6 +594,104 @@ const getAllApplications = async (req, res) => {
   } catch (error) {
     console.error('Error fetching applications:', error)
     res.status(500).json({ success: false, message: 'Server error loading applications' })
+  }
+}
+
+/**
+ * Dedicated Endpoint: Get Pending Applications
+ */
+const getPendingApplications = async (req, res) => {
+  try {
+    const { cohortId } = req.query
+    let query = `
+      SELECT sa.*, sc.name as cohort_name, sc.code as cohort_code 
+      FROM scholarship_applications sa
+      JOIN scholarship_cohorts sc ON sa.cohort_id = sc.id
+      WHERE sa.status = 'PENDING'
+    `
+    let params = []
+    if (cohortId) {
+      params.push(cohortId)
+      query += ` AND sa.cohort_id = $1`
+    }
+    query += ` ORDER BY sa.created_at DESC`
+
+    const result = await db.query(query, params)
+    const applications = result.rows.map(formatApplicationResponse)
+
+    res.status(200).json({ success: true, count: applications.length, applications })
+  } catch (error) {
+    console.error('Error fetching pending applications:', error)
+    res.status(500).json({ success: false, message: 'Server error loading pending applications' })
+  }
+}
+
+/**
+ * Dedicated Endpoint: Get Accepted & Awaiting Payment (Not yet paid)
+ */
+const getAwaitingPaymentApplications = async (req, res) => {
+  try {
+    const { cohortId } = req.query
+    let query = `
+      SELECT sa.*, sc.name as cohort_name, sc.code as cohort_code, 
+             saw.payment_status, saw.student_amount, saw.payment_reference, saw.expires_at
+      FROM scholarship_applications sa
+      JOIN scholarship_cohorts sc ON sa.cohort_id = sc.id
+      LEFT JOIN scholarship_awards saw ON sa.id = saw.application_id
+      WHERE sa.status IN ('APPROVED', 'AWAITING_PAYMENT') AND (saw.payment_status = 'PENDING' OR saw.payment_status IS NULL)
+    `
+    let params = []
+    if (cohortId) {
+      params.push(cohortId)
+      query += ` AND sa.cohort_id = $1`
+    }
+    query += ` ORDER BY sa.created_at DESC`
+
+    const result = await db.query(query, params)
+    const applications = result.rows.map(formatApplicationResponse)
+
+    res.status(200).json({ success: true, count: applications.length, applications })
+  } catch (error) {
+    console.error('Error fetching awaiting payment applications:', error)
+    res.status(500).json({ success: false, message: 'Server error loading awaiting payment applications' })
+  }
+}
+
+/**
+ * Dedicated Endpoint: Get Paid & Enrolled Students (Accepted + Claimed/Paid) + Revenue Summary
+ */
+const getPaidAndEnrolledStudents = async (req, res) => {
+  try {
+    const { cohortId } = req.query
+    let query = `
+      SELECT sa.*, sc.name as cohort_name, sc.code as cohort_code, 
+             saw.payment_status, saw.student_amount, saw.payment_reference, saw.updated_at as paid_at
+      FROM scholarship_applications sa
+      JOIN scholarship_cohorts sc ON sa.cohort_id = sc.id
+      JOIN scholarship_awards saw ON sa.id = saw.application_id
+      WHERE (sa.status = 'PAYMENT_COMPLETED' OR sa.status = 'ENROLLED' OR saw.payment_status = 'COMPLETED' OR saw.payment_status = 'SUCCESS')
+    `
+    let params = []
+    if (cohortId) {
+      params.push(cohortId)
+      query += ` AND sa.cohort_id = $1`
+    }
+    query += ` ORDER BY saw.updated_at DESC`
+
+    const result = await db.query(query, params)
+    const students = result.rows.map(formatApplicationResponse)
+
+    const totalRevenue = students.reduce((sum, item) => sum + Number(item.amountPaid || 0), 0)
+
+    res.status(200).json({ 
+      success: true, 
+      count: students.length, 
+      totalRevenue, 
+      students 
+    })
+  } catch (error) {
+    console.error('Error fetching paid students:', error)
+    res.status(500).json({ success: false, message: 'Server error loading paid students' })
   }
 }
 
@@ -429,9 +728,22 @@ const approveApplication = async (req, res) => {
       [id, paymentReference],
     )
 
+    const frontendUrl = process.env.FRONTEND_URL || 'https://denskill.com'
+    const paymentLink = `${frontendUrl}/scholarship/pay?reference=${paymentReference}&email=${encodeURIComponent(app.email)}`
+
+    try {
+      await sendEmail({
+        to: app.email,
+        subject: '🎉 Congratulations! Your Scholarship Application Has Been Approved',
+        html: scholarshipApprovalEmail(app.first_name, paymentLink),
+      })
+    } catch (emailError) {
+      console.error('Failed to send scholarship acceptance email:', emailError)
+    }
+
     res.status(200).json({
       success: true,
-      message: 'Scholarship application approved successfully! Payment reference generated.',
+      message: 'Scholarship application approved, payment reference generated, and email sent successfully!',
       award: awardResult.rows[0],
     })
   } catch (error) {
@@ -450,12 +762,33 @@ const rejectApplication = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Scholarship application not found' })
     }
 
+    const app = appResult.rows[0]
+
     await db.query(
       `UPDATE scholarship_applications SET status = 'REJECTED', admin_notes = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
       [adminNotes || 'Application rejected.', id],
     )
 
-    res.status(200).json({ success: true, message: 'Scholarship application rejected.' })
+    try {
+      await sendEmail({
+        to: app.email,
+        subject: 'Update on Your Scholarship Application - D Enskill Academy',
+        html: `
+          <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 8px;">
+            <h2 style="color: #4F46E5;">Hello ${app.first_name},</h2>
+            <p>Thank you for applying to the D Enskill Academy Scholarship Program. We received a high volume of applications for this cohort.</p>
+            <p>Regrettably, we are unable to offer you a scholarship slot at this time.</p>
+            ${adminNotes ? `<p><strong>Feedback:</strong> ${adminNotes}</p>` : ''}
+            <p>We encourage you to apply again in future cohorts.</p>
+            <p>Best regards,<br/><strong>D Enskill Academy Team</strong></p>
+          </div>
+        `,
+      })
+    } catch (emailError) {
+      console.error('Failed to send rejection email:', emailError)
+    }
+
+    res.status(200).json({ success: true, message: 'Scholarship application rejected and email notification sent.' })
   } catch (error) {
     console.error('Error rejecting application:', error)
     res.status(500).json({ success: false, message: 'Server error processing rejection' })
@@ -687,6 +1020,9 @@ const getAllCohorts = async (req, res) => {
 module.exports = {
   getScholarshipDashboardMetrics,
   getAllApplications,
+  getPendingApplications,
+  getAwaitingPaymentApplications,
+  getPaidAndEnrolledStudents,
   approveApplication,
   rejectApplication,
   manualOnboardScholarshipStudent,
