@@ -705,6 +705,10 @@ exports.initializeScholarshipPayment = async (req, res) => {
 }
 
 exports.verifyScholarshipPayment = async (req, res) => {
+  console.log(
+    '🔥 verifyScholarshipPayment controller triggered with reference:',
+    req.body.reference,
+  )
   const { reference } = req.body
 
   if (!reference) {
