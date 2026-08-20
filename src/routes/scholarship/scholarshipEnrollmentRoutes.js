@@ -233,12 +233,21 @@ router.get('/cohorts/active', scholarshipEnrollmentController.getActiveCohorts)
  *               phone:
  *                 type: string
  *                 example: "+2348000000000"
+ *               country:
+ *                 type: string
+ *                 example: "Nigeria"
  *               course:
  *                 type: string
  *                 example: "Full Stack Development"
  *               statement:
  *                 type: string
  *                 example: "I am passionate about technology and want to build a career in software development."
+ *               motivation:
+ *                 type: string
+ *                 example: "Why I am applying for this scholarship..."
+ *               reasonForApplying:
+ *                 type: string
+ *                 example: "My goals and background..."
  *               referredBy:
  *                 type: string
  *                 example: "Friend / Social Media / Jane Doe"
