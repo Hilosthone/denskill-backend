@@ -9,7 +9,7 @@
 //       title: 'D Enskill Academy API Docs',
 //       version: '1.0.0',
 //       description:
-//         'API documentation for D Enskill Academy backend admin, tutors, student portals, auth, and flutterwave payments by Hilosthone.',
+//         'API documentation for D Enskill Academy backend admin, tutors, student portals, scholarship programme, auth, and flutterwave payments by Hilosthone.',
 //     },
 //     servers: [
 //       {
@@ -21,15 +21,11 @@
 //         description: 'Development Server',
 //       },
 //     ],
-//     // 👇 ADD THIS TAGS ARRAY HERE TO CONTROL THE EXACT ORDER
+//     // Tags array to control the exact section ordering in Swagger UI
 //     tags: [
 //       {
 //         name: 'System',
 //         description: 'Liveness and readiness health checks',
-//       },
-//       {
-//         name: 'Enrollments',
-//         description: 'Student registration and payment flows',
 //       },
 //       {
 //         name: 'Auth',
@@ -37,7 +33,19 @@
 //       },
 //       {
 //         name: 'Dashboard',
-//         description: 'Student portal overview, courses, and assessments',
+//         description: 'Student portal overview, courses, and assessments (Normal & Scholarship)',
+//       },
+//       {
+//         name: 'Enrollments',
+//         description: 'Student registration and payment flows',
+//       },
+//       {
+//         name: 'Scholarship Enrollment',
+//         description: 'Public scholarship applications and pre-admission tracking',
+//       },
+//       {
+//         name: 'Scholarship Auth',
+//         description: 'Scholarship applicant authentication',
 //       },
 //       {
 //         name: 'Admin Auth',
@@ -45,15 +53,11 @@
 //       },
 //       {
 //         name: 'Admin',
-//         description: 'Platform management and oversight',
+//         description: 'Platform management, oversight, scholarship cohorts, and application reviews',
 //       },
 //       {
-//         name: 'Tutor Auth',
-//         description: 'Instructor authentication',
-//       },
-//       {
-//         name: 'Tutor',
-//         description: 'Instructor assessment, grading, and attendance portal',
+//         name: 'Tutors',
+//         description: 'Instructor authentication, assessment, grading, attendance portal, and assigned cohort student tracking',
 //       },
 //     ],
 //     components: {
@@ -66,7 +70,12 @@
 //       },
 //     },
 //   },
-//   apis: ['./src/routes/*.js', './src/controllers/*.js'],
+//   apis: [
+//     './src/routes/*.js',
+//     './src/controllers/*.js',
+//     './src/routes/scholarship/*.js',
+//     './src/controllers/scholarship/*.js',
+//   ],
 // }
 
 // const swaggerSpec = swaggerJSDoc(options)
@@ -76,6 +85,8 @@
 // }
 
 // module.exports = { swaggerDocs }
+
+
 
 // src/config/swagger.js
 const swaggerJSDoc = require('swagger-jsdoc')
@@ -92,7 +103,7 @@ const options = {
     },
     servers: [
       {
-        url: 'https://denskill-backend.onrender.com',
+        url: 'https://denskill-backend.vercel.app', // <-- Updated to your new Vercel URL
         description: 'Production Server',
       },
       {
@@ -160,7 +171,16 @@ const options = {
 const swaggerSpec = swaggerJSDoc(options)
 
 const swaggerDocs = (app) => {
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
+  // Inject CDN assets so Vercel can render the UI without blocking local static files
+  const swaggerOptions = {
+    customCssUrl: 'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.min.css',
+    customJs: [
+      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-bundle.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-standalone-preset.js',
+    ],
+  }
+
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerOptions))
 }
 
 module.exports = { swaggerDocs }
