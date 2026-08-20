@@ -64,6 +64,9 @@
 //  *               statement:
 //  *                 type: string
 //  *                 example: "I am passionate about technology and want to build a career in software development."
+//  *               referredBy:
+//  *                 type: string
+//  *                 example: "Friend / Social Media / Jane Doe"
 //  *     responses:
 //  *       201:
 //  *         description: Scholarship application submitted successfully
@@ -93,7 +96,7 @@
 //  * @swagger
 //  * /api/scholarship/enrollment/payment/initialize:
 //  *   post:
-//  *     summary: Initialize Flutterwave payment for scholarship student contribution (₦16,000)
+//  *     summary: Initialize Flutterwave payment for scholarship student contribution (80% scholarship coverage)
 //  *     tags: [Scholarship Enrollment]
 //  *     requestBody:
 //  *       required: true
@@ -147,6 +150,7 @@
 //  *       required: true
 //  *       content:
 //  *         application/json:
+//  *asis:
 //  *           schema:
 //  *             type: object
 //  *             required:
@@ -166,6 +170,7 @@
 // router.post('/claim', scholarshipEnrollmentController.claimScholarship)
 
 // module.exports = router
+
 
 
 // src/routes/scholarship/scholarshipEnrollmentRoutes.js
@@ -266,7 +271,7 @@ router.get('/status', scholarshipEnrollmentController.getApplicationStatus)
  * @swagger
  * /api/scholarship/enrollment/payment/initialize:
  *   post:
- *     summary: Initialize Flutterwave payment for scholarship student contribution (₦16,000)
+ *     summary: Initialize Flutterwave payment for scholarship student contribution (80% scholarship coverage)
  *     tags: [Scholarship Enrollment]
  *     requestBody:
  *       required: true
@@ -320,7 +325,6 @@ router.post('/payment/verify', scholarshipEnrollmentController.verifyScholarship
  *       required: true
  *       content:
  *         application/json:
- *asis:
  *           schema:
  *             type: object
  *             required:

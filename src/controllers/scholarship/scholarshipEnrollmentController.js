@@ -543,18 +543,43 @@ const db = require('../../config/db')
 const bcrypt = require('bcryptjs')
 const axios = require('axios')
 
-// Universal scholarship pricing constants per the technical design
-const SCHOLARSHIP_ORIGINAL_FEE = 80000;
-const SCHOLARSHIP_STUDENT_CONTRIBUTION = 16000;
-const SCHOLARSHIP_DISCOUNT_AMOUNT = 64000;
-
-// Helper to get Flutterwave secret key dynamically
-const getFlwSecretKey = () => process.env.FLW_SECRET_KEY || 'FLWSECK-a1e';
+// Program pricing reference list matching your frontend constants
+const PROGRAMMES = [
+  { title: 'Frontend Development', price: '₦80,000' },
+  { title: 'Backend Development', price: '₦80,000' },
+  { title: 'Full Stack Development', price: '₦200,000' },
+  { title: 'Mobile Development', price: '₦100,000' },
+  { title: 'Cybersecurity', price: '₦100,000' },
+  { title: 'Data Science', price: '₦80,000' },
+  { title: 'Data Analysis', price: '₦80,000' },
+  { title: 'Product Design (UI/UX)', price: '₦80,000' },
+  { title: 'Product Management', price: '₦80,000' },
+  { title: 'Web3 and Blockchain Development', price: '₦200,000' },
+  { title: 'AI / Machine Learning', price: '₦200,000' },
+  { title: 'Graphics Design', price: 'free' },
+]
 
 /**
- * Helper utility to normalize cohort database fields from snake_case 
- * to camelCase for safe consumption by frontend date parsers.
+ * Helper to calculate dynamic scholarship pricing based on the course title.
  */
+const calculateScholarshipFees = (courseTitle) => {
+  const match = PROGRAMMES.find(
+    (p) => p.title.toLowerCase() === (courseTitle || '').trim().toLowerCase()
+  )
+
+  if (!match || match.price.toLowerCase() === 'free') {
+    return { originalAmount: 0, discountAmount: 0, studentContribution: 0 }
+  }
+
+  const originalAmount = parseInt(match.price.replace(/[^0-9]/g, ''), 10) || 80000
+  const discountAmount = originalAmount * 0.80
+  const studentContribution = originalAmount - discountAmount
+
+  return { originalAmount, discountAmount, studentContribution }
+}
+
+const getFlwSecretKey = () => process.env.FLW_SECRET_KEY || 'FLWSECK-a1e'
+
 const formatCohortResponse = (row) => {
   if (!row) return null
   return {
@@ -571,18 +596,6 @@ const formatCohortResponse = (row) => {
   }
 }
 
-/**
- * @swagger
- * /api/scholarship/enrollment/cohorts/active:
- *  get:
- *    summary: Get active scholarship cohorts
- *    tags: [Scholarship Enrollment]
- *    responses:
- *      200:
- *        description: List of open cohorts retrieved successfully
- *      500:
- *        description: Server error fetching cohorts
- */
 exports.getActiveCohorts = async (req, res) => {
   try {
     const result = await db.query(
@@ -592,67 +605,10 @@ exports.getActiveCohorts = async (req, res) => {
     res.status(200).json({ success: true, cohorts: formattedCohorts })
   } catch (error) {
     console.error('Error fetching cohorts:', error)
-    res
-      .status(500)
-      .json({ success: false, message: 'Server error fetching cohorts' })
+    res.status(500).json({ success: false, message: 'Server error fetching cohorts' })
   }
 }
 
-/**
- * @swagger
- * /api/scholarship/enrollment/apply:
- *  post:
- *    summary: Submit a new scholarship application
- *    tags: [Scholarship Enrollment]
- *    requestBody:
- *      required: true
- *      content:
- *        application/json:
- *          schema:
- *            type: object
- *            required:
- *              - cohortId
- *              - firstName
- *              - lastName
- *              - email
- *              - phone
- *              - country
- *              - course
- *            properties:
- *              cohortId:
- *                type: integer
- *              firstName:
- *                type: string
- *              lastName:
- *                type: string
- *              email:
- *                type: string
- *              phone:
- *                type: string
- *              country:
- *                type: string
- *              course:
- *                type: string
- *              educationalBackground:
- *                type: string
- *              technicalBackground:
- *                type: string
- *              reasonForApplying:
- *                type: string
- *              motivation:
- *                type: string
- *              portfolioUrl:
- *                type: string
- *              referredBy:
- *                type: string
- *    responses:
- *      201:
- *        description: Scholarship application submitted successfully
- *      400:
- *        description: Invalid input or duplicate application
- *      500:
- *        description: Server error processing scholarship application
- */
 exports.submitApplication = async (req, res) => {
   const {
     cohortId,
@@ -662,13 +618,14 @@ exports.submitApplication = async (req, res) => {
     phone,
     country,
     course,
-    educationalBackground,
-    technicalBackground,
-    reasonForApplying,
+    statement, 
     motivation,
-    portfolioUrl,
+    reasonForApplying,
     referredBy,
   } = req.body
+
+  // Gracefully fallback to whichever text field the frontend form populated
+  const finalStatement = statement || motivation || reasonForApplying || ''
 
   try {
     const cohortCheck = await db.query(
@@ -697,8 +654,8 @@ exports.submitApplication = async (req, res) => {
 
     const insertQuery = `
       INSERT INTO scholarship_applications 
-      (cohort_id, first_name, last_name, email, phone, country, course, educational_background, technical_background, reason_for_applying, motivation, portfolio_url, referred_by, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'PENDING')
+      (cohort_id, first_name, last_name, email, phone, country, course, motivation, referred_by, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'PENDING')
       RETURNING *;
     `
 
@@ -708,13 +665,9 @@ exports.submitApplication = async (req, res) => {
       lastName,
       email,
       phone,
-      country,
+      country || 'Nigeria',
       course,
-      educationalBackground,
-      technicalBackground,
-      reasonForApplying,
-      motivation,
-      portfolioUrl,
+      finalStatement,
       referredBy || null,
     ]
 
@@ -734,35 +687,11 @@ exports.submitApplication = async (req, res) => {
   }
 }
 
-/**
- * @swagger
- * /api/scholarship/enrollment/status:
- *  get:
- *    summary: Check scholarship application status
- *    tags: [Scholarship Enrollment]
- *    parameters:
- *      - in: query
- *        name: email
- *        required: true
- *        schema:
- *          type: string
- *    responses:
- *      200:
- *        description: Application status retrieved successfully
- *      400:
- *        description: Email query parameter is required
- *      404:
- *        description: No scholarship applications found for this email
- *      500:
- *        description: Server error retrieving status
- */
 exports.getApplicationStatus = async (req, res) => {
   const { email } = req.query
 
   if (!email) {
-    return res
-      .status(400)
-      .json({ success: false, message: 'Email query parameter is required' })
+    return res.status(400).json({ success: false, message: 'Email query parameter is required' })
   }
 
   try {
@@ -781,58 +710,55 @@ exports.getApplicationStatus = async (req, res) => {
       })
     }
 
-    const enrichedApplications = result.rows.map(app => ({
-      ...app,
-      fee_details: {
-        originalAmount: SCHOLARSHIP_ORIGINAL_FEE,
-        discountAmount: SCHOLARSHIP_DISCOUNT_AMOUNT,
-        studentContribution: SCHOLARSHIP_STUDENT_CONTRIBUTION,
+    const enrichedApplications = result.rows.map(app => {
+      const fees = calculateScholarshipFees(app.course)
+      return {
+        ...app,
+        fee_details: {
+          originalAmount: fees.originalAmount,
+          discountAmount: fees.discountAmount,
+          studentContribution: fees.studentContribution,
+        }
       }
-    }))
+    })
 
     res.status(200).json({ success: true, applications: enrichedApplications })
   } catch (error) {
     console.error('Error fetching application status:', error)
-    res
-      .status(500)
-      .json({ success: false, message: 'Server error retrieving status' })
+    res.status(500).json({ success: false, message: 'Server error retrieving status' })
   }
 }
 
-/**
- * @swagger
- * /api/scholarship/enrollment/payment/initialize:
- *  post:
- *    summary: Initialize Flutterwave payment for scholarship student contribution (₦16,000)
- *    tags: [Scholarship Enrollment]
- */
 exports.initializeScholarshipPayment = async (req, res) => {
-  const { email, cohortId } = req.body
+  const { applicationId } = req.body
+
+  if (!applicationId) {
+    return res.status(400).json({ success: false, message: 'applicationId is required.' })
+  }
 
   try {
     const appResult = await db.query(
-      `SELECT * FROM scholarship_applications WHERE email = $1 AND cohort_id = $2 AND status IN ('ACCEPTED', 'APPROVED', 'AWAITING_PAYMENT')`,
-      [email, cohortId]
+      `SELECT sa.*, sc.id as cohort_id FROM scholarship_applications sa 
+       JOIN scholarship_cohorts sc ON sa.cohort_id = sc.id 
+       WHERE sa.id = $1`,
+      [applicationId]
     )
 
     if (appResult.rows.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'No eligible scholarship application found for this email and cohort.',
-      })
+      return res.status(404).json({ success: false, message: 'Scholarship application not found.' })
     }
 
     const application = appResult.rows[0]
-    const txRef = `DEN-SCH-PAY-${cohortId}-${Date.now()}`
+    const fees = calculateScholarshipFees(application.course)
+    const txRef = `DEN-SCH-PAY-${application.cohort_id}-${Date.now()}`
 
-    // Call Flutterwave v3 Standard Payment API
     const flwResponse = await axios.post(
       'https://api.flutterwave.com/v3/payments',
       {
         tx_ref: txRef,
-        amount: SCHOLARSHIP_STUDENT_CONTRIBUTION,
+        amount: fees.studentContribution,
         currency: 'NGN',
-        redirect_url: `${process.env.FRONTEND_URL || 'https://denskill.com'}/scholarship/verify?email=${email}&cohortId=${cohortId}`,
+        redirect_url: `${process.env.FRONTEND_URL || 'https://denskill.com'}/scholarship/verify?applicationId=${applicationId}`,
         customer: {
           email: application.email,
           name: `${application.first_name} ${application.last_name}`,
@@ -840,11 +766,10 @@ exports.initializeScholarshipPayment = async (req, res) => {
         },
         customizations: {
           title: 'DenSkill Scholarship Contribution',
-          description: `Acceptance fee / Contribution for ${application.course}`,
+          description: `Acceptance fee / Contribution for ${application.course} (80% Off)`,
           logo: 'https://denskill.com/logo.png',
         },
         meta: {
-          cohortId,
           applicationId: application.id,
           paymentType: 'SCHOLARSHIP_CONTRIBUTION'
         }
@@ -864,73 +789,74 @@ exports.initializeScholarshipPayment = async (req, res) => {
         data: {
           authorization_url: flwResponse.data.data.link,
           reference: txRef,
-          amount: SCHOLARSHIP_STUDENT_CONTRIBUTION,
+          amount: fees.studentContribution,
         }
       })
     } else {
-      return res.status(400).json({
-        success: false,
-        message: 'Failed to generate Flutterwave payment link',
-      })
+      return res.status(400).json({ success: false, message: 'Failed to generate Flutterwave payment link' })
     }
   } catch (error) {
     console.error('Error initializing Flutterwave payment:', error.response?.data || error.message)
-    res.status(500).json({
-      success: false,
-      message: 'Server error initializing scholarship payment',
-    })
+    res.status(500).json({ success: false, message: 'Server error initializing scholarship payment' })
   }
 }
 
-/**
- * @swagger
- * /api/scholarship/enrollment/payment/verify:
- *  post:
- *    summary: Verify Flutterwave transaction and update payment status
- *    tags: [Scholarship Enrollment]
- */
 exports.verifyScholarshipPayment = async (req, res) => {
-  const { transactionId, email, cohortId } = req.body
+  const { reference } = req.body
 
-  if (!transactionId || !email || !cohortId) {
-    return res.status(400).json({
-      success: false,
-      message: 'Transaction ID, email, and cohortId are required for verification.',
-    })
+  if (!reference) {
+    return res.status(400).json({ success: false, message: 'Transaction reference is required.' })
   }
 
   try {
-    // Verify transaction against Flutterwave API
     const verifyResponse = await axios.get(
-      `https://api.flutterwave.com/v3/transactions/${transactionId}/verify`,
+      `https://api.flutterwave.com/v3/transactions?tx_ref=${reference}`,
       {
-        headers: {
-          Authorization: `Bearer ${getFlwSecretKey()}`,
-        }
+        headers: { Authorization: `Bearer ${getFlwSecretKey()}` }
       }
     )
 
-    const transactionData = verifyResponse.data?.data
+    const transactions = verifyResponse.data?.data
+    if (!transactions || transactions.length === 0) {
+      return res.status(404).json({ success: false, message: 'Transaction not found on Flutterwave.' })
+    }
+
+    const transactionData = transactions[0]
+    const applicationId = transactionData.meta?.applicationId
+
+    if (!applicationId) {
+      return res.status(400).json({ success: false, message: 'Application metadata missing from transaction.' })
+    }
+
+    const appResult = await db.query(
+      `SELECT * FROM scholarship_applications WHERE id = $1`,
+      [applicationId]
+    )
+
+    if (appResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Application not found.' })
+    }
+
+    const application = appResult.rows[0]
+    const fees = calculateScholarshipFees(application.course)
 
     if (
-      verifyResponse.data.status === 'success' &&
-      transactionData &&
       transactionData.status === 'successful' &&
-      Number(transactionData.amount) >= SCHOLARSHIP_STUDENT_CONTRIBUTION &&
+      Number(transactionData.amount) >= fees.studentContribution &&
       transactionData.currency === 'NGN'
     ) {
-      // Update status to payment complete / ready to claim
       await db.query(
         `UPDATE scholarship_applications 
          SET status = 'PAYMENT_COMPLETED', updated_at = NOW() 
-         WHERE email = $1 AND cohort_id = $2`,
-        [email, cohortId]
+         WHERE id = $1`,
+        [applicationId]
       )
 
       return res.status(200).json({
         success: true,
         message: 'Payment verified successfully! You can now complete your account setup.',
         data: {
+          applicationId,
           tx_ref: transactionData.tx_ref,
           amount: transactionData.amount,
         }
@@ -938,79 +864,55 @@ exports.verifyScholarshipPayment = async (req, res) => {
     } else {
       return res.status(400).json({
         success: false,
-        message: 'Payment verification failed or transaction was not successful.',
+        message: 'Payment verification failed or amount mismatch.',
       })
     }
   } catch (error) {
     console.error('Error verifying Flutterwave payment:', error.response?.data || error.message)
-    res.status(500).json({
-      success: false,
-      message: 'Server error verifying scholarship payment',
-    })
+    res.status(500).json({ success: false, message: 'Server error verifying scholarship payment' })
   }
 }
 
-/**
- * @swagger
- * /api/scholarship/enrollment/claim:
- *  post:
- *    summary: Claim scholarship offer and activate student account with password
- *    tags: [Scholarship Enrollment]
- */
 exports.claimScholarship = async (req, res) => {
   const client = await db.getClient()
   try {
     await client.query('BEGIN')
-    const { email, cohortId, password, confirmPassword } = req.body
+    const { applicationId, password } = req.body
 
-    if (!email || !cohortId || !password || !confirmPassword) {
+    if (!applicationId || !password) {
       await client.query('ROLLBACK')
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide email, cohortId, password, and confirmation.',
-      })
+      return res.status(400).json({ success: false, message: 'applicationId and password are required.' })
     }
 
-    if (password !== confirmPassword) {
-      await client.query('ROLLBACK')
-      return res.status(400).json({ success: false, message: 'Passwords do not match.' })
-    }
-
-    // 1. Verify that the application payment is completed
     const appResult = await client.query(
-      `SELECT sa.*, sc.code as cohort_code 
+      `SELECT sa.*, sc.code as cohort_code, sc.id as cohort_id 
        FROM scholarship_applications sa
        JOIN scholarship_cohorts sc ON sa.cohort_id = sc.id
-       WHERE sa.email = $1 AND sa.cohort_id = $2 AND (sa.status = 'PAYMENT_COMPLETED' OR sa.status = 'ACCEPTED' OR sa.status = 'APPROVED')`,
-      [email, cohortId]
+       WHERE sa.id = $1`,
+      [applicationId]
     )
 
     if (appResult.rows.length === 0) {
       await client.query('ROLLBACK')
-      return res.status(400).json({
-        success: false,
-        message: 'No eligible scholarship application found or payment has not been completed.',
-      })
+      return res.status(400).json({ success: false, message: 'Scholarship application not found.' })
     }
 
     const application = appResult.rows[0]
     const cohortCode = application.cohort_code || 'C1'
+    const fees = calculateScholarshipFees(application.course)
 
-    // 2. Generate cohort-bound Student ID (e.g., DEN-SCH-C1-001)
     const countResult = await client.query(
       `SELECT COUNT(*) FROM users WHERE student_type = 'SCHOLARSHIP' AND cohort_id = $1`,
-      [cohortId]
+      [application.cohort_id]
     )
     const count = parseInt(countResult.rows[0].count, 10) + 1
     const studentIdNumber = `DEN-SCH-${cohortCode}-${String(count).padStart(3, '0')}`
 
-    // 3. Hash password
     const salt = await bcrypt.genSalt(10)
     const hashedPassword = await bcrypt.hash(password, salt)
     const fullName = `${application.first_name} ${application.last_name}`
 
-    // 4. Check if user already exists
-    let userResult = await client.query('SELECT * FROM users WHERE email = $1', [email])
+    let userResult = await client.query('SELECT * FROM users WHERE email = $1', [application.email])
     let userId
 
     if (userResult.rows.length === 0) {
@@ -1018,7 +920,7 @@ exports.claimScholarship = async (req, res) => {
         `INSERT INTO users (name, email, password, student_type, cohort_id, student_id_number, role, status, is_verified) 
          VALUES ($1, $2, $3, 'SCHOLARSHIP', $4, $5, 'student', 'active', TRUE) 
          RETURNING id`,
-        [fullName, email, hashedPassword, cohortId, studentIdNumber]
+        [fullName, application.email, hashedPassword, application.cohort_id, studentIdNumber]
       )
       userId = newUser.rows[0].id
     } else {
@@ -1027,11 +929,10 @@ exports.claimScholarship = async (req, res) => {
         `UPDATE users 
          SET password = $1, student_type = 'SCHOLARSHIP', cohort_id = $2, student_id_number = $3, is_verified = TRUE 
          WHERE id = $4`,
-        [hashedPassword, cohortId, studentIdNumber, userId]
+        [hashedPassword, application.cohort_id, studentIdNumber, userId]
       )
     }
 
-    // 5. Create enrollment tracking record with ₦16,000 student contribution amount
     await client.query(
       `INSERT INTO enrollments (
          user_id, first_name, last_name, country, phone, email, 
@@ -1046,16 +947,15 @@ exports.claimScholarship = async (req, res) => {
         application.phone,
         application.email,
         application.course,
-        SCHOLARSHIP_ORIGINAL_FEE,
-        SCHOLARSHIP_STUDENT_CONTRIBUTION,
-        `SCHOLARSHIP_CLAIM_${cohortId}_${Date.now()}`
+        fees.originalAmount,
+        fees.studentContribution,
+        `SCHOLARSHIP_CLAIM_${application.cohort_id}_${Date.now()}`
       ]
     )
 
-    // 6. Update application status to ENROLLED
     await client.query(
       `UPDATE scholarship_applications SET status = 'ENROLLED', updated_at = NOW() WHERE id = $1`,
-      [application.id]
+      [applicationId]
     )
 
     await client.query('COMMIT')
@@ -1065,18 +965,16 @@ exports.claimScholarship = async (req, res) => {
       message: 'Scholarship claimed successfully! You can now log in to your dashboard.',
       data: {
         userId,
-        email,
+        email: application.email,
         studentIdNumber,
         course: application.course,
+        feeDetails: fees,
       },
     })
   } catch (error) {
     await client.query('ROLLBACK')
     console.error('Error claiming scholarship:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Server error processing scholarship claim.',
-    })
+    res.status(500).json({ success: false, message: 'Server error processing scholarship claim.' })
   } finally {
     client.release()
   }
