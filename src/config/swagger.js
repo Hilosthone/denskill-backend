@@ -103,7 +103,7 @@ const options = {
     },
     servers: [
       {
-        url: 'https://denskill-backend.vercel.app', // <-- Updated to your new Vercel URL
+        url: 'https://denskill-backend.vercel.app',
         description: 'Production Server',
       },
       {
@@ -111,7 +111,6 @@ const options = {
         description: 'Development Server',
       },
     ],
-    // Tags array to control the exact section ordering in Swagger UI
     tags: [
       {
         name: 'System',
@@ -171,7 +170,6 @@ const options = {
 const swaggerSpec = swaggerJSDoc(options)
 
 const swaggerDocs = (app) => {
-  // Inject CDN assets so Vercel can render the UI without blocking local static files
   const swaggerOptions = {
     customCssUrl: 'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.min.css',
     customJs: [
