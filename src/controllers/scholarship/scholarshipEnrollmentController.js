@@ -721,24 +721,47 @@ exports.verifyScholarshipPayment = async (req, res) => {
   }
 
   try {
-    // Updated to use the dedicated Flutterwave verify_by_reference endpoint
-    const verifyResponse = await axios.get(
-      `https://api.flutterwave.com/v3/transactions/verify_by_reference?tx_ref=${reference}`,
-      {
-        headers: { Authorization: `Bearer ${getFlwSecretKey()}` }
-      }
-    )
+    let transactionData = null
+    const isNumericId = /^\d+$/.test(reference)
 
-    // verify_by_reference returns the transaction details object directly in data
-    const transactionData = verifyResponse.data?.data
-    if (!transactionData) {
-      return res.status(404).json({ success: false, message: 'Transaction not found on Flutterwave.' })
+    if (isNumericId) {
+      const verifyResponse = await axios.get(
+        `https://api.flutterwave.com/v3/transactions/${reference}/verify`,
+        { headers: { Authorization: `Bearer ${getFlwSecretKey()}` } }
+      )
+      transactionData = verifyResponse.data?.data
+    } else {
+      const verifyResponse = await axios.get(
+        `https://api.flutterwave.com/v3/transactions/verify_by_reference?tx_ref=${reference}`,
+        { headers: { Authorization: `Bearer ${getFlwSecretKey()}` } }
+      )
+      transactionData = verifyResponse.data?.data
     }
 
-    const applicationId = transactionData.meta?.applicationId
+    if (!transactionData) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Transaction not found on Flutterwave. Please ensure the payment was completed successfully.' 
+      })
+    }
+
+    let applicationId = transactionData.meta?.applicationId
 
     if (!applicationId) {
-      return res.status(400).json({ success: false, message: 'Application metadata missing from transaction.' })
+      const customerEmail = transactionData.customer?.email
+      if (customerEmail) {
+        const appLookup = await db.query(
+          `SELECT id FROM scholarship_applications WHERE email = $1 ORDER BY created_at DESC LIMIT 1`,
+          [customerEmail]
+        )
+        if (appLookup.rows.length > 0) {
+          applicationId = appLookup.rows[0].id
+        }
+      }
+    }
+
+    if (!applicationId) {
+      return res.status(400).json({ success: false, message: 'Application metadata could not be linked to this transaction.' })
     }
 
     const appResult = await db.query(
@@ -777,12 +800,15 @@ exports.verifyScholarshipPayment = async (req, res) => {
     } else {
       return res.status(400).json({
         success: false,
-        message: 'Payment verification failed or amount mismatch.',
+        message: `Payment verification failed or amount mismatch. Status: ${transactionData.status}, Amount: ${transactionData.amount}`,
       })
     }
   } catch (error) {
     console.error('Error verifying Flutterwave payment:', error.response?.data || error.message)
-    res.status(500).json({ success: false, message: 'Server error verifying scholarship payment' })
+    res.status(500).json({ 
+      success: false, 
+      message: error.response?.data?.message || 'Server error verifying scholarship payment' 
+    })
   }
 }
 
