@@ -501,6 +501,7 @@ const {
   createCourseAnnouncement,
   getClassAnalytics,
   getAssignedCohortStudents,
+  getTutorCourses, // Added import for assigned courses controller
 } = require('../controllers/tutorController')
 
 // --- Public Route ---
@@ -537,6 +538,20 @@ router.post('/login', tutorLogin)
 
 // --- Protected Tutor Routes ---
 router.use(protect)
+
+/**
+ * @swagger
+ * /api/tutor/courses:
+ *   get:
+ *     summary: Get courses assigned to the logged-in tutor
+ *     tags: [Tutors]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Tutor courses retrieved successfully
+ */
+router.get('/courses', getTutorCourses)
 
 /**
  * @swagger
@@ -892,7 +907,7 @@ router.get('/analytics/:courseId', getClassAnalytics)
  * @swagger
  * /api/tutor/students/cohort:
  *   get:
- *     summary: Get assigned scholarship/cohort students list
+ *     summary: Get assigned cohort students list (Normal & Scholarship)
  *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []

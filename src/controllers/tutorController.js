@@ -614,6 +614,32 @@ exports.tutorLogin = async (req, res) => {
   }
 }
 
+// Fetch courses explicitly assigned to the logged-in tutor
+exports.getTutorCourses = async (req, res) => {
+  try {
+    const tutorId = req.user.id
+
+    // Adjust 'tutor_id' if your database column name differs (e.g., instructor_id)
+    const query = `
+      SELECT id, title, description, code, category 
+      FROM courses 
+      WHERE tutor_id = $1
+    `
+    const result = await pool.query(query, [tutorId])
+
+    res.status(200).json({
+      success: true,
+      courses: result.rows,
+    })
+  } catch (err) {
+    console.error('Error fetching tutor courses:', err)
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching assigned courses.',
+    })
+  }
+}
+
 exports.createAssessment = async (req, res) => {
   try {
     const {
@@ -1077,14 +1103,20 @@ exports.getClassAnalytics = async (req, res) => {
   }
 }
 
+// Updated to fetch ALL students (Normal & Scholarship) linked to the course/cohort via enrollments
 exports.getAssignedCohortStudents = async (req, res) => {
   try {
     const { cohortId } = req.query
-    let query = `SELECT id, first_name, last_name, email, phone, scholarship_status FROM users WHERE student_type = 'SCHOLARSHIP'`
+    
+    let query = `
+      SELECT DISTINCT u.id, u.first_name, u.last_name, u.name, u.email, u.phone, u.scholarship_status, u.student_type 
+      FROM users u
+      JOIN enrollments e ON u.id = e.user_id
+    `
     let params = []
 
     if (cohortId) {
-      query += ` AND cohort_id = $1`
+      query += ` WHERE e.course_id = $1 OR e.course = $1`
       params.push(cohortId)
     }
 
@@ -1092,6 +1124,6 @@ exports.getAssignedCohortStudents = async (req, res) => {
     res.status(200).json({ success: true, students: result.rows })
   } catch (error) {
     console.error('Error fetching tutor students:', error)
-    res.status(500).json({ success: false, message: 'Server error' })
+    res.status(500).json({ success: false, message: 'Server error fetching students.' })
   }
 }
