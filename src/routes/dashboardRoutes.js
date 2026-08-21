@@ -38,8 +38,6 @@
 //   res.status(200).json({ status: 'success', posts: [] })
 // })
 
-// module.exports = router
-
 const express = require('express')
 const router = express.Router()
 const { protect } = require('../middleware/authMiddleware')
@@ -72,6 +70,16 @@ router.use(protect)
  *     responses:
  *       200:
  *         description: Student overview retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
  *       401:
  *         description: Unauthorized - Missing or invalid token
  *       404:
@@ -90,6 +98,32 @@ router.get('/overview', getStudentOverview)
  *     responses:
  *       200:
  *         description: Student profile retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 student:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                       example: 1
+ *                     first_name:
+ *                       type: string
+ *                       example: John
+ *                     last_name:
+ *                       type: string
+ *                       example: Doe
+ *                     email:
+ *                       type: string
+ *                       example: john@example.com
+ *                     student_type:
+ *                       type: string
+ *                       example: REGULAR
  *       401:
  *         description: Unauthorized
  */
@@ -106,6 +140,28 @@ router.get('/profile', getStudentProfile)
  *     responses:
  *       200:
  *         description: Student courses retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 courses:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       course_id:
+ *                         type: string
+ *                         example: fullstack-dev
+ *                       title:
+ *                         type: string
+ *                         example: Fullstack Web Engineering
+ *                       tutor_name:
+ *                         type: string
+ *                         example: Hilosthone Sulyman
  *       401:
  *         description: Unauthorized
  */
@@ -122,6 +178,18 @@ router.get('/courses', getStudentCourses)
  *     responses:
  *       200:
  *         description: Student payment history retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 payments:
+ *                   type: array
+ *                   items:
+ *                     type: object
  */
 router.get('/payments', getStudentPayments)
 
@@ -136,6 +204,18 @@ router.get('/payments', getStudentPayments)
  *     responses:
  *       200:
  *         description: Payment receipts retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 payments:
+ *                   type: array
+ *                   items:
+ *                     type: object
  */
 router.get('/receipts', getStudentPayments)
 
@@ -150,6 +230,31 @@ router.get('/receipts', getStudentPayments)
  *     responses:
  *       200:
  *         description: Announcements retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 announcements:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         example: 1
+ *                       title:
+ *                         type: string
+ *                         example: Welcome to D Enskill Academy
+ *                       content:
+ *                         type: string
+ *                         example: Classes start next week.
+ *                       created_at:
+ *                         type: string
+ *                         example: 2026-08-21T12:00:00.000Z
  */
 router.get('/announcements', getStudentAnnouncements)
 
@@ -173,12 +278,25 @@ router.get('/announcements', getStudentAnnouncements)
  *               paymentReference:
  *                 type: string
  *                 description: The payment gateway reference code (e.g., Flutterwave ref)
+ *                 example: T123456789_ref
  *               transactionId:
  *                 type: string
  *                 description: Optional transaction identifier
+ *                 example: TXN-987654
  *     responses:
  *       200:
  *         description: Payment verified and account provisioned successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Payment verified and account provisioned successfully
  *       400:
  *         description: Missing reference or payment already completed
  *       404:
@@ -197,6 +315,16 @@ router.post('/payment/verify', verifyContributionPayment)
  *     responses:
  *       200:
  *         description: Scholarship profile retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 scholarship:
+ *                   type: object
  *       404:
  *         description: No scholarship profile found for this email
  */
@@ -217,9 +345,22 @@ router.get('/scholarship/profile', getStudentScholarshipProfile)
  *         schema:
  *           type: string
  *         description: The ID or title key of the course
+ *         example: fullstack-dev
  *     responses:
  *       200:
  *         description: Assessments retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 assessments:
+ *                   type: array
+ *                   items:
+ *                     type: object
  */
 router.get('/assessments/:courseId', getCourseAssessments)
 
@@ -238,6 +379,7 @@ router.get('/assessments/:courseId', getCourseAssessments)
  *         schema:
  *           type: integer
  *         description: The numeric ID of the assessment
+ *         example: 12
  *     requestBody:
  *       required: true
  *       content:
@@ -250,9 +392,21 @@ router.get('/assessments/:courseId', getCourseAssessments)
  *               content:
  *                 type: string
  *                 description: Submission answer text, GitHub link, or file URL
+ *                 example: https://github.com/username/repo
  *     responses:
  *       201:
  *         description: Assessment submitted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Assessment submitted successfully
  *       400:
  *         description: Submission deadline has passed
  *       404:
@@ -271,6 +425,22 @@ router.post('/assessments/:assessmentId/submit', submitAssessmentContent)
  *     responses:
  *       200:
  *         description: Grades and attendance breakdown retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 grades:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                 attendance:
+ *                   type: array
+ *                   items:
+ *                     type: object
  */
 router.get('/grades', getStudentGradesAndAttendance)
 
@@ -289,9 +459,22 @@ router.get('/grades', getStudentGradesAndAttendance)
  *         schema:
  *           type: string
  *         description: Course ID
+ *         example: fullstack-dev
  *     responses:
  *       200:
  *         description: Course modules retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 modules:
+ *                   type: array
+ *                   items:
+ *                     type: object
  */
 router.get('/modules/:courseId', getStudentCourseModules)
 
@@ -310,9 +493,22 @@ router.get('/modules/:courseId', getStudentCourseModules)
  *         schema:
  *           type: string
  *         description: Course ID
+ *         example: fullstack-dev
  *     responses:
  *       200:
  *         description: Live sessions retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 sessions:
+ *                   type: array
+ *                   items:
+ *                     type: object
  */
 router.get('/sessions/:courseId', getStudentLiveSessions)
 
@@ -327,6 +523,18 @@ router.get('/sessions/:courseId', getStudentLiveSessions)
  *     responses:
  *       200:
  *         description: Community posts retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 posts:
+ *                   type: array
+ *                   items:
+ *                     type: object
  */
 router.get('/community', (req, res) => {
   res.status(200).json({ status: 'success', posts: [] })
