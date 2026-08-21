@@ -667,7 +667,7 @@ const getAdminOverview = async (req, res) => {
     })
   } catch (err) {
     console.error('Admin Overview Error:', err.message)
-    res.status(500).json({ error: 'Server error while fetching admin overview.' })
+    res.status(500).json({ error: 'Server error while fetching admin overview...' })
   }
 }
 
