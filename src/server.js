@@ -422,7 +422,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/payments', paymentRoutes)
 app.use('/api/enrollments', enrollmentRoutes)
 app.use('/api/dashboard', dashboardRoutes)
-app.use('/api/tutors', tutorRoutes)
+app.use('/api/tutor', tutorRoutes)
 
 // Mount Admin Routes (Handles platform metrics, user management, etc.)
 app.use('/api/admin/auth', adminAuthRoutes)
