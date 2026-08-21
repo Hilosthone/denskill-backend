@@ -38,7 +38,7 @@
 //   return { originalAmount, discountAmount, studentContribution }
 // }
 
-// const getFlwSecretKey = () => process.env.FLW_SECRET_KEY || 'FLWSECK-a1e'
+// const getFlwSecretKey = () => process.env.FLW_SECRET_KEY || process.env.FLUTTERWAVE_SECRET_KEY || 'FLWSECK-a1e'
 
 // const formatCohortResponse = (row) => {
 //   if (!row) return null
@@ -262,6 +262,10 @@
 // }
 
 // exports.verifyScholarshipPayment = async (req, res) => {
+//   console.log(
+//     '🔥 verifyScholarshipPayment controller triggered with reference:',
+//     req.body.reference,
+//   )
 //   const { reference } = req.body
 
 //   if (!reference) {
@@ -398,7 +402,7 @@
 //          user_id, first_name, last_name, country, phone, email,
 //          course, total_amount, amount_paid, payment_status, reference
 //        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'completed', $10)
-//        ON CONFLICT DO NOTHING`,
+//        ON CONFLICT (reference) DO NOTHING`,
 //       [
 //         userId,
 //         application.first_name,
@@ -439,6 +443,7 @@
 //     client.release()
 //   }
 // }
+
 
 
 // src/controllers/scholarship/scholarshipEnrollmentController.js
@@ -716,19 +721,20 @@ exports.verifyScholarshipPayment = async (req, res) => {
   }
 
   try {
+    // Updated to use the dedicated Flutterwave verify_by_reference endpoint
     const verifyResponse = await axios.get(
-      `https://api.flutterwave.com/v3/transactions?tx_ref=${reference}`,
+      `https://api.flutterwave.com/v3/transactions/verify_by_reference?tx_ref=${reference}`,
       {
         headers: { Authorization: `Bearer ${getFlwSecretKey()}` }
       }
     )
 
-    const transactions = verifyResponse.data?.data
-    if (!transactions || transactions.length === 0) {
+    // verify_by_reference returns the transaction details object directly in data
+    const transactionData = verifyResponse.data?.data
+    if (!transactionData) {
       return res.status(404).json({ success: false, message: 'Transaction not found on Flutterwave.' })
     }
 
-    const transactionData = transactions[0]
     const applicationId = transactionData.meta?.applicationId
 
     if (!applicationId) {
