@@ -1,5 +1,4 @@
 // // src/routes/tutorRoutes.js
-
 // const express = require('express')
 // const router = express.Router()
 // const tutorController = require('../controllers/tutorController')
@@ -7,10 +6,10 @@
 
 // /**
 //  * @swagger
-//  * /api/tutor/auth/login:
+//  * /api/tutors/auth/login:
 //  *   post:
 //  *     summary: Authenticate a system instructor/tutor with email and password
-//  *     tags: [Tutor Auth]
+//  *     tags: [Tutors]
 //  *     requestBody:
 //  *       required: true
 //  *       content:
@@ -23,11 +22,15 @@
 //  *             properties:
 //  *               email:
 //  *                 type: string
+//  *                 example: tutor@denskill.com
 //  *               password:
 //  *                 type: string
+//  *                 example: admin@denskill123
 //  *     responses:
 //  *       200:
 //  *         description: Tutor logged in successfully, returns JWT token
+//  *       401:
+//  *         description: Invalid tutor credentials
 //  */
 // router.post('/auth/login', tutorController.tutorLogin)
 
@@ -36,56 +39,142 @@
 
 // /**
 //  * @swagger
-//  * /api/tutor/assessments:
+//  * /api/tutors/assessments:
 //  *   post:
 //  *     summary: Create a new assessment, quiz, or assignment
-//  *     tags: [Tutor]
+//  *     tags: [Tutors]
 //  *     security:
 //  *       - bearerAuth: []
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             required:
+//  *               - course_id
+//  *               - title
+//  *             properties:
+//  *               course_id:
+//  *                 type: integer
+//  *               title:
+//  *                 type: string
+//  *               description:
+//  *                 type: string
+//  *               type:
+//  *                 type: string
+//  *                 example: assignment
+//  *               total_marks:
+//  *                 type: integer
+//  *                 example: 100
+//  *               weight:
+//  *                 type: number
+//  *                 example: 1.5
+//  *               due_date:
+//  *                 type: string
+//  *                 format: date-time
+//  *     responses:
+//  *       201:
+//  *         description: Assessment created successfully
 //  */
 // router.post('/assessments', tutorController.createAssessment)
 
 // /**
 //  * @swagger
-//  * /api/tutor/assessments/{courseId}:
+//  * /api/tutors/assessments/{courseId}:
 //  *   get:
 //  *     summary: Get all published assessments for a course
-//  *     tags: [Tutor]
+//  *     tags: [Tutors]
 //  *     security:
 //  *       - bearerAuth: []
+//  *     parameters:
+//  *       - in: path
+//  *         name: courseId
+//  *         required: true
+//  *         schema:
+//  *           type: integer
+//  *     responses:
+//  *       200:
+//  *         description: List of assessments retrieved successfully
 //  */
 // router.get('/assessments/:courseId', tutorController.getAssessmentsByCourse)
 
 // /**
 //  * @swagger
-//  * /api/tutor/assessments/{assessmentId}:
+//  * /api/tutors/assessments/{assessmentId}:
 //  *   put:
 //  *     summary: Edit/Update an existing assessment, quiz, or assignment
-//  *     tags: [Tutor]
+//  *     tags: [Tutors]
 //  *     security:
 //  *       - bearerAuth: []
+//  *     parameters:
+//  *       - in: path
+//  *         name: assessmentId
+//  *         required: true
+//  *         schema:
+//  *           type: integer
+//  *     requestBody:
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             properties:
+//  *               title:
+//  *                 type: string
+//  *               description:
+//  *                 type: string
+//  *               type:
+//  *                 type: string
+//  *               total_marks:
+//  *                 type: integer
+//  *               weight:
+//  *                 type: number
+//  *               due_date:
+//  *                 type: string
+//  *                 format: date-time
+//  *     responses:
+//  *       200:
+//  *         description: Assessment updated successfully
 //  */
 // router.put('/assessments/:assessmentId', tutorController.updateAssessment)
 
 // /**
 //  * @swagger
-//  * /api/tutor/assessments/{assessmentId}:
+//  * /api/tutors/assessments/{assessmentId}:
 //  *   delete:
 //  *     summary: Delete an assessment, quiz, or assignment
-//  *     tags: [Tutor]
+//  *     tags: [Tutors]
 //  *     security:
 //  *       - bearerAuth: []
+//  *     parameters:
+//  *       - in: path
+//  *         name: assessmentId
+//  *         required: true
+//  *         schema:
+//  *           type: integer
+//  *     responses:
+//  *       200:
+//  *         description: Assessment deleted successfully
 //  */
 // router.delete('/assessments/:assessmentId', tutorController.deleteAssessment)
 
 // /**
 //  * @swagger
-//  * /api/tutor/submissions/{assessmentId}:
+//  * /api/tutors/submissions/{assessmentId}:
 //  *   get:
 //  *     summary: View student submissions for an assessment
-//  *     tags: [Tutor]
+//  *     tags: [Tutors]
 //  *     security:
 //  *       - bearerAuth: []
+//  *     parameters:
+//  *       - in: path
+//  *         name: assessmentId
+//  *         required: true
+//  *         schema:
+//  *           type: integer
+//  *     responses:
+//  *       200:
+//  *         description: Submissions retrieved successfully
 //  */
 // router.get(
 //   '/submissions/:assessmentId',
@@ -94,23 +183,69 @@
 
 // /**
 //  * @swagger
-//  * /api/tutor/submissions/{submissionId}/grade:
+//  * /api/tutors/submissions/{submissionId}/grade:
 //  *   put:
 //  *     summary: Grade a student's submission
-//  *     tags: [Tutor]
+//  *     tags: [Tutors]
 //  *     security:
 //  *       - bearerAuth: []
+//  *     parameters:
+//  *       - in: path
+//  *         name: submissionId
+//  *         required: true
+//  *         schema:
+//  *           type: integer
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             required:
+//  *               - score
+//  *             properties:
+//  *               score:
+//  *                 type: number
+//  *                 example: 85
+//  *               feedback:
+//  *                 type: string
+//  *                 example: Great job implementing the endpoint logic!
+//  *     responses:
+//  *       200:
+//  *         description: Submission graded successfully
 //  */
 // router.put('/submissions/:submissionId/grade', tutorController.gradeSubmission)
 
 // /**
 //  * @swagger
-//  * /api/tutor/submissions/{submissionId}/review:
+//  * /api/tutors/submissions/{submissionId}/review:
 //  *   put:
 //  *     summary: Submit iterative code review feedback or request revisions
-//  *     tags: [Tutor]
+//  *     tags: [Tutors]
 //  *     security:
 //  *       - bearerAuth: []
+//  *     parameters:
+//  *       - in: path
+//  *         name: submissionId
+//  *         required: true
+//  *         schema:
+//  *           type: integer
+//  *     requestBody:
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             properties:
+//  *               score:
+//  *                 type: number
+//  *               feedback:
+//  *                 type: string
+//  *               review_status:
+//  *                 type: string
+//  *                 example: needs_revision
+//  *     responses:
+//  *       200:
+//  *         description: Review feedback submitted successfully
 //  */
 // router.put(
 //   '/submissions/:submissionId/review',
@@ -119,106 +254,263 @@
 
 // /**
 //  * @swagger
-//  * /api/tutor/attendance:
+//  * /api/tutors/attendance:
 //  *   post:
 //  *     summary: Log attendance records for students
-//  *     tags: [Tutor]
+//  *     tags: [Tutors]
 //  *     security:
 //  *       - bearerAuth: []
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             required:
+//  *               - course_id
+//  *               - attendance_records
+//  *             properties:
+//  *               course_id:
+//  *                 type: integer
+//  *               attendance_records:
+//  *                 type: array
+//  *                 items:
+//  *                   type: object
+//  *                   properties:
+//  *                     student_id:
+//  *                       type: integer
+//  *                     status:
+//  *                       type: string
+//  *                       example: present
+//  *     responses:
+//  *       200:
+//  *         description: Attendance logged successfully
 //  */
 // router.post('/attendance', tutorController.logAttendance)
 
 // /**
 //  * @swagger
-//  * /api/tutor/modules:
+//  * /api/tutors/modules:
 //  *   post:
 //  *     summary: Upload and organize weekly course modules, lectures, and resources
-//  *     tags: [Tutor]
+//  *     tags: [Tutors]
 //  *     security:
 //  *       - bearerAuth: []
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             required:
+//  *               - course_id
+//  *               - title
+//  *             properties:
+//  *               course_id:
+//  *                 type: integer
+//  *               title:
+//  *                 type: string
+//  *               week_number:
+//  *                 type: integer
+//  *                 example: 1
+//  *               content_type:
+//  *                 type: string
+//  *                 example: video
+//  *               resource_url:
+//  *                 type: string
+//  *               description:
+//  *                 type: string
+//  *     responses:
+//  *       201:
+//  *         description: Course module uploaded successfully
 //  */
 // router.post('/modules', tutorController.uploadCourseModule)
 
 // /**
 //  * @swagger
-//  * /api/tutor/modules/{courseId}:
+//  * /api/tutors/modules/{courseId}:
 //  *   get:
 //  *     summary: Fetch all course modules and resource files for a specific course
-//  *     tags: [Tutor]
+//  *     tags: [Tutors]
 //  *     security:
 //  *       - bearerAuth: []
+//  *     parameters:
+//  *       - in: path
+//  *         name: courseId
+//  *         required: true
+//  *         schema:
+//  *           type: integer
+//  *     responses:
+//  *       200:
+//  *         description: Course modules retrieved successfully
 //  */
 // router.get('/modules/:courseId', tutorController.getCourseModules)
 
 // /**
 //  * @swagger
-//  * /api/tutor/sessions:
+//  * /api/tutors/sessions:
 //  *   post:
 //  *     summary: Schedule a live lecture session or office hours meeting link
-//  *     tags: [Tutor]
+//  *     tags: [Tutors]
 //  *     security:
 //  *       - bearerAuth: []
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             required:
+//  *               - course_id
+//  *               - title
+//  *               - meeting_link
+//  *               - scheduled_at
+//  *             properties:
+//  *               course_id:
+//  *                 type: integer
+//  *               title:
+//  *                 type: string
+//  *               session_type:
+//  *                 type: string
+//  *                 example: lecture
+//  *               meeting_link:
+//  *                 type: string
+//  *                 example: https://zoom.us/j/123456789
+//  *               scheduled_at:
+//  *                 type: string
+//  *                 format: date-time
+//  *               description:
+//  *                 type: string
+//  *     responses:
+//  *       201:
+//  *         description: Live session scheduled successfully
 //  */
 // router.post('/sessions', tutorController.scheduleLiveSession)
 
 // /**
 //  * @swagger
-//  * /api/tutor/sessions/{courseId}:
+//  * /api/tutors/sessions/{courseId}:
 //  *   get:
 //  *     summary: Get upcoming and past live sessions for a course
-//  *     tags: [Tutor]
+//  *     tags: [Tutors]
 //  *     security:
 //  *       - bearerAuth: []
+//  *     parameters:
+//  *       - in: path
+//  *         name: courseId
+//  *         required: true
+//  *         schema:
+//  *           type: integer
+//  *     responses:
+//  *       200:
+//  *         description: Live sessions retrieved successfully
 //  */
 // router.get('/sessions/:courseId', tutorController.getLiveSessions)
 
 // /**
 //  * @swagger
-//  * /api/tutor/roster/{courseId}:
+//  * /api/tutors/roster/{courseId}:
 //  *   get:
 //  *     summary: View enrolled student directory and cohort tracking roster
-//  *     tags: [Tutor]
+//  *     tags: [Tutors]
 //  *     security:
 //  *       - bearerAuth: []
+//  *     parameters:
+//  *       - in: path
+//  *         name: courseId
+//  *         required: true
+//  *         schema:
+//  *           type: integer
+//  *     responses:
+//  *       200:
+//  *         description: Course roster retrieved successfully
 //  */
 // router.get('/roster/:courseId', tutorController.getCourseRoster)
 
 // /**
 //  * @swagger
-//  * /api/tutor/announcements:
+//  * /api/tutors/announcements:
 //  *   post:
 //  *     summary: Publish a course-specific real-time announcement or deadline reminder
-//  *     tags: [Tutor]
+//  *     tags: [Tutors]
 //  *     security:
 //  *       - bearerAuth: []
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             required:
+//  *               - course_id
+//  *               - title
+//  *               - content
+//  *             properties:
+//  *               course_id:
+//  *                 type: integer
+//  *               title:
+//  *                 type: string
+//  *               content:
+//  *                 type: string
+//  *     responses:
+//  *       201:
+//  *         description: Announcement created successfully
 //  */
 // router.post('/announcements', tutorController.createCourseAnnouncement)
 
 // /**
 //  * @swagger
-//  * /api/tutor/analytics/{courseId}:
+//  * /api/tutors/analytics/{courseId}:
 //  *   get:
 //  *     summary: Get class grade distributions and early warning performance reports
-//  *     tags: [Tutor]
+//  *     tags: [Tutors]
 //  *     security:
 //  *       - bearerAuth: []
+//  *     parameters:
+//  *       - in: path
+//  *         name: courseId
+//  *         required: true
+//  *         schema:
+//  *           type: integer
+//  *     responses:
+//  *       200:
+//  *         description: Class analytics generated successfully
 //  */
 // router.get('/analytics/:courseId', tutorController.getClassAnalytics)
 
 // module.exports = router
 
-// src/routes/tutorRoutes.js
 const express = require('express')
 const router = express.Router()
-const tutorController = require('../controllers/tutorController')
-const { protect } = require('../middleware/authMiddleware')
+const { protect } = require('../middleware/authMiddleware') // Adjust path to your auth middleware if necessary
+const {
+  tutorLogin,
+  createAssessment,
+  getAssessmentsByCourse,
+  updateAssessment,
+  deleteAssessment,
+  getSubmissionsByAssessment,
+  gradeSubmission,
+  logAttendance,
+  uploadCourseModule,
+  getCourseModules,
+  scheduleLiveSession,
+  getLiveSessions,
+  getCourseRoster,
+  submitIterativeFeedback,
+  createCourseAnnouncement,
+  getClassAnalytics,
+  getAssignedCohortStudents,
+} = require('../controllers/tutorController')
+
+// --- Public Route ---
 
 /**
  * @swagger
- * /api/tutors/auth/login:
+ * /api/tutor/login:
  *   post:
- *     summary: Authenticate a system instructor/tutor with email and password
- *     tags: [Tutors]
+ *     summary: Authenticate a tutor/instructor
+ *     tags: [Tutor Auth]
  *     requestBody:
  *       required: true
  *       content:
@@ -237,21 +529,21 @@ const { protect } = require('../middleware/authMiddleware')
  *                 example: admin@denskill123
  *     responses:
  *       200:
- *         description: Tutor logged in successfully, returns JWT token
+ *         description: Tutor logged in successfully
  *       401:
- *         description: Invalid tutor credentials
+ *         description: Invalid credentials
  */
-router.post('/auth/login', tutorController.tutorLogin)
+router.post('/login', tutorLogin)
 
-// Protect all subsequent tutor routes
+// --- Protected Tutor Routes ---
 router.use(protect)
 
 /**
  * @swagger
- * /api/tutors/assessments:
+ * /api/tutor/assessments:
  *   post:
- *     summary: Create a new assessment, quiz, or assignment
- *     tags: [Tutors]
+ *     summary: Create a new course assessment or assignment
+ *     tags: [Tutor Assessments]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -265,35 +557,38 @@ router.use(protect)
  *               - title
  *             properties:
  *               course_id:
- *                 type: integer
+ *                 type: string
+ *                 example: fullstack-dev
  *               title:
  *                 type: string
+ *                 example: Build a REST API
  *               description:
  *                 type: string
- *               type:
- *                 type: string
- *                 example: assignment
+ *                 example: Create endpoints for users and products using Express.js
+ *               type: type
+ *               type: string
+ *               example: assignment
  *               total_marks:
  *                 type: integer
  *                 example: 100
  *               weight:
  *                 type: number
- *                 example: 1.5
+ *                 example: 10
  *               due_date:
  *                 type: string
- *                 format: date-time
+ *                 example: 2026-09-01T23:59:59.000Z
  *     responses:
  *       201:
  *         description: Assessment created successfully
  */
-router.post('/assessments', tutorController.createAssessment)
+router.post('/assessments', createAssessment)
 
 /**
  * @swagger
- * /api/tutors/assessments/{courseId}:
+ * /api/tutor/assessments/{courseId}:
  *   get:
- *     summary: Get all published assessments for a course
- *     tags: [Tutors]
+ *     summary: Get all assessments for a specific course
+ *     tags: [Tutor Assessments]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -301,19 +596,20 @@ router.post('/assessments', tutorController.createAssessment)
  *         name: courseId
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *         example: fullstack-dev
  *     responses:
  *       200:
- *         description: List of assessments retrieved successfully
+ *         description: Assessments retrieved successfully
  */
-router.get('/assessments/:courseId', tutorController.getAssessmentsByCourse)
+router.get('/assessments/:courseId', getAssessmentsByCourse)
 
 /**
  * @swagger
- * /api/tutors/assessments/{assessmentId}:
+ * /api/tutor/assessments/{assessmentId}:
  *   put:
- *     summary: Edit/Update an existing assessment, quiz, or assignment
- *     tags: [Tutors]
+ *     summary: Update an existing assessment
+ *     tags: [Tutor Assessments]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -322,37 +618,19 @@ router.get('/assessments/:courseId', tutorController.getAssessmentsByCourse)
  *         required: true
  *         schema:
  *           type: integer
- *     requestBody:
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               title:
- *                 type: string
- *               description:
- *                 type: string
- *               type:
- *                 type: string
- *               total_marks:
- *                 type: integer
- *               weight:
- *                 type: number
- *               due_date:
- *                 type: string
- *                 format: date-time
+ *         example: 1
  *     responses:
  *       200:
  *         description: Assessment updated successfully
  */
-router.put('/assessments/:assessmentId', tutorController.updateAssessment)
+router.put('/assessments/:assessmentId', updateAssessment)
 
 /**
  * @swagger
- * /api/tutors/assessments/{assessmentId}:
+ * /api/tutor/assessments/{assessmentId}:
  *   delete:
- *     summary: Delete an assessment, quiz, or assignment
- *     tags: [Tutors]
+ *     summary: Delete an assessment
+ *     tags: [Tutor Assessments]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -361,18 +639,19 @@ router.put('/assessments/:assessmentId', tutorController.updateAssessment)
  *         required: true
  *         schema:
  *           type: integer
+ *         example: 1
  *     responses:
  *       200:
  *         description: Assessment deleted successfully
  */
-router.delete('/assessments/:assessmentId', tutorController.deleteAssessment)
+router.delete('/assessments/:assessmentId', deleteAssessment)
 
 /**
  * @swagger
- * /api/tutors/submissions/{assessmentId}:
+ * /api/tutor/assessments/{assessmentId}/submissions:
  *   get:
- *     summary: View student submissions for an assessment
- *     tags: [Tutors]
+ *     summary: Get student submissions for a specific assessment
+ *     tags: [Tutor Submissions & Grading]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -381,21 +660,19 @@ router.delete('/assessments/:assessmentId', tutorController.deleteAssessment)
  *         required: true
  *         schema:
  *           type: integer
+ *         example: 1
  *     responses:
  *       200:
  *         description: Submissions retrieved successfully
  */
-router.get(
-  '/submissions/:assessmentId',
-  tutorController.getSubmissionsByAssessment,
-)
+router.get('/assessments/:assessmentId/submissions', getSubmissionsByAssessment)
 
 /**
  * @swagger
- * /api/tutors/submissions/{submissionId}/grade:
+ * /api/tutor/submissions/{submissionId}/grade:
  *   put:
- *     summary: Grade a student's submission
- *     tags: [Tutors]
+ *     summary: Grade a student's submission and provide feedback
+ *     tags: [Tutor Submissions & Grading]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -404,6 +681,7 @@ router.get(
  *         required: true
  *         schema:
  *           type: integer
+ *         example: 42
  *     requestBody:
  *       required: true
  *       content:
@@ -418,19 +696,19 @@ router.get(
  *                 example: 85
  *               feedback:
  *                 type: string
- *                 example: Great job implementing the endpoint logic!
+ *                 example: Great job on the repository architecture! Clean code.
  *     responses:
  *       200:
  *         description: Submission graded successfully
  */
-router.put('/submissions/:submissionId/grade', tutorController.gradeSubmission)
+router.put('/submissions/:submissionId/grade', gradeSubmission)
 
 /**
  * @swagger
- * /api/tutors/submissions/{submissionId}/review:
+ * /api/tutor/submissions/{submissionId}/feedback:
  *   put:
- *     summary: Submit iterative code review feedback or request revisions
- *     tags: [Tutors]
+ *     summary: Submit iterative review or feedback on a student code submission
+ *     tags: [Tutor Submissions & Grading]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -439,34 +717,19 @@ router.put('/submissions/:submissionId/grade', tutorController.gradeSubmission)
  *         required: true
  *         schema:
  *           type: integer
- *     requestBody:
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               score:
- *                 type: number
- *               feedback:
- *                 type: string
- *               review_status:
- *                 type: string
- *                 example: needs_revision
+ *         example: 42
  *     responses:
  *       200:
  *         description: Review feedback submitted successfully
  */
-router.put(
-  '/submissions/:submissionId/review',
-  tutorController.submitIterativeFeedback,
-)
+router.put('/submissions/:submissionId/feedback', submitIterativeFeedback)
 
 /**
  * @swagger
- * /api/tutors/attendance:
+ * /api/tutor/attendance:
  *   post:
- *     summary: Log attendance records for students
- *     tags: [Tutors]
+ *     summary: Log daily attendance for students in a course session
+ *     tags: [Tutor Attendance]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -480,7 +743,8 @@ router.put(
  *               - attendance_records
  *             properties:
  *               course_id:
- *                 type: integer
+ *                 type: string
+ *                 example: fullstack-dev
  *               attendance_records:
  *                 type: array
  *                 items:
@@ -488,6 +752,7 @@ router.put(
  *                   properties:
  *                     student_id:
  *                       type: integer
+ *                       example: 5
  *                     status:
  *                       type: string
  *                       example: present
@@ -495,52 +760,28 @@ router.put(
  *       200:
  *         description: Attendance logged successfully
  */
-router.post('/attendance', tutorController.logAttendance)
+router.post('/attendance', logAttendance)
 
 /**
  * @swagger
- * /api/tutors/modules:
+ * /api/tutor/modules:
  *   post:
- *     summary: Upload and organize weekly course modules, lectures, and resources
- *     tags: [Tutors]
+ *     summary: Upload a weekly course lecture module or resource file
+ *     tags: [Tutor Course Content]
  *     security:
  *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - course_id
- *               - title
- *             properties:
- *               course_id:
- *                 type: integer
- *               title:
- *                 type: string
- *               week_number:
- *                 type: integer
- *                 example: 1
- *               content_type:
- *                 type: string
- *                 example: video
- *               resource_url:
- *                 type: string
- *               description:
- *                 type: string
  *     responses:
  *       201:
- *         description: Course module uploaded successfully
+ *         description: Module uploaded successfully
  */
-router.post('/modules', tutorController.uploadCourseModule)
+router.post('/modules', uploadCourseModule)
 
 /**
  * @swagger
- * /api/tutors/modules/{courseId}:
+ * /api/tutor/modules/{courseId}:
  *   get:
- *     summary: Fetch all course modules and resource files for a specific course
- *     tags: [Tutors]
+ *     summary: Get all modules for a course
+ *     tags: [Tutor Course Content]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -548,60 +789,34 @@ router.post('/modules', tutorController.uploadCourseModule)
  *         name: courseId
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *         example: fullstack-dev
  *     responses:
  *       200:
- *         description: Course modules retrieved successfully
+ *         description: Course modules fetched successfully
  */
-router.get('/modules/:courseId', tutorController.getCourseModules)
+router.get('/modules/:courseId', getCourseModules)
 
 /**
  * @swagger
- * /api/tutors/sessions:
+ * /api/tutor/sessions:
  *   post:
- *     summary: Schedule a live lecture session or office hours meeting link
- *     tags: [Tutors]
+ *     summary: Schedule a live workshop session and conference link
+ *     tags: [Tutor Live Sessions]
  *     security:
  *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - course_id
- *               - title
- *               - meeting_link
- *               - scheduled_at
- *             properties:
- *               course_id:
- *                 type: integer
- *               title:
- *                 type: string
- *               session_type:
- *                 type: string
- *                 example: lecture
- *               meeting_link:
- *                 type: string
- *                 example: https://zoom.us/j/123456789
- *               scheduled_at:
- *                 type: string
- *                 format: date-time
- *               description:
- *                 type: string
  *     responses:
  *       201:
  *         description: Live session scheduled successfully
  */
-router.post('/sessions', tutorController.scheduleLiveSession)
+router.post('/sessions', scheduleLiveSession)
 
 /**
  * @swagger
- * /api/tutors/sessions/{courseId}:
+ * /api/tutor/sessions/{courseId}:
  *   get:
- *     summary: Get upcoming and past live sessions for a course
- *     tags: [Tutors]
+ *     summary: Get scheduled live sessions for a course
+ *     tags: [Tutor Live Sessions]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -609,19 +824,20 @@ router.post('/sessions', tutorController.scheduleLiveSession)
  *         name: courseId
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *         example: fullstack-dev
  *     responses:
  *       200:
  *         description: Live sessions retrieved successfully
  */
-router.get('/sessions/:courseId', tutorController.getLiveSessions)
+router.get('/sessions/:courseId', getLiveSessions)
 
 /**
  * @swagger
- * /api/tutors/roster/{courseId}:
+ * /api/tutor/roster/{courseId}:
  *   get:
- *     summary: View enrolled student directory and cohort tracking roster
- *     tags: [Tutors]
+ *     summary: Get list of registered students (roster) for a specific course
+ *     tags: [Tutor Students & Analytics]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -629,50 +845,34 @@ router.get('/sessions/:courseId', tutorController.getLiveSessions)
  *         name: courseId
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *         example: fullstack-dev
  *     responses:
  *       200:
  *         description: Course roster retrieved successfully
  */
-router.get('/roster/:courseId', tutorController.getCourseRoster)
+router.get('/roster/:courseId', getCourseRoster)
 
 /**
  * @swagger
- * /api/tutors/announcements:
+ * /api/tutor/announcements:
  *   post:
- *     summary: Publish a course-specific real-time announcement or deadline reminder
- *     tags: [Tutors]
+ *     summary: Create an announcement targeted to a specific course
+ *     tags: [Tutor Course Content]
  *     security:
  *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - course_id
- *               - title
- *               - content
- *             properties:
- *               course_id:
- *                 type: integer
- *               title:
- *                 type: string
- *               content:
- *                 type: string
  *     responses:
  *       201:
  *         description: Announcement created successfully
  */
-router.post('/announcements', tutorController.createCourseAnnouncement)
+router.post('/announcements', createCourseAnnouncement)
 
 /**
  * @swagger
- * /api/tutors/analytics/{courseId}:
+ * /api/tutor/analytics/{courseId}:
  *   get:
- *     summary: Get class grade distributions and early warning performance reports
- *     tags: [Tutors]
+ *     summary: Get summary performance statistics and at-risk student lists for a course
+ *     tags: [Tutor Students & Analytics]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -680,11 +880,32 @@ router.post('/announcements', tutorController.createCourseAnnouncement)
  *         name: courseId
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *         example: fullstack-dev
  *     responses:
  *       200:
- *         description: Class analytics generated successfully
+ *         description: Analytics generated successfully
  */
-router.get('/analytics/:courseId', tutorController.getClassAnalytics)
+router.get('/analytics/:courseId', getClassAnalytics)
+
+/**
+ * @swagger
+ * /api/tutor/students/cohort:
+ *   get:
+ *     summary: Get assigned scholarship/cohort students list
+ *     tags: [Tutor Students & Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: cohortId
+ *         schema:
+ *           type: integer
+ *         example: 3
+ *     responses:
+ *       200:
+ *         description: Cohort students retrieved successfully
+ */
+router.get('/students/cohort', getAssignedCohortStudents)
 
 module.exports = router

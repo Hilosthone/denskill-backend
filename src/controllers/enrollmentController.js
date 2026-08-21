@@ -707,7 +707,7 @@ exports.initializeInstallmentPayment = async (req, res) => {
         tx_ref,
         amount: installmentAmount,
         currency: 'NGN',
-        redirect_url: redirect_url || 'https://www.denskill.com/dashboard',
+        redirect_url: redirect_url || 'https://www.denskill.com/student/dashboard',
         customer: {
           email: enrollment.email,
           phonenumber: enrollment.phone,
