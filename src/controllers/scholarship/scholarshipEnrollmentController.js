@@ -227,7 +227,7 @@
 //         customizations: {
 //           title: 'DenSkill Scholarship Contribution',
 //           description: `Acceptance fee / Contribution for ${application.course} (80% Off)`,
-//           logo: 'https://denskill.com/logo.png',
+//           logo: 'https://denskill.com/denskill.png',
 //         },
 //         meta: {
 //           applicationId: application.id,
@@ -675,7 +675,7 @@ exports.initializeScholarshipPayment = async (req, res) => {
         customizations: {
           title: 'DenSkill Scholarship Contribution',
           description: `Acceptance fee / Contribution for ${application.course} (80% Off)`,
-          logo: 'https://denskill.com/logo.png',
+          logo: 'https://denskill.com/denskill.png',
         },
         meta: {
           applicationId: application.id,
