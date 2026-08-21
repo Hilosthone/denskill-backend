@@ -666,7 +666,7 @@ exports.initializeScholarshipPayment = async (req, res) => {
         tx_ref: txRef,
         amount: fees.studentContribution,
         currency: 'NGN',
-        redirect_url: `${process.env.FRONTEND_URL || 'https://denskill.com'}/scholarship/verify?applicationId=${applicationId}`,
+        redirect_url: `${process.env.FRONTEND_URL || 'https://denskill.com'}/scholarship/claim?applicationId=${applicationId}`,
         customer: {
           email: application.email,
           name: `${application.first_name} ${application.last_name}`,
@@ -722,20 +722,48 @@ exports.verifyScholarshipPayment = async (req, res) => {
 
   try {
     let transactionData = null
-    const isNumericId = /^\d+$/.test(reference)
 
-    if (isNumericId) {
-      const verifyResponse = await axios.get(
-        `https://api.flutterwave.com/v3/transactions/${reference}/verify`,
-        { headers: { Authorization: `Bearer ${getFlwSecretKey()}` } }
-      )
-      transactionData = verifyResponse.data?.data
-    } else {
-      const verifyResponse = await axios.get(
-        `https://api.flutterwave.com/v3/transactions/verify_by_reference?tx_ref=${reference}`,
-        { headers: { Authorization: `Bearer ${getFlwSecretKey()}` } }
-      )
-      transactionData = verifyResponse.data?.data
+    // Strategy 1: Check if reference is purely numeric (direct Flutterwave Transaction ID)
+    if (/^\d+$/.test(reference)) {
+      try {
+        const verifyResponse = await axios.get(
+          `https://api.flutterwave.com/v3/transactions/${reference}/verify`,
+          { headers: { Authorization: `Bearer ${getFlwSecretKey()}` } }
+        )
+        transactionData = verifyResponse.data?.data
+      } catch (e) {
+        console.warn('Numeric ID verification attempt failed.')
+      }
+    }
+
+    // Strategy 2: Try verifying by tx_ref directly
+    if (!transactionData) {
+      try {
+        const verifyResponse = await axios.get(
+          `https://api.flutterwave.com/v3/transactions/verify_by_reference?tx_ref=${reference}`,
+          { headers: { Authorization: `Bearer ${getFlwSecretKey()}` } }
+        )
+        transactionData = verifyResponse.data?.data
+      } catch (e) {
+        console.warn('verify_by_reference attempt failed.')
+      }
+    }
+
+    // Strategy 3: Fallback for composite references (e.g. SCH-1-69E30347 -> extracts 69E30347)
+    if (!transactionData && reference.includes('-')) {
+      const parts = reference.split('-')
+      const possibleNumericId = parts[parts.length - 1]
+      if (/^\d+$/.test(possibleNumericId)) {
+        try {
+          const fallbackResponse = await axios.get(
+            `https://api.flutterwave.com/v3/transactions/${possibleNumericId}/verify`,
+            { headers: { Authorization: `Bearer ${getFlwSecretKey()}` } }
+          )
+          transactionData = fallbackResponse.data?.data
+        } catch (e) {
+          console.warn('Fallback composite ID verification failed.')
+        }
+      }
     }
 
     if (!transactionData) {
