@@ -863,7 +863,7 @@ router.get('/roster/:courseId', getCourseRoster)
  *       - bearerAuth: []
  *     responses:
  *       201:
- *         description: Announcement created successfully
+ *         description: Announcement created successfully...
  */
 router.post('/announcements', createCourseAnnouncement)
 
