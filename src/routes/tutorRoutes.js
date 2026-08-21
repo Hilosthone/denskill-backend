@@ -565,9 +565,9 @@ router.use(protect)
  *               description:
  *                 type: string
  *                 example: Create endpoints for users and products using Express.js
- *               type: type
- *               type: string
- *               example: assignment
+ *               type:
+ *                 type: string
+ *                 example: assignment
  *               total_marks:
  *                 type: integer
  *                 example: 100
