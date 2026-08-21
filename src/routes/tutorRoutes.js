@@ -482,7 +482,7 @@
 
 const express = require('express')
 const router = express.Router()
-const { protect } = require('../middleware/authMiddleware') // Adjust path to your auth middleware if necessary
+const { protect } = require('../middleware/authMiddleware')
 const {
   tutorLogin,
   createAssessment,
@@ -510,7 +510,7 @@ const {
  * /api/tutor/login:
  *   post:
  *     summary: Authenticate a tutor/instructor
- *     tags: [Tutor Auth]
+ *     tags: [Tutors]
  *     requestBody:
  *       required: true
  *       content:
@@ -543,7 +543,7 @@ router.use(protect)
  * /api/tutor/assessments:
  *   post:
  *     summary: Create a new course assessment or assignment
- *     tags: [Tutor Assessments]
+ *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -588,7 +588,7 @@ router.post('/assessments', createAssessment)
  * /api/tutor/assessments/{courseId}:
  *   get:
  *     summary: Get all assessments for a specific course
- *     tags: [Tutor Assessments]
+ *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -609,7 +609,7 @@ router.get('/assessments/:courseId', getAssessmentsByCourse)
  * /api/tutor/assessments/{assessmentId}:
  *   put:
  *     summary: Update an existing assessment
- *     tags: [Tutor Assessments]
+ *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -630,7 +630,7 @@ router.put('/assessments/:assessmentId', updateAssessment)
  * /api/tutor/assessments/{assessmentId}:
  *   delete:
  *     summary: Delete an assessment
- *     tags: [Tutor Assessments]
+ *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -651,7 +651,7 @@ router.delete('/assessments/:assessmentId', deleteAssessment)
  * /api/tutor/assessments/{assessmentId}/submissions:
  *   get:
  *     summary: Get student submissions for a specific assessment
- *     tags: [Tutor Submissions & Grading]
+ *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -672,7 +672,7 @@ router.get('/assessments/:assessmentId/submissions', getSubmissionsByAssessment)
  * /api/tutor/submissions/{submissionId}/grade:
  *   put:
  *     summary: Grade a student's submission and provide feedback
- *     tags: [Tutor Submissions & Grading]
+ *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -708,7 +708,7 @@ router.put('/submissions/:submissionId/grade', gradeSubmission)
  * /api/tutor/submissions/{submissionId}/feedback:
  *   put:
  *     summary: Submit iterative review or feedback on a student code submission
- *     tags: [Tutor Submissions & Grading]
+ *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -729,7 +729,7 @@ router.put('/submissions/:submissionId/feedback', submitIterativeFeedback)
  * /api/tutor/attendance:
  *   post:
  *     summary: Log daily attendance for students in a course session
- *     tags: [Tutor Attendance]
+ *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -767,7 +767,7 @@ router.post('/attendance', logAttendance)
  * /api/tutor/modules:
  *   post:
  *     summary: Upload a weekly course lecture module or resource file
- *     tags: [Tutor Course Content]
+ *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -781,7 +781,7 @@ router.post('/modules', uploadCourseModule)
  * /api/tutor/modules/{courseId}:
  *   get:
  *     summary: Get all modules for a course
- *     tags: [Tutor Course Content]
+ *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -802,7 +802,7 @@ router.get('/modules/:courseId', getCourseModules)
  * /api/tutor/sessions:
  *   post:
  *     summary: Schedule a live workshop session and conference link
- *     tags: [Tutor Live Sessions]
+ *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -816,7 +816,7 @@ router.post('/sessions', scheduleLiveSession)
  * /api/tutor/sessions/{courseId}:
  *   get:
  *     summary: Get scheduled live sessions for a course
- *     tags: [Tutor Live Sessions]
+ *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -837,7 +837,7 @@ router.get('/sessions/:courseId', getLiveSessions)
  * /api/tutor/roster/{courseId}:
  *   get:
  *     summary: Get list of registered students (roster) for a specific course
- *     tags: [Tutor Students & Analytics]
+ *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -858,7 +858,7 @@ router.get('/roster/:courseId', getCourseRoster)
  * /api/tutor/announcements:
  *   post:
  *     summary: Create an announcement targeted to a specific course
- *     tags: [Tutor Course Content]
+ *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -872,7 +872,7 @@ router.post('/announcements', createCourseAnnouncement)
  * /api/tutor/analytics/{courseId}:
  *   get:
  *     summary: Get summary performance statistics and at-risk student lists for a course
- *     tags: [Tutor Students & Analytics]
+ *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -893,7 +893,7 @@ router.get('/analytics/:courseId', getClassAnalytics)
  * /api/tutor/students/cohort:
  *   get:
  *     summary: Get assigned scholarship/cohort students list
- *     tags: [Tutor Students & Analytics]
+ *     tags: [Tutors]
  *     security:
  *       - bearerAuth: []
  *     parameters:
