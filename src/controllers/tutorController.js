@@ -1,4 +1,4 @@
-// // src/controllers/tutorController.js
+// //src/controllers/tutorControllers
 // const pool = require('../config/db')
 // const jwt = require('jsonwebtoken')
 // const bcrypt = require('bcryptjs')
@@ -323,12 +323,10 @@
 //     res.status(201).json({ success: true, module: result.rows[0] })
 //   } catch (err) {
 //     console.error('Error uploading module:', err)
-//     res
-//       .status(500)
-//       .json({
-//         success: false,
-//         message: 'Server error uploading course module.',
-//       })
+//     res.status(500).json({
+//       success: false,
+//       message: 'Server error uploading course module.',
+//     })
 //   }
 // }
 
@@ -543,10 +541,19 @@
 //   }
 // }
 
-//src/controllers/tutorControllers
+
+
+// src/controllers/tutorController.js
 const pool = require('../config/db')
 const jwt = require('jsonwebtoken')
 const bcrypt = require('bcryptjs')
+
+// Helper to normalize route params like "fullstack-dev" back to "Full Stack Development"
+const normalizeCourseName = (courseParam) => {
+  if (!courseParam) return ''
+  const decoded = decodeURIComponent(courseParam).replace(/-/g, ' ').trim()
+  return decoded
+}
 
 exports.tutorLogin = async (req, res) => {
   try {
@@ -946,14 +953,16 @@ exports.getLiveSessions = async (req, res) => {
 exports.getCourseRoster = async (req, res) => {
   try {
     const { courseId } = req.params
+    const courseName = normalizeCourseName(courseId)
+
     const query = `
       SELECT u.id, u.name, u.email, e.payment_status, e.created_at as enrollment_date,
-             (SELECT COUNT(*) FROM student_submissions s JOIN assessments a ON s.assessment_id = a.id WHERE s.student_id = u.id AND a.course_id = $1) as submissions_count
+             (SELECT COUNT(*) FROM student_submissions s JOIN assessments a ON s.assessment_id = a.id WHERE s.student_id = u.id AND LOWER(a.course_id) = LOWER($1)) as submissions_count
       FROM enrollments e
       JOIN users u ON e.user_id = u.id
-      WHERE e.course_id = $1
+      WHERE LOWER(e.course) = LOWER($1) OR LOWER(e.course) = LOWER($2)
     `
-    const result = await pool.query(query, [courseId])
+    const result = await pool.query(query, [courseId, courseName])
     res.status(200).json({ success: true, roster: result.rows })
   } catch (err) {
     console.error('Error fetching roster:', err)
@@ -1024,6 +1033,7 @@ exports.createCourseAnnouncement = async (req, res) => {
 exports.getClassAnalytics = async (req, res) => {
   try {
     const { courseId } = req.params
+    const courseName = normalizeCourseName(courseId)
 
     const statsQuery = `
       SELECT
@@ -1033,23 +1043,23 @@ exports.getClassAnalytics = async (req, res) => {
         COUNT(s.id) as total_submissions
       FROM student_submissions s
       JOIN assessments a ON s.assessment_id = a.id
-      WHERE a.course_id = $1;
+      WHERE LOWER(a.course_id) = LOWER($1) OR LOWER(a.course_id) = LOWER($2);
     `
-    const statsResult = await pool.query(statsQuery, [courseId])
+    const statsResult = await pool.query(statsQuery, [courseId, courseName])
 
     const atRiskQuery = `
       SELECT u.id, u.name, u.email
       FROM users u
       JOIN enrollments e ON u.id = e.user_id
-      WHERE e.course_id = $1
+      WHERE (LOWER(e.course) = LOWER($1) OR LOWER(e.course) = LOWER($2))
       AND u.id NOT IN (
         SELECT DISTINCT s.student_id
         FROM student_submissions s
         JOIN assessments a ON s.assessment_id = a.id
-        WHERE a.course_id = $1
+        WHERE LOWER(a.course_id) = LOWER($1) OR LOWER(a.course_id) = LOWER($2)
       );
     `
-    const atRiskResult = await pool.query(atRiskQuery, [courseId])
+    const atRiskResult = await pool.query(atRiskQuery, [courseId, courseName])
 
     res.status(200).json({
       success: true,
