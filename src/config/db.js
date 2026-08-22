@@ -616,6 +616,18 @@ const runMigrations = async () => {
         tutor_id INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE TABLE IF NOT EXISTS announcements (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        date VARCHAR(100),
+        content TEXT NOT NULL,
+        tag VARCHAR(100) DEFAULT 'Bulletin',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      ALTER TABLE announcements ADD COLUMN IF NOT EXISTS content TEXT;
+      ALTER TABLE announcements ADD COLUMN IF NOT EXISTS tag VARCHAR(100) DEFAULT 'Bulletin';
+      ALTER TABLE announcements ADD COLUMN IF NOT EXISTS date VARCHAR(100);
     `)
     console.log(
       '✅ Database migration checked: instructors, assessments, submissions, attendance, modules, sessions & announcements tables verified.',

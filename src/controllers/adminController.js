@@ -1429,7 +1429,12 @@ const createAnnouncement = async (req, res) => {
       return res.status(400).json({ error: 'Title and content are required.' })
     }
 
-    // Attempts to insert with target/priority, falls back gracefully if columns don't exist yet
+    // Automatically ensure target and priority columns exist before inserting
+    await db.query(`
+      ALTER TABLE announcements ADD COLUMN IF NOT EXISTS target VARCHAR(100) DEFAULT 'all';
+      ALTER TABLE announcements ADD COLUMN IF NOT EXISTS priority VARCHAR(50) DEFAULT 'normal';
+    `)
+
     let result
     try {
       result = await db.query(
@@ -1438,6 +1443,7 @@ const createAnnouncement = async (req, res) => {
         [title, content, target || 'all', priority || 'normal'],
       )
     } catch (dbErr) {
+      // Fallback if schema alteration failed for any reason
       result = await db.query(
         'INSERT INTO announcements (title, content) VALUES ($1, $2) RETURNING *',
         [title, content],
@@ -1460,28 +1466,34 @@ const updateAnnouncement = async (req, res) => {
     const { id } = req.params
     const { title, content, target, priority } = req.body
 
+    // Automatically ensure target and priority columns exist before updating
+    await db.query(`
+      ALTER TABLE announcements ADD COLUMN IF NOT EXISTS target VARCHAR(100) DEFAULT 'all';
+      ALTER TABLE announcements ADD COLUMN IF NOT EXISTS priority VARCHAR(50) DEFAULT 'normal';
+    `)
+
     let result
     try {
       result = await db.query(
         `UPDATE announcements 
-         SET title = COALESCE($1, title), 
-             content = COALESCE($2, content),
-             target = COALESCE($3, target),
-             priority = COALESCE($4, priority)
+         SET title = COALESCE(NULLIF($1, ''), title), 
+             content = COALESCE(NULLIF($2, ''), content),
+             target = COALESCE(NULLIF($3, ''), target),
+             priority = COALESCE(NULLIF($4, ''), priority)
          WHERE id = $5 RETURNING *`,
         [title, content, target, priority, id],
       )
     } catch (dbErr) {
       result = await db.query(
         `UPDATE announcements 
-         SET title = COALESCE($1, title), 
-             content = COALESCE($2, content)
+         SET title = COALESCE(NULLIF($1, ''), title), 
+             content = COALESCE(NULLIF($2, ''), content)
          WHERE id = $3 RETURNING *`,
         [title, content, id],
       )
     }
 
-    if (result.rows.length === 0) {
+    if (!result || result.rows.length === 0) {
       return res.status(404).json({ error: 'Announcement not found.' })
     }
 
@@ -1517,6 +1529,7 @@ const deleteAnnouncement = async (req, res) => {
     res.status(500).json({ error: 'Server error while deleting announcement.' })
   }
 }
+
 // 7. Instructors / Tutors Tab
 const getInstructors = async (req, res) => {
   try {
