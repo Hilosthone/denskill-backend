@@ -547,9 +547,33 @@
 
 // controllers/dashboardController.js
 
-// @desc    Get complete student portal data across all tabs
-// @route   GET /api/dashboard/overview
-// @access  Private (Student)
+/**
+ * @swagger
+ * /api/dashboard/overview:
+ *   get:
+ *     summary: Get complete student portal data across all tabs
+ *     tags: [Dashboard]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Student overview retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *       401:
+ *       - bearerAuth: []
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
 const getStudentOverview = async (req, res) => {
   try {
     // Fetch student profile, active courses, recent announcements, etc.
@@ -559,9 +583,32 @@ const getStudentOverview = async (req, res) => {
   }
 };
 
-// @desc    Get student profile and enrollment metadata
-// @route   GET /api/dashboard/profile
-// @access  Private (Student)
+/**
+ * @swagger
+ * /api/dashboard/profile:
+ *   get:
+ *     summary: Get student profile and enrollment metadata
+ *     tags: [Dashboard]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Student profile retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 student:
+ *                   type: object
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
 const getStudentProfile = async (req, res) => {
   try {
     // req.user is attached by the protect middleware
@@ -571,9 +618,34 @@ const getStudentProfile = async (req, res) => {
   }
 };
 
-// @desc    Get student enrolled courses with assigned tutors
-// @route   GET /api/dashboard/courses
-// @access  Private (Student)
+/**
+ * @swagger
+ * /api/dashboard/courses:
+ *   get:
+ *     summary: Get student enrolled courses with assigned tutors
+ *     tags: [Dashboard]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Student courses retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 courses:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
 const getStudentCourses = async (req, res) => {
   try {
     res.status(200).json({ status: 'success', courses: [] });
@@ -582,9 +654,34 @@ const getStudentCourses = async (req, res) => {
   }
 };
 
-// @desc    Get student payment history / receipts
-// @route   GET /api/dashboard/payments
-// @access  Private (Student)
+/**
+ * @swagger
+ * /api/dashboard/payments:
+ *   get:
+ *     summary: Get student payment history / receipts
+ *     tags: [Dashboard]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Student payment history retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 payments:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
 const getStudentPayments = async (req, res) => {
   try {
     res.status(200).json({ status: 'success', payments: [] });
@@ -593,9 +690,34 @@ const getStudentPayments = async (req, res) => {
   }
 };
 
-// @desc    Get portal announcements
-// @route   GET /api/dashboard/announcements
-// @access  Private (Student)
+/**
+ * @swagger
+ * /api/dashboard/announcements:
+ *   get:
+ *     summary: Get portal announcements
+ *     tags: [Dashboard]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Announcements retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 announcements:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
 const getStudentAnnouncements = async (req, res) => {
   try {
     res.status(200).json({ status: 'success', announcements: [] });
@@ -604,9 +726,50 @@ const getStudentAnnouncements = async (req, res) => {
   }
 };
 
-// @desc    Verify scholarship contribution payment & provision account
-// @route   POST /api/dashboard/payment/verify
-// @access  Private (Student)
+/**
+ * @swagger
+ * /api/dashboard/payment/verify:
+ *   post:
+ *     summary: Verify scholarship contribution payment & provision account
+ *     tags: [Dashboard]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - paymentReference
+ *             properties:
+ *               paymentReference:
+ *                 type: string
+ *                 example: T123456789_ref
+ *               transactionId:
+ *                 type: string
+ *                 example: TXN-987654
+ *     responses:
+ *       200:
+ *         description: Payment verified and account provisioned successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Payment verified and account provisioned successfully
+ *       400:
+ *         description: Missing payment reference
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
 const verifyContributionPayment = async (req, res) => {
   try {
     const { paymentReference, transactionId } = req.body;
@@ -623,9 +786,34 @@ const verifyContributionPayment = async (req, res) => {
   }
 };
 
-// @desc    Get student scholarship profile details
-// @route   GET /api/dashboard/scholarship/profile
-// @access  Private (Student)
+/**
+ * @swagger
+ * /api/dashboard/scholarship/profile:
+ *   get:
+ *     summary: Get student scholarship profile details
+ *     tags: [Dashboard]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Scholarship profile retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 scholarship:
+ *                   type: object
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: No scholarship profile found
+ *       500:
+ *         description: Server error
+ */
 const getStudentScholarshipProfile = async (req, res) => {
   try {
     res.status(200).json({ status: 'success', scholarship: {} });
@@ -634,9 +822,42 @@ const getStudentScholarshipProfile = async (req, res) => {
   }
 };
 
-// @desc    View published quizzes, assessments, and assignments for a course
-// @route   GET /api/dashboard/assessments/:courseId
-// @access  Private (Student)
+/**
+ * @swagger
+ * /api/dashboard/assessments/{courseId}:
+ *   get:
+ *     summary: View published quizzes, assessments, and assignments for a course
+ *     tags: [Dashboard]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: courseId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Course ID or key
+ *         example: fullstack-dev
+ *     responses:
+ *       200:
+ *         description: Assessments retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 assessments:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
 const getCourseAssessments = async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -646,9 +867,55 @@ const getCourseAssessments = async (req, res) => {
   }
 };
 
-// @desc    Submit quiz answers or assignment project links/files
-// @route   POST /api/dashboard/assessments/:assessmentId/submit
-// @access  Private (Student)
+/**
+ * @swagger
+ * /api/dashboard/assessments/{assessmentId}/submit:
+ *   post:
+ *     summary: Submit quiz answers or assignment project links/files
+ *     tags: [Dashboard]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: assessmentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Numeric ID of the assessment
+ *         example: 12
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - content
+ *             properties:
+ *               content:
+ *                 type: string
+ *                 example: https://github.com/username/repo
+ *     responses:
+ *       201:
+ *         description: Assessment submitted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Assessment submitted successfully
+ *       400:
+ *         description: Missing content or submission deadline passed
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
 const submitAssessmentContent = async (req, res) => {
   try {
     const { assessmentId } = req.params;
@@ -662,9 +929,38 @@ const submitAssessmentContent = async (req, res) => {
   }
 };
 
-// @desc    Fetch personal scores, submission grades, and attendance breakdown
-// @route   GET /api/dashboard/grades
-// @access  Private (Student)
+/**
+ * @swagger
+ * /api/dashboard/grades:
+ *   get:
+ *     summary: Fetch personal scores, submission grades, and attendance breakdown
+ *     tags: [Dashboard]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Grades and attendance retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 grades:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                 attendance:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
 const getStudentGradesAndAttendance = async (req, res) => {
   try {
     res.status(200).json({ status: 'success', grades: [], attendance: [] });
@@ -673,9 +969,42 @@ const getStudentGradesAndAttendance = async (req, res) => {
   }
 };
 
-// @desc    View weekly lecture modules and downloadable resources
-// @route   GET /api/dashboard/modules/:courseId
-// @access  Private (Student)
+/**
+ * @swagger
+ * /api/dashboard/modules/{courseId}:
+ *   get:
+ *     summary: View weekly lecture modules and downloadable resources
+ *     tags: [Dashboard]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: courseId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Course ID
+ *         example: fullstack-dev
+ *     responses:
+ *       200:
+ *         description: Modules retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 modules:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
 const getStudentCourseModules = async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -685,9 +1014,42 @@ const getStudentCourseModules = async (req, res) => {
   }
 };
 
-// @desc    View scheduled live workshop sessions
-// @route   GET /api/dashboard/sessions/:courseId
-// @access  Private (Student)
+/**
+ * @swagger
+ * /api/dashboard/sessions/{courseId}:
+ *   get:
+ *     summary: View scheduled live workshop sessions
+ *     tags: [Dashboard]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: courseId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Course ID
+ *         example: fullstack-dev
+ *     responses:
+ *       200:
+ *         description: Live sessions retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 sessions:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
 const getStudentLiveSessions = async (req, res) => {
   try {
     const { courseId } = req.params;
