@@ -1413,7 +1413,7 @@ const getAllCourses = async (req, res) => {
 const getAdminAnnouncements = async (req, res) => {
   try {
     const result = await db.query(
-      'SELECT * FROM announcements ORDER BY created_at DESC',
+      'SELECT id, title, message AS content, target, priority, created_at FROM announcements ORDER BY created_at DESC',
     )
     res.status(200).json({ status: 'success', announcements: result.rows })
   } catch (err) {
@@ -1424,8 +1424,10 @@ const getAdminAnnouncements = async (req, res) => {
 
 const createAnnouncement = async (req, res) => {
   try {
-    const { title, content, target, priority } = req.body
-    if (!title || !content) {
+    const { title, content, message, target, priority } = req.body
+    const announcementText = content || message
+
+    if (!title || !announcementText) {
       return res.status(400).json({ error: 'Title and content are required.' })
     }
 
@@ -1438,15 +1440,15 @@ const createAnnouncement = async (req, res) => {
     let result
     try {
       result = await db.query(
-        `INSERT INTO announcements (title, content, target, priority) 
-         VALUES ($1, $2, $3, $4) RETURNING *`,
-        [title, content, target || 'all', priority || 'normal'],
+        `INSERT INTO announcements (title, message, target, priority) 
+         VALUES ($1, $2, $3, $4) RETURNING id, title, message AS content, target, priority, created_at`,
+        [title, announcementText, target || 'all', priority || 'normal'],
       )
     } catch (dbErr) {
-      // Fallback if schema alteration failed for any reason
+      // Fallback if target/priority columns fail
       result = await db.query(
-        'INSERT INTO announcements (title, content) VALUES ($1, $2) RETURNING *',
-        [title, content],
+        'INSERT INTO announcements (title, message) VALUES ($1, $2) RETURNING id, title, message AS content, created_at',
+        [title, announcementText],
       )
     }
 
@@ -1464,7 +1466,8 @@ const createAnnouncement = async (req, res) => {
 const updateAnnouncement = async (req, res) => {
   try {
     const { id } = req.params
-    const { title, content, target, priority } = req.body
+    const { title, content, message, target, priority } = req.body
+    const announcementText = content || message
 
     // Automatically ensure target and priority columns exist before updating
     await db.query(`
@@ -1477,19 +1480,19 @@ const updateAnnouncement = async (req, res) => {
       result = await db.query(
         `UPDATE announcements 
          SET title = COALESCE(NULLIF($1, ''), title), 
-             content = COALESCE(NULLIF($2, ''), content),
+             message = COALESCE(NULLIF($2, ''), message),
              target = COALESCE(NULLIF($3, ''), target),
              priority = COALESCE(NULLIF($4, ''), priority)
-         WHERE id = $5 RETURNING *`,
-        [title, content, target, priority, id],
+         WHERE id = $5 RETURNING id, title, message AS content, target, priority, created_at`,
+        [title, announcementText, target, priority, id],
       )
     } catch (dbErr) {
       result = await db.query(
         `UPDATE announcements 
          SET title = COALESCE(NULLIF($1, ''), title), 
-             content = COALESCE(NULLIF($2, ''), content)
-         WHERE id = $3 RETURNING *`,
-        [title, content, id],
+             message = COALESCE(NULLIF($2, ''), message)
+         WHERE id = $3 RETURNING id, title, message AS content, created_at`,
+        [title, announcementText, id],
       )
     }
 
