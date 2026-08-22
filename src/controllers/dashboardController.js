@@ -417,7 +417,7 @@
 //   getStudentLiveSessions,
 // }
 
-const db = require('../config/db')
+//const db = require('../config/db')
 const bcrypt = require('bcryptjs')
 
 /**
@@ -492,8 +492,12 @@ const getStudentOverview = async (req, res) => {
 
     let announcements = []
     try {
+      const studentType = (user.student_type || 'regular').toLowerCase()
       const annResult = await db.query(
-        'SELECT * FROM announcements ORDER BY created_at DESC LIMIT 5',
+        `SELECT * FROM announcements 
+         WHERE target = 'all' OR LOWER(target) = $1 
+         ORDER BY created_at DESC LIMIT 5`,
+        [studentType],
       )
       announcements = annResult.rows
     } catch (e) {
@@ -629,10 +633,19 @@ const getStudentPayments = async (req, res) => {
  */
 const getStudentAnnouncements = async (req, res) => {
   try {
+    const userId = req.user.id
+
+    // Get student type first
+    const userRes = await db.query('SELECT student_type FROM users WHERE id = $1', [userId])
+    const studentType = userRes.rows.length > 0 ? (userRes.rows[0].student_type || 'regular').toLowerCase() : 'regular'
+
     let announcements = []
     try {
       const annResult = await db.query(
-        'SELECT * FROM announcements ORDER BY created_at DESC',
+        `SELECT * FROM announcements 
+         WHERE target = 'all' OR LOWER(target) = $1 
+         ORDER BY created_at DESC`,
+        [studentType],
       )
       announcements = annResult.rows
     } catch (e) {
