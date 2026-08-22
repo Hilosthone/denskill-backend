@@ -542,10 +542,27 @@
 
 // module.exports = router
 
+const express = require('express')
+const router = express.Router()
 
+const {
+  getStudentOverview,
+  getStudentProfile,
+  getStudentCourses,
+  getStudentPayments,
+  getStudentAnnouncements,
+  verifyContributionPayment,
+  getStudentScholarshipProfile,
+  getCourseAssessments,
+  submitAssessmentContent,
+  getStudentGradesAndAttendance,
+  getStudentCourseModules,
+  getStudentLiveSessions,
+} = require('../controllers/dashboardController')
 
-
-// controllers/dashboardController.js
+// Optional: Add your authentication middleware here if you have one
+// const { protect } = require('../middlewares/authMiddleware');
+// router.use(protect);
 
 /**
  * @swagger
@@ -558,30 +575,12 @@
  *     responses:
  *       200:
  *         description: Student overview retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 data:
- *                   type: object
  *       401:
- *       - bearerAuth: []
  *         description: Unauthorized
  *       500:
  *         description: Server error
  */
-const getStudentOverview = async (req, res) => {
-  try {
-    // Fetch student profile, active courses, recent announcements, etc.
-    res.status(200).json({ status: 'success', data: {} });
-  } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
-  }
-};
+router.get('/overview', getStudentOverview)
 
 /**
  * @swagger
@@ -594,29 +593,12 @@ const getStudentOverview = async (req, res) => {
  *     responses:
  *       200:
  *         description: Student profile retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 student:
- *                   type: object
  *       401:
  *         description: Unauthorized
  *       500:
  *         description: Server error
  */
-const getStudentProfile = async (req, res) => {
-  try {
-    // req.user is attached by the protect middleware
-    res.status(200).json({ status: 'success', student: req.user });
-  } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
-  }
-};
+router.get('/profile', getStudentProfile)
 
 /**
  * @swagger
@@ -629,30 +611,12 @@ const getStudentProfile = async (req, res) => {
  *     responses:
  *       200:
  *         description: Student courses retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 courses:
- *                   type: array
- *                   items:
- *                     type: object
  *       401:
  *         description: Unauthorized
  *       500:
  *         description: Server error
  */
-const getStudentCourses = async (req, res) => {
-  try {
-    res.status(200).json({ status: 'success', courses: [] });
-  } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
-  }
-};
+router.get('/courses', getStudentCourses)
 
 /**
  * @swagger
@@ -665,30 +629,12 @@ const getStudentCourses = async (req, res) => {
  *     responses:
  *       200:
  *         description: Student payment history retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 payments:
- *                   type: array
- *                   items:
- *                     type: object
  *       401:
  *         description: Unauthorized
  *       500:
  *         description: Server error
  */
-const getStudentPayments = async (req, res) => {
-  try {
-    res.status(200).json({ status: 'success', payments: [] });
-  } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
-  }
-};
+router.get('/payments', getStudentPayments)
 
 /**
  * @swagger
@@ -701,30 +647,12 @@ const getStudentPayments = async (req, res) => {
  *     responses:
  *       200:
  *         description: Announcements retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 announcements:
- *                   type: array
- *                   items:
- *                     type: object
  *       401:
  *         description: Unauthorized
  *       500:
  *         description: Server error
  */
-const getStudentAnnouncements = async (req, res) => {
-  try {
-    res.status(200).json({ status: 'success', announcements: [] });
-  } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
-  }
-};
+router.get('/announcements', getStudentAnnouncements)
 
 /**
  * @swagger
@@ -745,24 +673,11 @@ const getStudentAnnouncements = async (req, res) => {
  *             properties:
  *               paymentReference:
  *                 type: string
- *                 example: T123456789_ref
  *               transactionId:
  *                 type: string
- *                 example: TXN-987654
  *     responses:
  *       200:
  *         description: Payment verified and account provisioned successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: Payment verified and account provisioned successfully
  *       400:
  *         description: Missing payment reference
  *       401:
@@ -770,21 +685,7 @@ const getStudentAnnouncements = async (req, res) => {
  *       500:
  *         description: Server error
  */
-const verifyContributionPayment = async (req, res) => {
-  try {
-    const { paymentReference, transactionId } = req.body;
-    if (!paymentReference) {
-      return res.status(400).json({ success: false, message: 'Payment reference is required' });
-    }
-    // Verify payment gateway reference here (e.g., Paystack/Flutterwave)
-    res.status(200).json({
-      success: true,
-      message: 'Payment verified and account provisioned successfully',
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
+router.post('/payment/verify', verifyContributionPayment)
 
 /**
  * @swagger
@@ -797,16 +698,6 @@ const verifyContributionPayment = async (req, res) => {
  *     responses:
  *       200:
  *         description: Scholarship profile retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 scholarship:
- *                   type: object
  *       401:
  *         description: Unauthorized
  *       404:
@@ -814,13 +705,7 @@ const verifyContributionPayment = async (req, res) => {
  *       500:
  *         description: Server error
  */
-const getStudentScholarshipProfile = async (req, res) => {
-  try {
-    res.status(200).json({ status: 'success', scholarship: {} });
-  } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
-  }
-};
+router.get('/scholarship/profile', getStudentScholarshipProfile)
 
 /**
  * @swagger
@@ -836,36 +721,15 @@ const getStudentScholarshipProfile = async (req, res) => {
  *         required: true
  *         schema:
  *           type: string
- *         description: Course ID or key
- *         example: fullstack-dev
  *     responses:
  *       200:
  *         description: Assessments retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 assessments:
- *                   type: array
- *                   items:
- *                     type: object
  *       401:
  *         description: Unauthorized
  *       500:
  *         description: Server error
  */
-const getCourseAssessments = async (req, res) => {
-  try {
-    const { courseId } = req.params;
-    res.status(200).json({ status: 'success', assessments: [] });
-  } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
-  }
-};
+router.get('/assessments/:courseId', getCourseAssessments)
 
 /**
  * @swagger
@@ -881,8 +745,6 @@ const getCourseAssessments = async (req, res) => {
  *         required: true
  *         schema:
  *           type: integer
- *         description: Numeric ID of the assessment
- *         example: 12
  *     requestBody:
  *       required: true
  *       content:
@@ -894,21 +756,9 @@ const getCourseAssessments = async (req, res) => {
  *             properties:
  *               content:
  *                 type: string
- *                 example: https://github.com/username/repo
  *     responses:
  *       201:
  *         description: Assessment submitted successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 message:
- *                   type: string
- *                   example: Assessment submitted successfully
  *       400:
  *         description: Missing content or submission deadline passed
  *       401:
@@ -916,18 +766,7 @@ const getCourseAssessments = async (req, res) => {
  *       500:
  *         description: Server error
  */
-const submitAssessmentContent = async (req, res) => {
-  try {
-    const { assessmentId } = req.params;
-    const { content } = req.body;
-    if (!content) {
-      return res.status(400).json({ status: 'fail', message: 'Submission content is required' });
-    }
-    res.status(201).json({ status: 'success', message: 'Assessment submitted successfully' });
-  } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
-  }
-};
+router.post('/assessments/:assessmentId/submit', submitAssessmentContent)
 
 /**
  * @swagger
@@ -940,34 +779,12 @@ const submitAssessmentContent = async (req, res) => {
  *     responses:
  *       200:
  *         description: Grades and attendance retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 grades:
- *                   type: array
- *                   items:
- *                     type: object
- *                 attendance:
- *                   type: array
- *                   items:
- *                     type: object
  *       401:
  *         description: Unauthorized
  *       500:
  *         description: Server error
  */
-const getStudentGradesAndAttendance = async (req, res) => {
-  try {
-    res.status(200).json({ status: 'success', grades: [], attendance: [] });
-  } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
-  }
-};
+router.get('/grades', getStudentGradesAndAttendance)
 
 /**
  * @swagger
@@ -983,36 +800,15 @@ const getStudentGradesAndAttendance = async (req, res) => {
  *         required: true
  *         schema:
  *           type: string
- *         description: Course ID
- *         example: fullstack-dev
  *     responses:
  *       200:
  *         description: Modules retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 modules:
- *                   type: array
- *                   items:
- *                     type: object
  *       401:
  *         description: Unauthorized
  *       500:
  *         description: Server error
  */
-const getStudentCourseModules = async (req, res) => {
-  try {
-    const { courseId } = req.params;
-    res.status(200).json({ status: 'success', modules: [] });
-  } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
-  }
-};
+router.get('/modules/:courseId', getStudentCourseModules)
 
 /**
  * @swagger
@@ -1028,48 +824,14 @@ const getStudentCourseModules = async (req, res) => {
  *         required: true
  *         schema:
  *           type: string
- *         description: Course ID
- *         example: fullstack-dev
  *     responses:
  *       200:
  *         description: Live sessions retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 sessions:
- *                   type: array
- *                   items:
- *                     type: object
  *       401:
  *         description: Unauthorized
  *       500:
  *         description: Server error
  */
-const getStudentLiveSessions = async (req, res) => {
-  try {
-    const { courseId } = req.params;
-    res.status(200).json({ status: 'success', sessions: [] });
-  } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
-  }
-};
+router.get('/sessions/:courseId', getStudentLiveSessions)
 
-module.exports = {
-  getStudentOverview,
-  getStudentProfile,
-  getStudentCourses,
-  getStudentPayments,
-  getStudentAnnouncements,
-  getCourseAssessments,
-  submitAssessmentContent,
-  getStudentGradesAndAttendance,
-  getStudentCourseModules,
-  getStudentLiveSessions,
-  verifyContributionPayment,
-  getStudentScholarshipProfile,
-};
+module.exports = router
