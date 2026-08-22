@@ -1128,6 +1128,7 @@
 const jwt = require('jsonwebtoken')
 const bcrypt = require('bcryptjs')
 const db = require('../config/db')
+const emailService = require('../services/emailService')
 
 // Helper: Normalize route params like "fullstack-dev" back to "Full Stack Development"
 const normalizeCourseName = (courseParam) => {
@@ -1252,44 +1253,6 @@ const getAdminOverview = async (req, res) => {
     res.status(500).json({ error: 'Server error while fetching admin overview...' })
   }
 }
-
-// // 2. GET /api/admin/students (Unified Students Tab - Regular & Scholarship)
-// const getAllStudents = async (req, res) => {
-//   try {
-//     const { studentType, cohortId } = req.query
-//     let query = `
-//       SELECT u.id, u.first_name, u.last_name, u.email, u.phone, u.student_type, u.scholarship_status, u.cohort_id,
-//              sc.name as cohort_name, sc.code as cohort_code, u.is_verified, u.created_at
-//       FROM users u
-//       LEFT JOIN scholarship_cohorts sc ON u.cohort_id = sc.id
-//       WHERE u.role = 'student' OR u.student_type = 'SCHOLARSHIP'
-//     `
-//     let conditions = []
-//     let params = []
-
-//     if (studentType) {
-//       params.push(studentType)
-//       conditions.push(`u.student_type = $${params.length}`)
-//     }
-//     if (cohortId) {
-//       params.push(cohortId)
-//       conditions.push(`u.cohort_id = $${params.length}`)
-//     }
-
-//     if (conditions.length > 0) {
-//       query += ` AND ` + conditions.join(' AND ')
-//     }
-
-//     query += ` ORDER BY u.created_at DESC`
-
-//     const result = await db.query(query, params)
-//     res.status(200).json({ status: 'success', count: result.rows.length, students: result.rows })
-//   } catch (err) {
-//     console.error('Admin Students Error:', err.message)
-//     res.status(500).json({ error: 'Server error while fetching students.' })
-//   }
-// }
-
 
 // 2. GET /api/admin/students (Unified Students Tab - Regular & Scholarship)
 const getAllStudents = async (req, res) => {
@@ -1431,7 +1394,6 @@ const createAnnouncement = async (req, res) => {
       return res.status(400).json({ error: 'Title and content are required.' })
     }
 
-    // Automatically ensure target and priority columns exist before inserting
     await db.query(`
       ALTER TABLE announcements ADD COLUMN IF NOT EXISTS target VARCHAR(100) DEFAULT 'all';
       ALTER TABLE announcements ADD COLUMN IF NOT EXISTS priority VARCHAR(50) DEFAULT 'normal';
@@ -1445,7 +1407,6 @@ const createAnnouncement = async (req, res) => {
         [title, announcementText, target || 'all', priority || 'normal'],
       )
     } catch (dbErr) {
-      // Fallback if target/priority columns fail
       result = await db.query(
         'INSERT INTO announcements (title, message) VALUES ($1, $2) RETURNING id, title, message AS content, created_at',
         [title, announcementText],
@@ -1469,7 +1430,6 @@ const updateAnnouncement = async (req, res) => {
     const { title, content, message, target, priority } = req.body
     const announcementText = content || message
 
-    // Automatically ensure target and priority columns exist before updating
     await db.query(`
       ALTER TABLE announcements ADD COLUMN IF NOT EXISTS target VARCHAR(100) DEFAULT 'all';
       ALTER TABLE announcements ADD COLUMN IF NOT EXISTS priority VARCHAR(50) DEFAULT 'normal';
@@ -1729,7 +1689,6 @@ const assignTutorToCourse = async (req, res) => {
     const courseName = normalizeCourseName(courseId)
 
     let courseResult
-    // Support lookup by numeric ID if provided, or by course name/slug
     if (!isNaN(courseId)) {
       courseResult = await db.query(
         'UPDATE courses SET tutor_id = $1 WHERE id = $2 RETURNING *',
@@ -1822,7 +1781,50 @@ const getAttendanceOverview = async (req, res) => {
     })
   } catch (err) {
     console.error('Attendance Overview Error:', err.message)
-    res.status(500).json({ error: 'Server error fetching attendance overview.' })
+    res
+      .status(500)
+      .json({ error: 'Server error fetching attendance overview.' })
+  }
+}
+
+// Admin Direct Email Dispatch Method
+const sendDirectEmailToUsers = async (req, res) => {
+  try {
+    const { emails, subject, message } = req.body
+
+    // Validation checks
+    if (!emails || !subject || !message) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide recipient emails, subject, and message content.',
+      })
+    }
+
+    // Call the service
+    const result = await emailService.sendCustomAdminEmail(
+      emails,
+      subject,
+      message,
+    )
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to deliver emails via Resend.',
+        error: result.error,
+      })
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Message successfully sent to user inbox(es)!',
+      data: result.data,
+    })
+  } catch (error) {
+    console.error('Admin Email Controller Error:', error)
+    return res
+      .status(500)
+      .json({ success: false, message: 'Internal server error.' })
   }
 }
 
@@ -1848,4 +1850,5 @@ module.exports = {
   getSettings,
   executeGradeOverride,
   getAttendanceOverview,
+  sendDirectEmailToUsers,
 }

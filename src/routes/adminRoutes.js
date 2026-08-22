@@ -936,6 +936,7 @@ const {
   getSettings,
   executeGradeOverride,
   getAttendanceOverview,
+  sendDirectEmailToUsers,
 } = require('../controllers/adminController')
 
 // ==========================================
@@ -990,20 +991,6 @@ router.use(protect, isAdmin)
  *         description: Admin privileges required
  */
 router.get('/dashboard', getAdminOverview)
-
-// /**
-//  * @swagger
-//  * /api/admin/students:
-//  *   get:
-//  *     summary: Get all registered students
-//  *     tags: [Admin]
-//  *     security:
-//  *       - bearerAuth: []
-//  *     responses:
-//  *       200:
-//  *         description: Students list retrieved successfully
-//  */
-// router.get('/students', getAllStudents)
 
 /**
  * @swagger
@@ -1333,7 +1320,6 @@ router.delete('/announcements/:id', deleteAnnouncement)
  *       201:
  *         description: Instructor created successfully with login credentials
  */
-
 router.get('/instructors', getInstructors)
 router.post('/instructors', createInstructor)
 
@@ -1487,5 +1473,43 @@ router.get('/settings', getSettings)
  *         description: Validation error or student already exists.
  */
 router.post('/enrollments/manual-onboard', manualOnboardStudent)
+
+/**
+ * @swagger
+ * /api/admin/emails/send:
+ *   post:
+ *     summary: Send direct custom email messages to one or multiple users
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - emails
+ *               - subject
+ *               - message
+ *             properties:
+ *               emails:
+ *                 type: string
+ *                 example: student1@gmail.com, student2@gmail.com
+ *               subject:
+ *                 type: string
+ *                 example: Important Update Regarding Your Portal Access
+ *               message:
+ *                 type: string
+ *                 example: Hello, please check your dashboard for recent updates.
+ *     responses:
+ *       200:
+ *         description: Message successfully sent to user inbox(es)
+ *       400:
+ *         description: Missing required fields
+ *       500:
+ *         description: Failed to deliver emails via Resend
+ */
+router.post('/emails/send', sendDirectEmailToUsers)
 
 module.exports = router
