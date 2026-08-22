@@ -448,6 +448,9 @@
 
 
 
+
+
+
 // // src/routes/adminRoutes.js
 // const express = require('express')
 // const router = express.Router()
@@ -920,6 +923,8 @@ const {
   getAllCourses,
   getAdminAnnouncements,
   createAnnouncement,
+  updateAnnouncement, 
+  deleteAnnouncement, 
   getInstructors,
   createInstructor,
   updateInstructor,
@@ -986,17 +991,75 @@ router.use(protect, isAdmin)
  */
 router.get('/dashboard', getAdminOverview)
 
+// /**
+//  * @swagger
+//  * /api/admin/students:
+//  *   get:
+//  *     summary: Get all registered students
+//  *     tags: [Admin]
+//  *     security:
+//  *       - bearerAuth: []
+//  *     responses:
+//  *       200:
+//  *         description: Students list retrieved successfully
+//  */
+// router.get('/students', getAllStudents)
+
 /**
  * @swagger
  * /api/admin/students:
  *   get:
- *     summary: Get all registered students
+ *     summary: Get all registered students (Regular and Scholarship)
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: studentType
+ *         schema:
+ *           type: string
+ *           enum: [REGULAR, SCHOLARSHIP]
+ *         description: Filter students by their student type
+ *       - in: query
+ *         name: cohortId
+ *         schema:
+ *           type: integer
+ *         description: Filter students by their scholarship cohort ID
  *     responses:
  *       200:
  *         description: Students list retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 count:
+ *                   type: integer
+ *                   example: 10
+ *                 students:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       name:
+ *                         type: string
+ *                       email:
+ *                         type: string
+ *                       phone:
+ *                         type: string
+ *                       student_type:
+ *                         type: string
+ *                       cohort_name:
+ *                         type: string
+ *                       cohort_code:
+ *                         type: string
+ *       500:
+ *         description: Server error while fetching students
  */
 router.get('/students', getAllStudents)
 
@@ -1139,10 +1202,51 @@ router.get('/courses/:courseId/attendance', getAttendanceOverview)
  *       200:
  *         description: Announcements retrieved successfully
  *   post:
- *     summary: Create a new announcement
+ *     summary: Create a new announcement (broadcasted to all students)
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - title
+ *               - content
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 example: Mid-Term Break Notice
+ *               content:
+ *                 type: string
+ *                 example: All regular and scholarship students are to note...
+ *               target:
+ *                 type: string
+ *                 enum: [all, regular, scholarship]
+ *                 example: all
+ *               priority:
+ *                 type: string
+ *                 enum: [normal, high, urgent]
+ *                 example: normal
+ *     responses:
+ *       201:
+ *         description: Announcement created successfully
+ *
+ * /api/admin/announcements/{id}:
+ *   put:
+ *     summary: Update an existing announcement
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Announcement ID
  *     requestBody:
  *       required: true
  *       content:
@@ -1154,12 +1258,39 @@ router.get('/courses/:courseId/attendance', getAttendanceOverview)
  *                 type: string
  *               content:
  *                 type: string
+ *               target:
+ *                 type: string
+ *                 enum: [all, regular, scholarship]
+ *               priority:
+ *                 type: string
+ *                 enum: [normal, high, urgent]
  *     responses:
- *       201:
- *         description: Announcement created successfully
+ *       200:
+ *         description: Announcement updated successfully
+ *       404:
+ *         description: Announcement not found
+ *   delete:
+ *     summary: Delete an announcement
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Announcement ID
+ *     responses:
+ *       200:
+ *         description: Announcement deleted successfully
+ *       404:
+ *         description: Announcement not found
  */
 router.get('/announcements', getAdminAnnouncements)
 router.post('/announcements', createAnnouncement)
+router.put('/announcements/:id', updateAnnouncement)
+router.delete('/announcements/:id', deleteAnnouncement)
 
 /**
  * @swagger
@@ -1202,6 +1333,7 @@ router.post('/announcements', createAnnouncement)
  *       201:
  *         description: Instructor created successfully with login credentials
  */
+
 router.get('/instructors', getInstructors)
 router.post('/instructors', createInstructor)
 

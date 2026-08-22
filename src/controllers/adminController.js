@@ -1253,13 +1253,61 @@ const getAdminOverview = async (req, res) => {
   }
 }
 
+// // 2. GET /api/admin/students (Unified Students Tab - Regular & Scholarship)
+// const getAllStudents = async (req, res) => {
+//   try {
+//     const { studentType, cohortId } = req.query
+//     let query = `
+//       SELECT u.id, u.first_name, u.last_name, u.email, u.phone, u.student_type, u.scholarship_status, u.cohort_id,
+//              sc.name as cohort_name, sc.code as cohort_code, u.is_verified, u.created_at
+//       FROM users u
+//       LEFT JOIN scholarship_cohorts sc ON u.cohort_id = sc.id
+//       WHERE u.role = 'student' OR u.student_type = 'SCHOLARSHIP'
+//     `
+//     let conditions = []
+//     let params = []
+
+//     if (studentType) {
+//       params.push(studentType)
+//       conditions.push(`u.student_type = $${params.length}`)
+//     }
+//     if (cohortId) {
+//       params.push(cohortId)
+//       conditions.push(`u.cohort_id = $${params.length}`)
+//     }
+
+//     if (conditions.length > 0) {
+//       query += ` AND ` + conditions.join(' AND ')
+//     }
+
+//     query += ` ORDER BY u.created_at DESC`
+
+//     const result = await db.query(query, params)
+//     res.status(200).json({ status: 'success', count: result.rows.length, students: result.rows })
+//   } catch (err) {
+//     console.error('Admin Students Error:', err.message)
+//     res.status(500).json({ error: 'Server error while fetching students.' })
+//   }
+// }
+
+
 // 2. GET /api/admin/students (Unified Students Tab - Regular & Scholarship)
 const getAllStudents = async (req, res) => {
   try {
     const { studentType, cohortId } = req.query
     let query = `
-      SELECT u.id, u.first_name, u.last_name, u.email, u.phone, u.student_type, u.scholarship_status, u.cohort_id, 
-             sc.name as cohort_name, sc.code as cohort_code, u.is_verified, u.created_at 
+      SELECT 
+        u.id, 
+        TRIM(CONCAT(u.first_name, ' ', COALESCE(u.middle_name, ''), ' ', u.last_name)) AS name,
+        u.email, 
+        u.phone, 
+        u.student_type, 
+        u.scholarship_status, 
+        u.cohort_id, 
+        sc.name as cohort_name, 
+        sc.code as cohort_code, 
+        u.is_verified, 
+        u.created_at 
       FROM users u
       LEFT JOIN scholarship_cohorts sc ON u.cohort_id = sc.id
       WHERE u.role = 'student' OR u.student_type = 'SCHOLARSHIP'
@@ -1361,7 +1409,7 @@ const getAllCourses = async (req, res) => {
   }
 }
 
-// 6. Announcements Tab
+// 6. Announcements Tab (Create, Read, Edit, Delete & Broadcast to All Students)
 const getAdminAnnouncements = async (req, res) => {
   try {
     const result = await db.query(
@@ -1369,26 +1417,106 @@ const getAdminAnnouncements = async (req, res) => {
     )
     res.status(200).json({ status: 'success', announcements: result.rows })
   } catch (err) {
+    console.error('Get Announcements Error:', err.message)
     res.status(500).json({ error: 'Server error while fetching announcements.' })
   }
 }
 
 const createAnnouncement = async (req, res) => {
   try {
-    const { title, content } = req.body
+    const { title, content, target, priority } = req.body
     if (!title || !content) {
       return res.status(400).json({ error: 'Title and content are required.' })
     }
-    const result = await db.query(
-      'INSERT INTO announcements (title, content) VALUES ($1, $2) RETURNING *',
-      [title, content],
-    )
-    res.status(201).json({ status: 'success', announcement: result.rows[0] })
+
+    // Attempts to insert with target/priority, falls back gracefully if columns don't exist yet
+    let result
+    try {
+      result = await db.query(
+        `INSERT INTO announcements (title, content, target, priority) 
+         VALUES ($1, $2, $3, $4) RETURNING *`,
+        [title, content, target || 'all', priority || 'normal'],
+      )
+    } catch (dbErr) {
+      result = await db.query(
+        'INSERT INTO announcements (title, content) VALUES ($1, $2) RETURNING *',
+        [title, content],
+      )
+    }
+
+    res.status(201).json({
+      status: 'success',
+      message: 'Announcement created and broadcasted to all students successfully.',
+      announcement: result.rows[0],
+    })
   } catch (err) {
+    console.error('Create Announcement Error:', err.message)
     res.status(500).json({ error: 'Server error while creating announcement.' })
   }
 }
 
+const updateAnnouncement = async (req, res) => {
+  try {
+    const { id } = req.params
+    const { title, content, target, priority } = req.body
+
+    let result
+    try {
+      result = await db.query(
+        `UPDATE announcements 
+         SET title = COALESCE($1, title), 
+             content = COALESCE($2, content),
+             target = COALESCE($3, target),
+             priority = COALESCE($4, priority)
+         WHERE id = $5 RETURNING *`,
+        [title, content, target, priority, id],
+      )
+    } catch (dbErr) {
+      result = await db.query(
+        `UPDATE announcements 
+         SET title = COALESCE($1, title), 
+             content = COALESCE($2, content)
+         WHERE id = $3 RETURNING *`,
+        [title, content, id],
+      )
+    }
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Announcement not found.' })
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Announcement updated successfully.',
+      announcement: result.rows[0],
+    })
+  } catch (err) {
+    console.error('Update Announcement Error:', err.message)
+    res.status(500).json({ error: 'Server error while updating announcement.' })
+  }
+}
+
+const deleteAnnouncement = async (req, res) => {
+  try {
+    const { id } = req.params
+    const result = await db.query(
+      'DELETE FROM announcements WHERE id = $1 RETURNING id',
+      [id],
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Announcement not found.' })
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Announcement deleted successfully.',
+    })
+  } catch (err) {
+    console.error('Delete Announcement Error:', err.message)
+    res.status(500).json({ error: 'Server error while deleting announcement.' })
+  }
+}
 // 7. Instructors / Tutors Tab
 const getInstructors = async (req, res) => {
   try {
@@ -1691,6 +1819,8 @@ module.exports = {
   getAllCourses,
   getAdminAnnouncements,
   createAnnouncement,
+  updateAnnouncement, 
+  deleteAnnouncement, 
   getInstructors,
   createInstructor,
   updateInstructor,
