@@ -4,26 +4,27 @@
 
 // // DEBUG: Let's see what values are actually loading
 // console.log(
-//   'DEBUG DB CONFIG -> User:',
-//   process.env.DB_USER,
-//   '| Port:',
-//   process.env.DB_PORT,
-//   '| Password Length:',
-//   process.env.DB_PASSWORD ? process.env.DB_PASSWORD.length : 'UNDEFINED',
+//   'DEBUG DB CONFIG -> DATABASE_URL present:',
+//   process.env.DATABASE_URL ? 'YES (Length: ' + process.env.DATABASE_URL.length + ')' : 'NO',
+//   '| Node Env:',
+//   process.env.NODE_ENV
 // )
 
-// const pool = new Pool({
-//   user: process.env.DB_USER,
-//   host: process.env.DB_HOST || '127.0.0.1',
-//   database: process.env.DB_NAME,
-//   password: process.env.DB_PASSWORD,
-//   port: process.env.DB_PORT || 5432,
-//   // Only use SSL if running in production (Render)
-//   ssl:
-//     process.env.NODE_ENV === 'production'
-//       ? { rejectUnauthorized: false }
-//       : false,
-// })
+// const poolConfig = process.env.DATABASE_URL
+//   ? {
+//       connectionString: process.env.DATABASE_URL,
+//       ssl: { rejectUnauthorized: false }, // Required for cloud Postgres on serverless/production
+//     }
+//   : {
+//       user: process.env.DB_USER,
+//       host: process.env.DB_HOST || '127.0.0.1',
+//       database: process.env.DB_NAME,
+//       password: process.env.DB_PASSWORD,
+//       port: process.env.DB_PORT || 5432,
+//       ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+//     }
+
+// const pool = new Pool(poolConfig)
 
 // pool.on('connect', () => {
 //   console.log('📦 Connected to PostgreSQL Database')
@@ -297,6 +298,18 @@
 //         tutor_id INTEGER,
 //         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 //       );
+
+//       CREATE TABLE IF NOT EXISTS announcements (
+//         id SERIAL PRIMARY KEY,
+//         title VARCHAR(255) NOT NULL,
+//         date VARCHAR(100),
+//         content TEXT NOT NULL,
+//         tag VARCHAR(100) DEFAULT 'Bulletin',
+//         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+//       );
+//       ALTER TABLE announcements ADD COLUMN IF NOT EXISTS content TEXT;
+//       ALTER TABLE announcements ADD COLUMN IF NOT EXISTS tag VARCHAR(100) DEFAULT 'Bulletin';
+//       ALTER TABLE announcements ADD COLUMN IF NOT EXISTS date VARCHAR(100);
 //     `)
 //     console.log(
 //       '✅ Database migration checked: instructors, assessments, submissions, attendance, modules, sessions & announcements tables verified.',
@@ -314,6 +327,8 @@
 //   query: (text, params) => pool.query(text, params),
 //   getClient: () => pool.connect(),
 // }
+
+
 
 
 // src/config/db.js
@@ -351,6 +366,19 @@ pool.on('connect', () => {
 // Run sequential migrations to avoid race conditions and foreign key conflicts
 const runMigrations = async () => {
   try {
+    // 0. Ensure base users table exists first with role included so subsequent inserts never fail
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255),
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        role VARCHAR(50) DEFAULT 'student',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `)
+    console.log('✅ Database migration checked: base users table & role verified.')
+
     // 1. Automatically ensure the status column exists on users table
     await pool.query(
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active';`
@@ -363,9 +391,10 @@ const runMigrations = async () => {
       ALTER TABLE users ADD COLUMN IF NOT EXISTS middle_name VARCHAR(255);
       ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(255);
       ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'student';
     `)
     console.log(
-      '✅ Database migration checked: user profile name & phone columns verified.',
+      '✅ Database migration checked: user profile name, phone & role columns verified.',
     )
 
     // 3. Automatically ensure courses table exists and has tutor_id column
