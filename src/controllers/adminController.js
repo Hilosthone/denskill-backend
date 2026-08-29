@@ -1328,9 +1328,24 @@ const manualOnboardStudent = async (req, res) => {
     }
 
     const enrollmentResult = await db.query(
-      `INSERT INTO enrollments (user_id, course, total_amount, amount_paid, payment_status, reference) 
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [userId, course, amountPaid || 0, amountPaid || 0, 'COMPLETED', `MANUAL-${Date.now()}`]
+      `INSERT INTO enrollments (user_id, first_name, middle_name, last_name, country, phone, email, course, reason, referred_by, total_amount, amount_paid, payment_status, reference) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
+      [
+        userId, 
+        firstName, 
+        middleName || null, 
+        lastName, 
+        country || 'Nigeria', 
+        phone || null, 
+        email, 
+        course, 
+        reason || null, 
+        referredBy || null, 
+        amountPaid || 0, 
+        amountPaid || 0, 
+        'COMPLETED', 
+        `MANUAL-${Date.now()}`
+      ]
     )
 
     return res.status(201).json({

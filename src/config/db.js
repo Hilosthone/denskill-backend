@@ -377,24 +377,27 @@ const runMigrations = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `)
-    console.log('✅ Database migration checked: base users table & role verified.')
+    console.log(
+      '✅ Database migration checked: base users table & role verified.',
+    )
 
     // 1. Automatically ensure the status column exists on users table
     await pool.query(
-      `ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active';`
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active';`,
     )
     console.log('✅ Database migration checked: status column verified.')
 
-    // 2. Automatically ensure first_name, middle_name, last_name, and phone columns exist on users table
+    // 2. Automatically ensure first_name, middle_name, last_name, country, and phone columns exist on users table
     await pool.query(`
       ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(255);
       ALTER TABLE users ADD COLUMN IF NOT EXISTS middle_name VARCHAR(255);
       ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(255);
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS country VARCHAR(100);
       ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
       ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'student';
     `)
     console.log(
-      '✅ Database migration checked: user profile name, phone & role columns verified.',
+      '✅ Database migration checked: user profile name, country, phone & role columns verified.',
     )
 
     // 3. Automatically ensure courses table exists and has tutor_id column
@@ -412,19 +415,19 @@ const runMigrations = async () => {
       '✅ Database migration checked: courses table and tutor relationship verified.',
     )
 
-    // 4. Automatically ensure enrollments table exists and safely handle foreign keys with error trapping
+    // 4. Automatically ensure enrollments table exists and make key columns optional to prevent onboarding crashes
     await pool.query(`
       CREATE TABLE IF NOT EXISTS enrollments (
         id SERIAL PRIMARY KEY,
         user_id INTEGER,
         course_id INTEGER,
-        first_name VARCHAR(100) NOT NULL,
+        first_name VARCHAR(100),
         middle_name VARCHAR(100),
-        last_name VARCHAR(100) NOT NULL,
-        country VARCHAR(100) NOT NULL,
-        phone VARCHAR(50) NOT NULL,
-        email VARCHAR(255) NOT NULL,
-        course VARCHAR(100) NOT NULL,
+        last_name VARCHAR(100),
+        country VARCHAR(100),
+        phone VARCHAR(50),
+        email VARCHAR(255),
+        course VARCHAR(100),
         reason TEXT,
         referred_by VARCHAR(100),
         total_amount NUMERIC DEFAULT 0,
@@ -434,37 +437,22 @@ const runMigrations = async () => {
         expires_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      
+      -- Ensure columns exist and drop strict NOT NULL constraints so manual onboarding never crashes
       ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS course_id INTEGER;
-    `)
+      ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS first_name VARCHAR(100);
+      ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS last_name VARCHAR(100);
+      ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS country VARCHAR(100);
+      ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
+      ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+      ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS course VARCHAR(100);
 
-    // Safely add foreign key constraint with exception handling to prevent startup crashes
-    await pool.query(`
-      DO $$ 
-      BEGIN 
-        -- Attempt to clean orphan values using type casting
-        BEGIN
-          UPDATE enrollments 
-          SET course_id = NULL 
-          WHERE course_id IS NOT NULL 
-            AND course_id::text NOT IN (SELECT id::text FROM courses);
-        EXCEPTION WHEN others THEN
-          -- Ignore casting errors if types differ drastically
-        END;
-
-        -- Attempt to add constraint if it doesn't exist
-        IF NOT EXISTS (
-          SELECT 1 FROM information_schema.table_constraints 
-          WHERE constraint_name = 'enrollments_course_id_fkey'
-        ) THEN
-          BEGIN
-            ALTER TABLE enrollments 
-            ADD CONSTRAINT enrollments_course_id_fkey 
-            FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE SET NULL;
-          EXCEPTION WHEN others THEN
-            RAISE NOTICE 'Skipping foreign key constraint enrollments_course_id_fkey due to table column type differences.';
-          END;
-        END IF;
-      END $$;
+      ALTER TABLE enrollments ALTER COLUMN first_name DROP NOT NULL;
+      ALTER TABLE enrollments ALTER COLUMN last_name DROP NOT NULL;
+      ALTER TABLE enrollments ALTER COLUMN country DROP NOT NULL;
+      ALTER TABLE enrollments ALTER COLUMN phone DROP NOT NULL;
+      ALTER TABLE enrollments ALTER COLUMN email DROP NOT NULL;
+      ALTER TABLE enrollments ALTER COLUMN course DROP NOT NULL;
     `)
     console.log('✅ Database migration checked: enrollments table verified.')
 
@@ -479,9 +467,7 @@ const runMigrations = async () => {
       );
       CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
     `)
-    console.log(
-      '✅ Database migration checked: refresh_tokens table verified.',
-    )
+    console.log('✅ Database migration checked: refresh_tokens table verified.')
 
     // 6. Automatically ensure scholarship tables and user columns exist on startup
     await pool.query(`
@@ -661,7 +647,6 @@ const runMigrations = async () => {
     console.log(
       '✅ Database migration checked: instructors, assessments, submissions, attendance, modules, sessions & announcements tables verified.',
     )
-
   } catch (err) {
     console.error('❌ Migration execution error:', err.message)
   }
