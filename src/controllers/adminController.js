@@ -1261,6 +1261,11 @@ const getAllStudents = async (req, res) => {
     let query = `
       SELECT 
         u.id, 
+        u.first_name,
+        u.middle_name,
+        u.last_name,
+        u.country,
+        u.password,
         TRIM(CONCAT(u.first_name, ' ', COALESCE(u.middle_name, ''), ' ', u.last_name)) AS name,
         u.email, 
         u.phone, 
@@ -1270,9 +1275,18 @@ const getAllStudents = async (req, res) => {
         sc.name as cohort_name, 
         sc.code as cohort_code, 
         u.is_verified, 
-        u.created_at 
+        u.created_at,
+        e.id as enrollment_id,
+        e.course,
+        e.reason,
+        e.referred_by,
+        e.total_amount,
+        e.amount_paid,
+        e.payment_status,
+        e.reference
       FROM users u
       LEFT JOIN scholarship_cohorts sc ON u.cohort_id = sc.id
+      LEFT JOIN enrollments e ON u.id = e.user_id
       WHERE u.role = 'student' OR u.student_type = 'SCHOLARSHIP'
     `
     let conditions = []
