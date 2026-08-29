@@ -1232,7 +1232,7 @@ const getAdminOverview = async (req, res) => {
       'SELECT COUNT(DISTINCT course) FROM enrollments',
     )
     const recentEnrollments = await db.query(
-      `SELECT e.id, u.first_name, u.last_name, e.course, e.amount_paid, e.payment_status, e.created_at 
+      `SELECT e.id, u.first_name, u.middle_name, u.last_name, e.course, e.amount_paid, e.payment_status, e.created_at 
        FROM enrollments e JOIN users u ON e.user_id = u.id ORDER BY e.created_at DESC LIMIT 5`,
     )
 
@@ -1254,7 +1254,7 @@ const getAdminOverview = async (req, res) => {
   }
 }
 
-// 2. GET /api/admin/students (Unified Students Tab - Regular & Scholarship)
+// 2. GET /api/admin/students (Unified Students Tab - Regular & Scholarship with Middle Name Support)
 const getAllStudents = async (req, res) => {
   try {
     const { studentType, cohortId } = req.query
@@ -1315,7 +1315,7 @@ const getAllStudents = async (req, res) => {
   }
 }
 
-// 3. POST /api/admin/enrollments/manual-onboard (Manual Student Onboarding)
+// 3. POST /api/admin/enrollments/manual-onboard (Manual Student Onboarding with Middle Name Support)
 const manualOnboardStudent = async (req, res) => {
   try {
     const { firstName, middleName, lastName, country, phone, email, course, amountPaid, password, referredBy, reason } = req.body
@@ -1377,7 +1377,7 @@ const manualOnboardStudent = async (req, res) => {
 const getAllPayments = async (req, res) => {
   try {
     const result = await db.query(
-      `SELECT e.id, u.first_name, u.last_name, u.email, e.course, e.total_amount, e.amount_paid, 
+      `SELECT e.id, u.first_name, u.middle_name, u.last_name, u.email, e.course, e.total_amount, e.amount_paid, 
               e.payment_status, e.reference, e.created_at 
        FROM enrollments e JOIN users u ON e.user_id = u.id ORDER BY e.created_at DESC`,
     )
@@ -1522,7 +1522,13 @@ const deleteAnnouncement = async (req, res) => {
   }
 }
 
-// 7. Instructors / Tutors Tab
+// ==========================================
+// 7. INSTRUCTORS / TUTORS MANAGEMENT BLOCK
+// Grouped completely together: Fetch, Create, Update, Delete & Course Assignment
+// ==========================================
+
+// @desc   Fetch all registered instructors/tutors
+// @route  GET /api/admin/instructors
 const getInstructors = async (req, res) => {
   try {
     const result = await db.query(
@@ -1535,6 +1541,8 @@ const getInstructors = async (req, res) => {
   }
 }
 
+// @desc   Create a new instructor/tutor with optional credential generation
+// @route  POST /api/admin/instructors
 const createInstructor = async (req, res) => {
   try {
     const { name, email, specialty, role, password } = req.body
@@ -1562,6 +1570,8 @@ const createInstructor = async (req, res) => {
   }
 }
 
+// @desc   Update existing instructor/tutor details
+// @route  PUT /api/admin/instructors/:id
 const updateInstructor = async (req, res) => {
   try {
     const { id } = req.params
@@ -1601,6 +1611,8 @@ const updateInstructor = async (req, res) => {
   }
 }
 
+// @desc   Delete an instructor/tutor record
+// @route  DELETE /api/admin/instructors/:id
 const deleteInstructor = async (req, res) => {
   try {
     const { id } = req.params
@@ -1623,7 +1635,52 @@ const deleteInstructor = async (req, res) => {
   }
 }
 
+// @desc   Assign a tutor/instructor to a course (handles both tutorId and instructorId parameters seamlessly)
+// @route  PUT /api/admin/courses/:courseId/assign-tutor
+const assignTutorToCourse = async (req, res) => {
+  try {
+    const { courseId } = req.params
+    // Support both tutorId or instructorId payload names seamlessly
+    const tutorId = req.body.tutorId || req.body.instructorId
+    const courseName = normalizeCourseName(courseId)
+
+    if (!tutorId) {
+      return res.status(400).json({ error: 'tutorId or instructorId is required.' })
+    }
+
+    let courseResult
+    if (!isNaN(courseId)) {
+      courseResult = await db.query(
+        'UPDATE courses SET tutor_id = $1 WHERE id = $2 RETURNING *',
+        [tutorId, courseId],
+      )
+    }
+
+    if (!courseResult || courseResult.rows.length === 0) {
+      courseResult = await db.query(
+        'UPDATE courses SET tutor_id = $1 WHERE LOWER(name) = LOWER($2) OR LOWER(name) = LOWER($3) RETURNING *',
+        [tutorId, courseId, courseName],
+      )
+    }
+
+    if (courseResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Course not found.' })
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Tutor assigned to course successfully.',
+      course: courseResult.rows[0],
+    })
+  } catch (err) {
+    console.error('Assign Tutor Error:', err.message)
+    res.status(500).json({ error: 'Server error while assigning tutor.' })
+  }
+}
+
+// ==========================================
 // 8. Reports Tab
+// ==========================================
 const getReports = async (req, res) => {
   try {
     const statsQuery = `
@@ -1639,6 +1696,7 @@ const getReports = async (req, res) => {
       SELECT 
         u.id as student_id,
         u.first_name,
+        u.middle_name,
         u.last_name,
         u.email,
         SUM((COALESCE(s.score, 0) / NULLIF(a.total_marks, 0)) * COALESCE(a.weight, 0)) as cumulative_score
@@ -1646,7 +1704,7 @@ const getReports = async (req, res) => {
       JOIN student_submissions s ON u.id = s.student_id
       JOIN assessments a ON s.assessment_id = a.id
       WHERE s.status = 'graded'
-      GROUP BY u.id, u.first_name, u.last_name, u.email;
+      GROUP BY u.id, u.first_name, u.middle_name, u.last_name, u.email;
     `
     const performanceResult = await db.query(studentPerformanceQuery)
 
@@ -1676,7 +1734,7 @@ const toggleFreezeStudent = async (req, res) => {
     const { status } = req.body
 
     const result = await db.query(
-      `UPDATE users SET scholarship_status = $1 WHERE id = $2 RETURNING id, first_name, last_name, email, scholarship_status`,
+      `UPDATE users SET scholarship_status = $1 WHERE id = $2 RETURNING id, first_name, middle_name, last_name, email, scholarship_status`,
       [status, id],
     )
 
@@ -1708,42 +1766,6 @@ const deleteStudentAccount = async (req, res) => {
     res.status(200).json({ message: 'Student account deleted successfully' })
   } catch (error) {
     res.status(500).json({ error: error.message })
-  }
-}
-
-const assignTutorToCourse = async (req, res) => {
-  try {
-    const { courseId } = req.params
-    const { tutorId } = req.body
-    const courseName = normalizeCourseName(courseId)
-
-    let courseResult
-    if (!isNaN(courseId)) {
-      courseResult = await db.query(
-        'UPDATE courses SET tutor_id = $1 WHERE id = $2 RETURNING *',
-        [tutorId, courseId],
-      )
-    }
-
-    if (!courseResult || courseResult.rows.length === 0) {
-      courseResult = await db.query(
-        'UPDATE courses SET tutor_id = $1 WHERE LOWER(name) = LOWER($2) OR LOWER(name) = LOWER($3) RETURNING *',
-        [tutorId, courseId, courseName],
-      )
-    }
-
-    if (courseResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Course not found.' })
-    }
-
-    res.status(200).json({
-      status: 'success',
-      message: 'Tutor assigned to course successfully.',
-      course: courseResult.rows[0],
-    })
-  } catch (err) {
-    console.error('Assign Tutor Error:', err.message)
-    res.status(500).json({ error: 'Server error while assigning tutor.' })
   }
 }
 
@@ -1787,6 +1809,7 @@ const getAttendanceOverview = async (req, res) => {
       SELECT 
         u.id as student_id,
         u.first_name,
+        u.middle_name,
         u.last_name,
         u.email,
         COUNT(a.id) as total_sessions_logged,
@@ -1798,7 +1821,7 @@ const getAttendanceOverview = async (req, res) => {
       FROM users u
       JOIN attendance_logs a ON u.id = a.student_id
       WHERE LOWER(a.course_id) = LOWER($1) OR LOWER(a.course_id) = LOWER($2)
-      GROUP BY u.id, u.first_name, u.last_name, u.email
+      GROUP BY u.id, u.first_name, u.middle_name, u.last_name, u.email
       ORDER BY attendance_percentage ASC;
     `
     const result = await db.query(query, [courseId, courseName])
