@@ -255,6 +255,29 @@
 //  *     responses:
 //  *       201:
 //  *         description: Scholarship student manually onboarded successfully
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 success:
+//  *                   type: boolean
+//  *                   example: true
+//  *                 message:
+//  *                   type: string
+//  *                   example: "Scholarship student manually onboarded successfully."
+//  *                 userId:
+//  *                   type: string
+//  *                   example: "42"
+//  *                 studentIdCode:
+//  *                   type: string
+//  *                   example: "DEN-SCH-DES-C1-AB12"
+//  *       400:
+//  *         description: Missing required fields
+//  *       404:
+//  *         description: Scholarship cohort not found
+//  *       500:
+//  *         description: Server error during onboarding
 //  */
 // router.post('/students/manual-onboard', manualOnboardScholarshipStudent)
 
@@ -472,25 +495,7 @@
 //  */
 // router.delete('/cohorts/:id', deleteCohort)
 
-
-// // ==========================================
-// // TEMPORARY DEBUG ROUTE
-// // ==========================================
-// // router.get('/debug/all-applications', async (req, res) => {
-// //   try {
-// //     const db = require('../../config/db');
-// //     const result = await db.query('SELECT * FROM scholarship_applications ORDER BY created_at DESC');
-// //     res.json({
-// //       totalCount: result.rows.length,
-// //       applications: result.rows
-// //     });
-// //   } catch (err) {
-// //     res.status(500).json({ error: err.message });
-// //   }
-// // });
-
 // module.exports = router
-
 
 
 // src/routes/scholarship/scholarshipAdminRoutes.js
