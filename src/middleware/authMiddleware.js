@@ -51,7 +51,9 @@ const protect = async (req, res, next) => {
       const secret = process.env.JWT_SECRET || 'fallback_secret'
       const decoded = jwt.verify(token, secret)
 
-      if (!decoded || !decoded.id) {
+      // FIX: Explicitly check for undefined or null so that an ID of 0 
+      // (used for the system admin) is not treated as falsy/missing.
+      if (!decoded || decoded.id === undefined || decoded.id === null) {
         return res.status(401).json({ error: 'Not authorized, invalid token payload' })
       }
 
