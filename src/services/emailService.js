@@ -162,6 +162,17 @@ const getResendClient = () => {
   return new Resend(apiKey)
 }
 
+// Helper to safely normalize any email input format (string, comma-separated list, or array) into an array of strings
+const normalizeEmailList = (input) => {
+  if (!input) return undefined
+  if (Array.isArray(input)) return input.filter(Boolean)
+  if (typeof input === 'string') {
+    const list = input.split(',').map((e) => e.trim()).filter(Boolean)
+    return list.length > 0 ? list : undefined
+  }
+  return undefined
+}
+
 /**
  * Send Scholarship Approval Email
  */
@@ -239,19 +250,18 @@ exports.sendAssessmentNotification = async (
 }
 
 /**
- * Send Custom Admin Direct Email (Full Feature Support: HTML, Links, & Attachments)
+ * Send Custom Admin Direct Email (Full Feature Support: HTML, Links, CC, BCC, & Attachments)
  */
 exports.sendCustomAdminEmail = async (payload) => {
   try {
     const resend = getResendClient()
 
-    let recipientList = payload.to || payload.emails
-    if (typeof recipientList === 'string') {
-      recipientList = recipientList.split(',').map((e) => e.trim()).filter(Boolean)
-    }
+    const recipientList = normalizeEmailList(payload.to || payload.emails)
+    const ccList = normalizeEmailList(payload.cc)
+    const bccList = normalizeEmailList(payload.bcc)
 
     // Determine the final HTML body: 
-    // If rich HTML is provided, wrap it or use it. Otherwise, fallback to text/message replaced with <br>.
+    // If rich HTML is provided, use it. Otherwise, fallback to plain text/message replaced with <br>.
     const rawContent = payload.html || payload.message || ''
     const formattedHtml = payload.html 
       ? payload.html 
@@ -273,8 +283,8 @@ exports.sendCustomAdminEmail = async (payload) => {
         </div>
       `,
       attachments: payload.attachments || [],
-      cc: payload.cc || undefined,
-      bcc: payload.bcc || undefined,
+      ...(ccList && { cc: ccList }),
+      ...(bccList && { bcc: bccList }),
     }
 
     const { data, error } = await resend.emails.send(emailPayload)
