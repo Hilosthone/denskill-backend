@@ -547,6 +547,7 @@
 // src/routes/dashboardRoutes.js
 const express = require('express')
 const router = express.Router()
+const { protect } = require('../middleware/authMiddleware')
 
 const {
   getStudentOverview,
@@ -562,6 +563,9 @@ const {
   getStudentCourseModules,
   getStudentLiveSessions,
 } = require('../controllers/dashboardController')
+
+// Protect all routes defined in this router
+router.use(protect)
 
 /**
  * @swagger
@@ -749,7 +753,7 @@ router.get('/assessments/:courseId', getCourseAssessments)
  *       content:
  *         application/json:
  *           schema:
- *           type: object
+ *             type: object
  *             required:
  *               - content
  *             properties:
@@ -813,7 +817,6 @@ router.get('/modules/:courseId', getStudentCourseModules)
  * @swagger
  * /api/dashboard/sessions/{courseId}:
  *   get:
- * -----
  *     summary: View scheduled live workshop sessions
  *     tags: [Dashboard]
  *     security:

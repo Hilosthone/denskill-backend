@@ -429,6 +429,9 @@ const bcrypt = require('bcryptjs')
 
 const getStudentOverview = async (req, res) => {
   try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ error: 'Not authorized, user context missing.' })
+    }
     const userId = req.user.id
 
     // Fetch base user details, joined with enrollments to get profile metadata safely
@@ -522,6 +525,9 @@ const getStudentOverview = async (req, res) => {
 
 const getStudentProfile = async (req, res) => {
   try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ error: 'Not authorized, user context missing.' })
+    }
     const userId = req.user.id
     const userResult = await db.query(
       `SELECT u.id, u.name, u.email, u.is_verified, u.student_type, u.scholarship_status, u.created_at,
@@ -543,6 +549,9 @@ const getStudentProfile = async (req, res) => {
 
 const getStudentCourses = async (req, res) => {
   try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ error: 'Not authorized, user context missing.' })
+    }
     const userId = req.user.id
     const coursesResult = await db.query(
       `SELECT e.id, e.course, e.payment_status, e.expires_at, e.created_at,
@@ -563,6 +572,9 @@ const getStudentCourses = async (req, res) => {
 
 const getStudentPayments = async (req, res) => {
   try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ error: 'Not authorized, user context missing.' })
+    }
     const userId = req.user.id
     const paymentsResult = await db.query(
       `SELECT id, course, total_amount, amount_paid, payment_status, reference, expires_at, created_at 
@@ -578,6 +590,9 @@ const getStudentPayments = async (req, res) => {
 
 const getStudentAnnouncements = async (req, res) => {
   try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ error: 'Not authorized, user context missing.' })
+    }
     const userId = req.user.id
 
     const userRes = await db.query('SELECT student_type FROM users WHERE id = $1', [userId])
@@ -613,6 +628,9 @@ const getStudentAnnouncements = async (req, res) => {
 
 const getCourseAssessments = async (req, res) => {
   try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ error: 'Not authorized, user context missing.' })
+    }
     const { courseId } = req.params
     const userId = req.user.id
 
@@ -639,6 +657,9 @@ const getCourseAssessments = async (req, res) => {
 
 const submitAssessmentContent = async (req, res) => {
   try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ success: false, error: 'Not authorized, user context missing.' })
+    }
     const { assessmentId } = req.params
     const { content } = req.body
     const userId = req.user.id
@@ -681,6 +702,9 @@ const submitAssessmentContent = async (req, res) => {
 
 const getStudentGradesAndAttendance = async (req, res) => {
   try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ error: 'Not authorized, user context missing.' })
+    }
     const userId = req.user.id
 
     const submissionsQuery = `
@@ -853,6 +877,9 @@ const verifyContributionPayment = async (req, res) => {
 
 const getStudentScholarshipProfile = async (req, res) => {
   try {
+    if (!req.user || !req.user.email) {
+      return res.status(401).json({ success: false, message: 'Not authorized, user context missing.' })
+    }
     const email = req.user.email
 
     const result = await db.query(
