@@ -750,6 +750,29 @@ router.put('/applications/:id/reject', rejectApplication)
  *     responses:
  *       201:
  *         description: Scholarship student manually onboarded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Scholarship student manually onboarded successfully."
+ *                 userId:
+ *                   type: string
+ *                   example: "42"
+ *                 studentIdCode:
+ *                   type: string
+ *                   example: "DEN-SCH-DES-C1-AB12"
+ *       400:
+ *         description: Missing required fields
+ *       404:
+ *         description: Scholarship cohort not found
+ *       500:
+ *         description: Server error during onboarding
  */
 router.post('/students/manual-onboard', manualOnboardScholarshipStudent)
 

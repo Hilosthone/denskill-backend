@@ -1002,16 +1002,39 @@ const rejectApplication = async (req, res) => {
 }
 
 const manualOnboardScholarshipStudent = async (req, res) => {
+  const client = await db.getClient()
   try {
-    const { firstName, middleName, lastName, email, phone, cohortId, course, password } = req.body
+    const {
+      firstName,
+      middleName,
+      lastName,
+      email,
+      phone,
+      cohortId,
+      course,
+      password,
+    } = req.body
 
     if (!firstName || !lastName || !email || !cohortId) {
-      return res.status(400).json({ success: false, message: 'First name, last name, email, and cohort ID are required.' })
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: 'First name, last name, email, and cohort ID are required.',
+        })
     }
 
-    const cohortCheck = await db.query('SELECT * FROM scholarship_cohorts WHERE id = $1', [cohortId])
+    await client.query('BEGIN')
+
+    const cohortCheck = await client.query(
+      'SELECT * FROM scholarship_cohorts WHERE id = $1',
+      [cohortId],
+    )
     if (cohortCheck.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Scholarship cohort not found.' })
+      await client.query('ROLLBACK')
+      return res
+        .status(404)
+        .json({ success: false, message: 'Scholarship cohort not found.' })
     }
 
     const cohort = cohortCheck.rows[0]
@@ -1021,12 +1044,15 @@ const manualOnboardScholarshipStudent = async (req, res) => {
     const randomHex = crypto.randomBytes(2).toString('hex').toUpperCase()
     const studentIdCode = `DEN-SCH-${cohort.code || 'COH'}-${randomHex}`
 
-    const existingUser = await db.query('SELECT id FROM users WHERE email = $1', [email])
+    const existingUser = await client.query(
+      'SELECT id FROM users WHERE email = $1',
+      [email],
+    )
     let userId
 
     if (existingUser.rows.length > 0) {
       userId = existingUser.rows[0].id
-      await db.query(
+      await client.query(
         `UPDATE users 
          SET student_type = 'SCHOLARSHIP', 
              scholarship_status = 'ACTIVE', 
@@ -1035,16 +1061,46 @@ const manualOnboardScholarshipStudent = async (req, res) => {
              password = $3,
              student_id_code = COALESCE(student_id_code, $4) 
          WHERE id = $5`,
-        [cohortId, course || null, hashedPassword, studentIdCode, userId]
+        [cohortId, course || null, hashedPassword, studentIdCode, userId],
       )
     } else {
-      const userResult = await db.query(
+      const userResult = await client.query(
         `INSERT INTO users (first_name, middle_name, last_name, email, phone, student_type, scholarship_status, cohort_id, student_id_code, course, password, role, is_verified) 
-         VALUES ($1, $2, $3, $4, $5, 'SCHOLARSHIP', 'ACTIVE', $6, $7, $8, $9, $10, 'student', true) RETURNING id, email, student_id_code`,
-        [firstName, middleName || null, lastName, email, phone || null, cohortId, studentIdCode, course || null, hashedPassword]
+         VALUES ($1, $2, $3, $4, $5, 'SCHOLARSHIP', 'ACTIVE', $6, $7, $8, $9, 'student', true) RETURNING id, email, student_id_code`,
+        [
+          firstName,
+          middleName || null,
+          lastName,
+          email,
+          phone || null,
+          cohortId,
+          studentIdCode,
+          course || null,
+          hashedPassword,
+        ],
       )
       userId = userResult.rows[0].id
     }
+
+    // Keep dashboard metrics and reports synchronized by inserting an enrollment record
+    await client.query(
+      `INSERT INTO enrollments (
+         user_id, first_name, last_name, phone, email, 
+         course, total_amount, amount_paid, payment_status, reference
+       ) VALUES ($1, $2, $3, $4, $5, $6, 0, 0, 'completed', $7)
+       ON CONFLICT (reference) DO NOTHING`,
+      [
+        userId,
+        firstName,
+        lastName,
+        phone || null,
+        email,
+        course || 'General',
+        `MANUAL_ONBOARD_${cohortId}_${Date.now()}`,
+      ],
+    )
+
+    await client.query('COMMIT')
 
     return res.status(201).json({
       success: true,
@@ -1053,8 +1109,16 @@ const manualOnboardScholarshipStudent = async (req, res) => {
       studentIdCode,
     })
   } catch (error) {
+    await client.query('ROLLBACK')
     console.error('Scholarship Manual Onboard Error:', error)
-    return res.status(500).json({ success: false, message: 'Server error during scholarship manual onboarding.' })
+    return res
+      .status(500)
+      .json({
+        success: false,
+        message: 'Server error during scholarship manual onboarding.',
+      })
+  } finally {
+    client.release()
   }
 }
 
