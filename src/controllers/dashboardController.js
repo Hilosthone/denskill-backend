@@ -417,23 +417,16 @@
 //   getStudentLiveSessions,
 // }
 
-//const db = require('../config/db')
+
+
+
+
+
+
+// src/controller/dashboardController.js
+const db = require('../config/db')
 const bcrypt = require('bcryptjs')
 
-/**
- * @swagger
- * /api/dashboard/overview:
- *   get:
- *     summary: Get complete student portal data across all tabs (with assigned tutors)
- *     tags: [Dashboard]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Student overview retrieved successfully
- *       401:
- *         description: Unauthorized
- */
 const getStudentOverview = async (req, res) => {
   try {
     const userId = req.user.id
@@ -527,18 +520,6 @@ const getStudentOverview = async (req, res) => {
   }
 }
 
-/**
- * @swagger
- * /api/dashboard/profile:
- *   get:
- *     summary: Get student profile details
- *     tags: [Dashboard]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Student profile retrieved successfully
- */
 const getStudentProfile = async (req, res) => {
   try {
     const userId = req.user.id
@@ -560,18 +541,6 @@ const getStudentProfile = async (req, res) => {
   }
 }
 
-/**
- * @swagger
- * /api/dashboard/courses:
- *   get:
- *     summary: Get student enrolled courses with assigned tutors
- *     tags: [Dashboard]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Student courses retrieved successfully
- */
 const getStudentCourses = async (req, res) => {
   try {
     const userId = req.user.id
@@ -592,18 +561,6 @@ const getStudentCourses = async (req, res) => {
   }
 }
 
-/**
- * @swagger
- * /api/dashboard/payments:
- *   get:
- *     summary: Get student payment history
- *     tags: [Dashboard]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Student payment history retrieved successfully
- */
 const getStudentPayments = async (req, res) => {
   try {
     const userId = req.user.id
@@ -619,23 +576,10 @@ const getStudentPayments = async (req, res) => {
   }
 }
 
-/**
- * @swagger
- * /api/dashboard/announcements:
- *   get:
- *     summary: Get portal announcements
- *     tags: [Dashboard]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Announcements retrieved successfully
- */
 const getStudentAnnouncements = async (req, res) => {
   try {
     const userId = req.user.id
 
-    // Get student type first
     const userRes = await db.query('SELECT student_type FROM users WHERE id = $1', [userId])
     const studentType = userRes.rows.length > 0 ? (userRes.rows[0].student_type || 'regular').toLowerCase() : 'regular'
 
@@ -667,24 +611,6 @@ const getStudentAnnouncements = async (req, res) => {
   }
 }
 
-/**
- * @swagger
- * /api/dashboard/assessments/{courseId}:
- *   get:
- *     summary: View published quizzes, assessments, and assignments for a course
- *     tags: [Dashboard]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: courseId
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Assessments retrieved successfully
- */
 const getCourseAssessments = async (req, res) => {
   try {
     const { courseId } = req.params
@@ -711,26 +637,6 @@ const getCourseAssessments = async (req, res) => {
   }
 }
 
-/**
- * @swagger
- * /api/dashboard/assessments/{assessmentId}/submit:
- *   post:
- *     summary: Submit quiz answers or assignment project links/files with deadline duration enforcement
- *     tags: [Dashboard]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: assessmentId
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       201:
- *         description: Assessment submitted successfully
- *       400:
- *         description: Submission deadline has passed
- */
 const submitAssessmentContent = async (req, res) => {
   try {
     const { assessmentId } = req.params
@@ -773,18 +679,6 @@ const submitAssessmentContent = async (req, res) => {
   }
 }
 
-/**
- * @swagger
- * /api/dashboard/grades:
- *   get:
- *     summary: Fetch personal scores, attendance breakdown, and computed final aggregate status
- *     tags: [Dashboard]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Grades and attendance breakdown retrieved successfully
- */
 const getStudentGradesAndAttendance = async (req, res) => {
   try {
     const userId = req.user.id
@@ -820,15 +714,6 @@ const getStudentGradesAndAttendance = async (req, res) => {
   }
 }
 
-/**
- * @swagger
- * /api/dashboard/modules/{courseId}:
- *   get:
- *     summary: View weekly lecture modules and downloadable resource files uploaded by tutor
- *     tags: [Dashboard]
- *     security:
- *       - bearerAuth: []
- */
 const getStudentCourseModules = async (req, res) => {
   try {
     const { courseId } = req.params
@@ -845,15 +730,6 @@ const getStudentCourseModules = async (req, res) => {
   }
 }
 
-/**
- * @swagger
- * /api/dashboard/sessions/{courseId}:
- *   get:
- *     summary: View scheduled live workshop sessions and video conference links for a course
- *     tags: [Dashboard]
- *     security:
- *       - bearerAuth: []
- */
 const getStudentLiveSessions = async (req, res) => {
   try {
     const { courseId } = req.params
@@ -870,31 +746,6 @@ const getStudentLiveSessions = async (req, res) => {
   }
 }
 
-/**
- * @swagger
- * /api/dashboard/payment/verify:
- *   post:
- *     summary: Verify scholarship contribution payment & provision account
- *     tags: [Dashboard]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - paymentReference
- *             properties:
- *               paymentReference:
- *                 type: string
- *               transactionId:
- *                 type: string
- *     responses:
- *       200:
- *         description: Payment verified and account provisioned successfully
- */
 const verifyContributionPayment = async (req, res) => {
   const { paymentReference } = req.body
 
@@ -1000,18 +851,6 @@ const verifyContributionPayment = async (req, res) => {
   }
 }
 
-/**
- * @swagger
- * /api/dashboard/scholarship/profile:
- *   get:
- *     summary: Get student scholarship profile details
- *     tags: [Dashboard]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Scholarship profile retrieved successfully
- */
 const getStudentScholarshipProfile = async (req, res) => {
   try {
     const email = req.user.email

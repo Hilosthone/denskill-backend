@@ -542,6 +542,9 @@
 
 // module.exports = router
 
+
+
+// src/routes/dashboardRoutes.js
 const express = require('express')
 const router = express.Router()
 
@@ -559,10 +562,6 @@ const {
   getStudentCourseModules,
   getStudentLiveSessions,
 } = require('../controllers/dashboardController')
-
-// Optional: Add your authentication middleware here if you have one
-// const { protect } = require('../middlewares/authMiddleware');
-// router.use(protect);
 
 /**
  * @swagger
@@ -750,7 +749,7 @@ router.get('/assessments/:courseId', getCourseAssessments)
  *       content:
  *         application/json:
  *           schema:
- *             type: object
+ *           type: object
  *             required:
  *               - content
  *             properties:
@@ -814,6 +813,7 @@ router.get('/modules/:courseId', getStudentCourseModules)
  * @swagger
  * /api/dashboard/sessions/{courseId}:
  *   get:
+ * -----
  *     summary: View scheduled live workshop sessions
  *     tags: [Dashboard]
  *     security:

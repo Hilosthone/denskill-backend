@@ -1465,7 +1465,8 @@ const getAllCourses = async (req, res) => {
   }
 }
 
-// 6. Announcements Tab (Create, Read, Edit, Delete & Broadcast to All Students)
+// @desc    Get all announcements for admin view
+// @route   GET /api/admin/announcements
 const getAdminAnnouncements = async (req, res) => {
   try {
     const result = await db.query(
@@ -1473,11 +1474,13 @@ const getAdminAnnouncements = async (req, res) => {
     )
     res.status(200).json({ status: 'success', announcements: result.rows })
   } catch (err) {
-    console.error('Get Announcements Error:', err.message)
+    console.error('Get Admin Announcements Error:', err.message)
     res.status(500).json({ error: 'Server error while fetching announcements.' })
   }
 }
 
+// @desc    Create and broadcast an announcement
+// @route   POST /api/admin/announcements
 const createAnnouncement = async (req, res) => {
   try {
     const { title, content, message, target, priority } = req.body
@@ -1487,28 +1490,15 @@ const createAnnouncement = async (req, res) => {
       return res.status(400).json({ error: 'Title and content are required.' })
     }
 
-    await db.query(`
-      ALTER TABLE announcements ADD COLUMN IF NOT EXISTS target VARCHAR(100) DEFAULT 'all';
-      ALTER TABLE announcements ADD COLUMN IF NOT EXISTS priority VARCHAR(50) DEFAULT 'normal';
-    `)
-
-    let result
-    try {
-      result = await db.query(
-        `INSERT INTO announcements (title, message, target, priority) 
-         VALUES ($1, $2, $3, $4) RETURNING id, title, message AS content, target, priority, created_at`,
-        [title, announcementText, target || 'all', priority || 'normal'],
-      )
-    } catch (dbErr) {
-      result = await db.query(
-        'INSERT INTO announcements (title, message) VALUES ($1, $2) RETURNING id, title, message AS content, created_at',
-        [title, announcementText],
-      )
-    }
+    const result = await db.query(
+      `INSERT INTO announcements (title, message, target, priority) 
+       VALUES ($1, $2, $3, $4) RETURNING id, title, message AS content, target, priority, created_at`,
+      [title, announcementText, target || 'all', priority || 'normal'],
+    )
 
     res.status(201).json({
       status: 'success',
-      message: 'Announcement created and broadcasted to all students successfully.',
+      message: 'Announcement created and broadcasted successfully.',
       announcement: result.rows[0],
     })
   } catch (err) {
@@ -1517,39 +1507,25 @@ const createAnnouncement = async (req, res) => {
   }
 }
 
+// @desc    Update an announcement
+// @route   PUT /api/admin/announcements/:id
 const updateAnnouncement = async (req, res) => {
   try {
     const { id } = req.params
     const { title, content, message, target, priority } = req.body
     const announcementText = content || message
 
-    await db.query(`
-      ALTER TABLE announcements ADD COLUMN IF NOT EXISTS target VARCHAR(100) DEFAULT 'all';
-      ALTER TABLE announcements ADD COLUMN IF NOT EXISTS priority VARCHAR(50) DEFAULT 'normal';
-    `)
+    const result = await db.query(
+      `UPDATE announcements 
+       SET title = COALESCE(NULLIF($1, ''), title), 
+           message = COALESCE(NULLIF($2, ''), message),
+           target = COALESCE(NULLIF($3, ''), target),
+           priority = COALESCE(NULLIF($4, ''), priority)
+       WHERE id = $5 RETURNING id, title, message AS content, target, priority, created_at`,
+      [title, announcementText, target, priority, id],
+    )
 
-    let result
-    try {
-      result = await db.query(
-        `UPDATE announcements 
-         SET title = COALESCE(NULLIF($1, ''), title), 
-             message = COALESCE(NULLIF($2, ''), message),
-             target = COALESCE(NULLIF($3, ''), target),
-             priority = COALESCE(NULLIF($4, ''), priority)
-         WHERE id = $5 RETURNING id, title, message AS content, target, priority, created_at`,
-        [title, announcementText, target, priority, id],
-      )
-    } catch (dbErr) {
-      result = await db.query(
-        `UPDATE announcements 
-         SET title = COALESCE(NULLIF($1, ''), title), 
-             message = COALESCE(NULLIF($2, ''), message)
-         WHERE id = $3 RETURNING id, title, message AS content, created_at`,
-        [title, announcementText, id],
-      )
-    }
-
-    if (!result || result.rows.length === 0) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Announcement not found.' })
     }
 
@@ -1564,6 +1540,8 @@ const updateAnnouncement = async (req, res) => {
   }
 }
 
+// @desc    Delete an announcement
+// @route   DELETE /api/admin/announcements/:id
 const deleteAnnouncement = async (req, res) => {
   try {
     const { id } = req.params

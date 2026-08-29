@@ -1177,10 +1177,29 @@ router.get('/courses/:courseId/attendance', getAttendanceOverview)
  *                   type: array
  *                   items:
  *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         example: 1
+ *                       title:
+ *                         type: string
+ *                         example: Mid-Term Break Notice
+ *                       content:
+ *                         type: string
+ *                         example: All students are to note...
+ *                       target:
+ *                         type: string
+ *                         example: all
+ *                       priority:
+ *                         type: string
+ *                         example: normal
+ *                       created_at:
+ *                         type: string
+ *                         example: "2026-08-29T10:00:00.000Z"
  *       500:
  *         description: Server error while fetching announcements
  *   post:
- *     summary: Create a new announcement (broadcasted to all students)
+ *     summary: Create a new announcement (broadcasted to students)
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
