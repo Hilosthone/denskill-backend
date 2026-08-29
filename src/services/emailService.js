@@ -1,4 +1,4 @@
-// //src/services/emailService.js
+// // src/services/emailService.js
 // const { Resend } = require('resend')
 // require('dotenv').config()
 
@@ -39,7 +39,7 @@
 // }
 
 // /**
-//  * Send Class Announcement Email (To Students, Tutors, or Admins)
+//  * Send Class Announcement Email
 //  */
 // exports.sendAnnouncementEmail = async (
 //   toEmails,
@@ -96,7 +96,49 @@
 //   }
 // }
 
+// /**
+//  * Send Custom Admin Direct Email (Anti-Spam Layout)
+//  */
+// exports.sendCustomAdminEmail = async (toEmails, subject, messageHtml) => {
+//   try {
+//     const resend = getResendClient()
 
+//     let recipientList = toEmails
+//     if (typeof toEmails === 'string') {
+//       recipientList = toEmails.split(',').map((e) => e.trim()).filter(Boolean)
+//     }
+
+//     const { data, error } = await resend.emails.send({
+//       from: senderEmail,
+//       to: recipientList,
+//       subject: subject || 'Message from D Enskill Academy Administration',
+//       html: `
+//         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #1e293b; background-color: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0;">
+//           <h2 style="color: #7c3aed; margin-top: 0;">D Enskill Academy Update</h2>
+//           <div style="font-size: 15px; line-height: 1.6; color: #334155; margin: 20px 0;">
+//             ${messageHtml.replace(/\n/g, '<br>')}
+//           </div>
+//           <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+//           <p style="font-size: 12px; color: #64748b; margin-bottom: 0;">
+//             Sent by D Enskill Academy Administration.<br>
+//             You are receiving this message as a registered member/student on our platform.
+//           </p>
+//         </div>
+//       `,
+//     })
+
+//     if (error) {
+//       console.error('❌ Resend API Error:', error)
+//       return { success: false, error }
+//     }
+
+//     console.log('✅ Custom direct email dispatched successfully:', data)
+//     return { success: true, data }
+//   } catch (error) {
+//     console.error('❌ Error sending custom email:', error.message)
+//     return { success: false, error: error.message }
+//   }
+// }
 
 // src/services/emailService.js
 const { Resend } = require('resend')
@@ -197,27 +239,32 @@ exports.sendAssessmentNotification = async (
 }
 
 /**
- * Send Custom Admin Direct Email (Anti-Spam Layout)
+ * Send Custom Admin Direct Email (Full Feature Support: HTML, Links, & Attachments)
  */
-exports.sendCustomAdminEmail = async (toEmails, subject, messageHtml) => {
+exports.sendCustomAdminEmail = async (payload) => {
   try {
     const resend = getResendClient()
 
-    let recipientList = toEmails
-    if (typeof toEmails === 'string') {
-      recipientList = toEmails.split(',').map((e) => e.trim()).filter(Boolean)
+    let recipientList = payload.to || payload.emails
+    if (typeof recipientList === 'string') {
+      recipientList = recipientList.split(',').map((e) => e.trim()).filter(Boolean)
     }
 
-    const { data, error } = await resend.emails.send({
+    // Determine the final HTML body: 
+    // If rich HTML is provided, wrap it or use it. Otherwise, fallback to text/message replaced with <br>.
+    const rawContent = payload.html || payload.message || ''
+    const formattedHtml = payload.html 
+      ? payload.html 
+      : `<div style="font-size: 15px; line-height: 1.6; color: #334155; margin: 20px 0;">${rawContent.replace(/\n/g, '<br>')}</div>`
+
+    const emailPayload = {
       from: senderEmail,
       to: recipientList,
-      subject: subject || 'Message from D Enskill Academy Administration',
+      subject: payload.subject || 'Message from D Enskill Academy Administration',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #1e293b; background-color: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0;">
           <h2 style="color: #7c3aed; margin-top: 0;">D Enskill Academy Update</h2>
-          <div style="font-size: 15px; line-height: 1.6; color: #334155; margin: 20px 0;">
-            ${messageHtml.replace(/\n/g, '<br>')}
-          </div>
+          ${formattedHtml}
           <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
           <p style="font-size: 12px; color: #64748b; margin-bottom: 0;">
             Sent by D Enskill Academy Administration.<br>
@@ -225,7 +272,12 @@ exports.sendCustomAdminEmail = async (toEmails, subject, messageHtml) => {
           </p>
         </div>
       `,
-    })
+      attachments: payload.attachments || [],
+      cc: payload.cc || undefined,
+      bcc: payload.bcc || undefined,
+    }
+
+    const { data, error } = await resend.emails.send(emailPayload)
 
     if (error) {
       console.error('❌ Resend API Error:', error)

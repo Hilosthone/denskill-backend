@@ -1600,7 +1600,7 @@ router.post('/enrollments/manual-onboard', manualOnboardStudent)
  * @swagger
  * /api/admin/emails/send:
  *   post:
- *     summary: Send direct custom email messages to one or multiple users
+ *     summary: Send direct custom email messages to one or multiple users with full HTML, links, and attachments support
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
@@ -1613,7 +1613,6 @@ router.post('/enrollments/manual-onboard', manualOnboardStudent)
  *             required:
  *               - emails
  *               - subject
- *               - message
  *             properties:
  *               emails:
  *                 type: string
@@ -1624,6 +1623,22 @@ router.post('/enrollments/manual-onboard', manualOnboardStudent)
  *               message:
  *                 type: string
  *                 example: Hello, please check your dashboard for recent updates.
+ *               html:
+ *                 type: string
+ *                 example: <p>Hello, check your <a href="https://denskill.com">dashboard</a>.</p>
+ *               attachments:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     filename:
+ *                       type: string
+ *                     content:
+ *                       type: string
+ *               cc:
+ *                 type: string
+ *               bcc:
+ *                 type: string
  *     responses:
  *       200:
  *         description: Message successfully sent to user inbox(es)!

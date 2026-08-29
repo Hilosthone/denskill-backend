@@ -1465,7 +1465,7 @@ const getAllCourses = async (req, res) => {
   }
 }
 
-// @desc    Get all announcements for admin view
+// 6. @desc    Get all announcements for admin view
 // @route   GET /api/admin/announcements
 const getAdminAnnouncements = async (req, res) => {
   try {
@@ -1884,22 +1884,34 @@ const getAttendanceOverview = async (req, res) => {
 // Admin Direct Email Dispatch Method
 const sendDirectEmailToUsers = async (req, res) => {
   try {
-    const { emails, subject, message } = req.body
+    const { emails, subject, message, html, attachments, cc, bcc } = req.body
 
-    // Validation checks
-    if (!emails || !subject || !message) {
+    // Validation checks (must have recipients, subject, and either plain text or HTML content)
+    if (!emails || !subject || (!message && !html)) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide recipient emails, subject, and message content.',
+        message: 'Please provide recipient emails, subject, and message content (or HTML).',
       })
     }
 
-    // Call the service
-    const result = await emailService.sendCustomAdminEmail(
-      emails,
+    // Normalize emails safely into an array, filtering out empty values or trailing commas
+    const recipientList = Array.isArray(emails)
+      ? emails.filter(Boolean)
+      : emails.split(',').map((email) => email.trim()).filter(Boolean)
+
+    // Payload configuration for the email service
+    const emailPayload = {
+      to: recipientList,
       subject,
-      message,
-    )
+      text: message,       // Plain text fallback
+      html: html || message, // Renders full HTML links, formatting, images if provided
+      attachments: attachments || [], // Array of attachment objects (filename, content/path)
+      cc: cc || undefined,
+      bcc: bcc || undefined,
+    }
+
+    // Call the service
+    const result = await emailService.sendCustomAdminEmail(emailPayload)
 
     if (!result.success) {
       return res.status(500).json({
@@ -1911,14 +1923,14 @@ const sendDirectEmailToUsers = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Message successfully sent to user inbox(es)!',
+      message: 'Email(s) successfully sent with all assets and attachments!',
       data: result.data,
     })
   } catch (error) {
     console.error('Admin Email Controller Error:', error)
     return res
       .status(500)
-      .json({ success: false, message: 'Internal server error.' })
+      .json({ success: false, message: 'Internal server error while sending email.' })
   }
 }
 
