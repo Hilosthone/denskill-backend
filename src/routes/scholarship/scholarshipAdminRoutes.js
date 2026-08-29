@@ -712,7 +712,7 @@ router.put('/applications/:id/reject', rejectApplication)
  * @swagger
  * /api/admin/scholarships/students/manual-onboard:
  *   post:
- *     summary: Manually onboard a scholarship student with credentials
+ *     summary: Manually onboard a scholarship student with credentials and payment tracking
  *     tags: [Scholarship Admin]
  *     security:
  *       - BearerAuth: []
@@ -726,7 +726,9 @@ router.put('/applications/:id/reject', rejectApplication)
  *               - firstName
  *               - lastName
  *               - email
+ *               - phone
  *               - cohortId
+ *               - course
  *             properties:
  *               firstName:
  *                 type: string
@@ -752,9 +754,15 @@ router.put('/applications/:id/reject', rejectApplication)
  *               password:
  *                 type: string
  *                 example: "denskill123"
+ *               amountPaid:
+ *                 type: number
+ *                 example: 15000
+ *               paymentReference:
+ *                 type: string
+ *                 example: "MANUAL_PAY_1_1719582000"
  *     responses:
  *       201:
- *         description: Scholarship student manually onboarded successfully
+ *         description: Scholarship student manually onboarded and payment logged successfully
  *         content:
  *           application/json:
  *             schema:
@@ -765,13 +773,13 @@ router.put('/applications/:id/reject', rejectApplication)
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: "Scholarship student manually onboarded successfully."
+ *                   example: "Scholarship student manually onboarded and payment logged successfully."
  *                 userId:
  *                   type: string
  *                   example: "42"
  *                 studentIdCode:
  *                   type: string
- *                   example: "DEN-SCH-DES-C1-AB12"
+ *                   example: "DEN-SCH-COH-AB12"
  *       400:
  *         description: Missing required fields
  *       404:
@@ -814,8 +822,6 @@ router.get('/cohorts', getAllCohorts)
  *               - code
  *               - startDate
  *               - endDate
- *               - applicationOpenDate
- *               - applicationCloseDate
  *             properties:
  *               name:
  *                 type: string

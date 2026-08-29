@@ -711,6 +711,7 @@
 // src/controllers/scholarship/scholarshipAdminController.js
 const db = require('../../config/db')
 const crypto = require('crypto')
+const bcrypt = require('bcrypt')
 
 /**
  * @desc    Get scholarship dashboard metrics and active cohort summary
@@ -1011,66 +1012,128 @@ const rejectApplication = async (req, res) => {
 }
 
 /**
- * @desc    Manually onboard a scholarship student with credentials
+ * @desc    Manually onboard a scholarship student with credentials and payment logging
  * @route   POST /api/admin/scholarships/students/manual-onboard
  * @access  Private/Admin
  */
 const manualOnboardScholarshipStudent = async (req, res) => {
   const client = await db.getClient()
   try {
-    const { firstName, middleName, lastName, email, phone, cohortId, course, password } = req.body
+    const {
+      firstName,
+      middleName,
+      lastName,
+      email,
+      phone,
+      cohortId,
+      course,
+      password,
+      amountPaid = 0,
+      paymentReference,
+    } = req.body
 
-    if (!firstName || !lastName || !email || !cohortId) {
-      return res.status(400).json({ success: false, message: 'Please provide all required fields.' })
+    // Enforce compulsory fields for complete student and financial records
+    if (!firstName || !lastName || !email || !phone || !cohortId || !course) {
+      return res.status(400).json({
+        success: false,
+        message: 'First name, last name, email, phone, cohort ID, and course are required fields.',
+      })
     }
 
     await client.query('BEGIN')
 
-    const cohortRes = await client.query(`SELECT * FROM scholarship_cohorts WHERE id = $1`, [cohortId])
-    if (cohortRes.rows.length === 0) {
+    const cohortCheck = await client.query(
+      'SELECT * FROM scholarship_cohorts WHERE id = $1',
+      [cohortId],
+    )
+    if (cohortCheck.rows.length === 0) {
       await client.query('ROLLBACK')
       return res.status(404).json({ success: false, message: 'Scholarship cohort not found.' })
     }
-    const cohort = cohortRes.rows[0]
 
-    // Check if user exists
-    let userRes = await client.query(`SELECT * FROM users WHERE email = $1`, [email])
+    const cohort = cohortCheck.rows[0]
+    const rawPassword = password || 'denskill123'
+    const hashedPassword = await bcrypt.hash(rawPassword, 10)
+
+    const randomHex = crypto.randomBytes(2).toString('hex').toUpperCase()
+    const studentIdCode = `DEN-SCH-${cohort.code || 'COH'}-${randomHex}`
+    const ref = paymentReference || `MANUAL_PAY_${cohortId}_${Date.now()}`
+
+    const existingUser = await client.query(
+      'SELECT id FROM users WHERE email = $1',
+      [email],
+    )
     let userId
 
-    if (userRes.rows.length === 0) {
-      const hashedPassword = password || 'defaultPassword123'
-      const newUserRes = await client.query(`
-        INSERT INTO users (first_name, middle_name, last_name, email, phone, password, role, status)
-        VALUES ($1, $2, $3, $4, $5, $6, 'student', 'active')
-        RETURNING id
-      `, [firstName, middleName, lastName, email, phone, hashedPassword])
-      userId = newUserRes.rows[0].id
+    if (existingUser.rows.length > 0) {
+      userId = existingUser.rows[0].id
+      await client.query(
+        `UPDATE users 
+         SET student_type = 'SCHOLARSHIP', 
+             scholarship_status = 'ACTIVE', 
+             cohort_id = $1, 
+             course = $2,
+             phone = $3,
+             password = $4,
+             student_id_code = COALESCE(student_id_code, $5) 
+         WHERE id = $6`,
+        [cohortId, course, phone, hashedPassword, studentIdCode, userId],
+      )
     } else {
-      userId = userRes.rows[0].id
+      const userResult = await client.query(
+        `INSERT INTO users (first_name, middle_name, last_name, email, phone, student_type, scholarship_status, cohort_id, student_id_code, course, password, role, is_verified) 
+         VALUES ($1, $2, $3, $4, $5, 'SCHOLARSHIP', 'ACTIVE', $6, $7, $8, $9, 'student', true) RETURNING id, email, student_id_code`,
+        [
+          firstName,
+          middleName || null,
+          lastName,
+          email,
+          phone,
+          cohortId,
+          studentIdCode,
+          course,
+          hashedPassword,
+        ],
+      )
+      userId = userResult.rows[0].id
     }
 
-    const randomSuffix = crypto.randomBytes(2).toString('hex').toUpperCase()
-    const studentIdCode = `DEN-SCH-${cohort.code}-${randomSuffix}`
-
-    const appRes = await client.query(`
-      INSERT INTO scholarship_applications (cohort_id, first_name, last_name, email, phone, course, status, student_id_number, admin_notes)
-      VALUES ($1, $2, $3, $4, $5, $6, 'ENROLLED', $7, 'Manually onboarded by administrator.')
-      RETURNING id
-    `, [cohortId, firstName, lastName, email, phone, course || 'Full-Stack Development', studentIdCode])
+    // Keep dashboard metrics and financial reports synchronized with exact payment logging
+    await client.query(
+      `INSERT INTO enrollments (
+         user_id, first_name, last_name, phone, email, 
+         course, total_amount, amount_paid, payment_status, reference
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'completed', $9)
+       ON CONFLICT (reference) DO UPDATE 
+       SET amount_paid = EXCLUDED.amount_paid, payment_status = 'completed'`,
+      [
+        userId,
+        firstName,
+        lastName,
+        phone,
+        email,
+        course,
+        amountPaid,
+        amountPaid,
+        ref,
+      ],
+    )
 
     await client.query('COMMIT')
 
     return res.status(201).json({
       success: true,
-      message: 'Scholarship student manually onboarded successfully.',
+      message: 'Scholarship student manually onboarded and payment logged successfully.',
       userId,
       studentIdCode,
-      applicationId: appRes.rows[0].id,
     })
   } catch (error) {
     await client.query('ROLLBACK')
-    console.error('Error in manual onboarding:', error)
-    return res.status(500).json({ success: false, message: 'Server error during manual onboarding.' })
+    console.error('Scholarship Manual Onboard Error:', error)
+    return res.status(500).json({
+      success: false,
+      message: 'Server error during scholarship manual onboarding.',
+    })
   } finally {
     client.release()
   }
@@ -1190,7 +1253,7 @@ const updateCohort = async (req, res) => {
 const deleteCohort = async (req, res) => {
   try {
     const { rows } = await db.query(`DELETE FROM scholarship_cohorts WHERE id = $1 RETURNING *`, [req.params.id])
-    if (rows.length ===0) return res.status(404).json({ success: false, message: 'Cohort not found.' })
+    if (rows.length === 0) return res.status(404).json({ success: false, message: 'Cohort not found.' })
     return res.status(200).json({ success: true, message: 'Cohort deleted successfully.' })
   } catch (error) {
     console.error('Error deleting cohort:', error)
