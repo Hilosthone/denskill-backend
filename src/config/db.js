@@ -433,7 +433,7 @@ const runMigrations = async () => {
         total_amount NUMERIC DEFAULT 0,
         amount_paid NUMERIC DEFAULT 0,
         payment_status VARCHAR(20) DEFAULT 'pending',
-        reference VARCHAR(255),
+        reference VARCHAR(255) UNIQUE,
         expires_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -453,6 +453,9 @@ const runMigrations = async () => {
       ALTER TABLE enrollments ALTER COLUMN phone DROP NOT NULL;
       ALTER TABLE enrollments ALTER COLUMN email DROP NOT NULL;
       ALTER TABLE enrollments ALTER COLUMN course DROP NOT NULL;
+
+      -- Ensure reference unique index exists if the table was previously created without it
+      CREATE UNIQUE INDEX IF NOT EXISTS enrollments_reference_idx ON enrollments (reference);
     `)
     console.log('✅ Database migration checked: enrollments table verified.')
 
