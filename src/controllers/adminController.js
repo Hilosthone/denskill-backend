@@ -1231,9 +1231,24 @@ const getAdminOverview = async (req, res) => {
     const activeCourses = await db.query(
       'SELECT COUNT(DISTINCT course) FROM enrollments',
     )
+    
+    // Updated query to include total_amount and calculated outstanding balance for recent activity
     const recentEnrollments = await db.query(
-      `SELECT e.id, u.first_name, u.middle_name, u.last_name, e.course, e.amount_paid, e.payment_status, e.created_at 
-       FROM enrollments e JOIN users u ON e.user_id = u.id ORDER BY e.created_at DESC LIMIT 5`,
+      `SELECT 
+         e.id, 
+         u.first_name, 
+         u.middle_name, 
+         u.last_name, 
+         e.course, 
+         e.total_amount, 
+         e.amount_paid, 
+         e.payment_status, 
+         COALESCE(e.total_amount, 0) - COALESCE(e.amount_paid, 0) AS outstanding_balance,
+         e.created_at 
+       FROM enrollments e 
+       JOIN users u ON e.user_id = u.id 
+       ORDER BY e.created_at DESC 
+       LIMIT 5`,
     )
 
     const totalRev = parseFloat(revenueResult.rows[0].total_revenue || 0) + 
@@ -1254,7 +1269,7 @@ const getAdminOverview = async (req, res) => {
   }
 }
 
-// 2. GET /api/admin/students (Unified Students Tab - Regular & Scholarship with Middle Name Support)
+// 2. GET /api/admin/students (Unified Students Tab - Regular & Scholarship with Outstanding Balance Calculation)
 const getAllStudents = async (req, res) => {
   try {
     const { studentType, cohortId } = req.query
@@ -1283,7 +1298,8 @@ const getAllStudents = async (req, res) => {
         e.total_amount,
         e.amount_paid,
         e.payment_status,
-        e.reference
+        e.reference,
+        COALESCE(e.total_amount, 0) - COALESCE(e.amount_paid, 0) AS outstanding_balance
       FROM users u
       LEFT JOIN scholarship_cohorts sc ON u.cohort_id = sc.id
       LEFT JOIN enrollments e ON u.id = e.user_id
@@ -1315,13 +1331,58 @@ const getAllStudents = async (req, res) => {
   }
 }
 
-// 3. POST /api/admin/enrollments/manual-onboard (Manual Student Onboarding with Middle Name Support)
+// 3. POST /api/admin/enrollments/manual-onboard (Manual Student Onboarding with Accurate Pricing & Scholarship Support)
 const manualOnboardStudent = async (req, res) => {
   try {
-    const { firstName, middleName, lastName, country, phone, email, course, amountPaid, password, referredBy, reason } = req.body
+    const { 
+      firstName, 
+      middleName, 
+      lastName, 
+      country, 
+      phone, 
+      email, 
+      course, 
+      amountPaid, 
+      password, 
+      referredBy, 
+      reason,
+      studentType = 'REGULAR' // Accepts 'REGULAR' or 'SCHOLARSHIP'
+    } = req.body
 
     if (!firstName || !lastName || !email || !course) {
       return res.status(400).json({ success: false, message: 'First name, last name, email, and course are required.' })
+    }
+
+    // 1. Define standard course prices matching your frontend PROGRAMMES list
+    const coursePrices = {
+      'Frontend Development': 80000,
+      'Backend Development': 80000,
+      'Full Stack Development': 200000,
+      'Mobile Development': 100000,
+      'Cybersecurity': 100000,
+      'Data Science': 80000,
+      'Data Analysis': 80000,
+      'Product Design (UI/UX)': 80000,
+      'Product Management': 80000,
+      'Web3 and Blockchain Development': 200000,
+      'AI / Machine Learning': 200000,
+      'Graphics Design': 0, // Free
+    }
+
+    const standardPrice = coursePrices[course] ?? 80000
+
+    // 2. Compute true total amount (Scholarship students pay 20% of the price)
+    const totalAmount = studentType === 'SCHOLARSHIP' ? standardPrice * 0.20 : standardPrice
+    const paidNum = Number(amountPaid) || 0
+
+    // 3. Determine correct payment status dynamically
+    let paymentStatus = 'PENDING'
+    if (paidNum >= totalAmount && totalAmount > 0) {
+      paymentStatus = 'COMPLETED'
+    } else if (paidNum > 0) {
+      paymentStatus = 'PARTIAL' // Correctly flags installments like 20k out of 80k as partial
+    } else if (totalAmount === 0) {
+      paymentStatus = 'COMPLETED' // For free courses like Graphics Design
     }
 
     const existingUser = await db.query('SELECT id FROM users WHERE email = $1', [email])
@@ -1332,11 +1393,13 @@ const manualOnboardStudent = async (req, res) => {
 
     if (existingUser.rows.length > 0) {
       userId = existingUser.rows[0].id
+      // Optional: Update user type if they were onboarded differently before
+      await db.query('UPDATE users SET student_type = $1 WHERE id = $2', [studentType, userId])
     } else {
       const userResult = await db.query(
         `INSERT INTO users (first_name, middle_name, last_name, country, phone, email, password, role, student_type, is_verified) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, 'student', 'REGULAR', true) RETURNING id`,
-        [firstName, middleName || null, lastName, country || 'Nigeria', phone || null, email, hashedPassword]
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'student', $8, true) RETURNING id`,
+        [firstName, middleName || null, lastName, country || 'Nigeria', phone || null, email, hashedPassword, studentType]
       )
       userId = userResult.rows[0].id
     }
@@ -1355,17 +1418,18 @@ const manualOnboardStudent = async (req, res) => {
         course, 
         reason || null, 
         referredBy || null, 
-        amountPaid || 0, 
-        amountPaid || 0, 
-        'COMPLETED', 
+        totalAmount,        // Now stores the real course total (e.g. 80000) instead of amount paid
+        paidNum,            // Stores what they actually paid (e.g. 20000)
+        paymentStatus,      // Correctly saved as 'PARTIAL' instead of forcing 'COMPLETED'
         `MANUAL-${Date.now()}`
       ]
     )
 
     return res.status(201).json({
       success: true,
-      message: 'Student manually onboarded successfully.',
+      message: 'Student manually onboarded successfully with accurate pricing tracking.',
       enrollment: enrollmentResult.rows[0],
+      balance_outstanding: totalAmount - paidNum,
     })
   } catch (err) {
     console.error('Manual Onboard Error:', err.message)

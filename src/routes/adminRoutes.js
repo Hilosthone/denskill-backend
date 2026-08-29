@@ -785,6 +785,37 @@ router.use(protect, isAdmin)
  *                   type: array
  *                   items:
  *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         example: 1
+ *                       first_name:
+ *                         type: string
+ *                         example: Hilosthone
+ *                       middle_name:
+ *                         type: string
+ *                         example: Sulyman
+ *                       last_name:
+ *                         type: string
+ *                         example: Developer
+ *                       course:
+ *                         type: string
+ *                         example: Frontend Development
+ *                       total_amount:
+ *                         type: number
+ *                         example: 80000
+ *                       amount_paid:
+ *                         type: number
+ *                         example: 20000
+ *                       payment_status:
+ *                         type: string
+ *                         example: PARTIAL
+ *                       outstanding_balance:
+ *                         type: number
+ *                         example: 60000
+ *                       created_at:
+ *                         type: string
+ *                         example: "2026-03-01T10:00:00.000Z"
  *       500:
  *         description: Server error while fetching admin overview
  */
@@ -856,6 +887,18 @@ router.get('/dashboard', getAdminOverview)
  *                       is_verified:
  *                         type: boolean
  *                         example: true
+ *                       total_amount:
+ *                         type: number
+ *                         example: 80000
+ *                       amount_paid:
+ *                         type: number
+ *                         example: 20000
+ *                       payment_status:
+ *                         type: string
+ *                         example: PARTIAL
+ *                       outstanding_balance:
+ *                         type: number
+ *                         example: 60000
  *                       created_at:
  *                         type: string
  *                         example: "2026-03-01T10:00:00.000Z"
