@@ -102,8 +102,8 @@
 //     },
 //     servers: [
 //       {
-//         url: 'https://denskill-backend.vercel.app',
-//         description: 'Production Server',
+//         url: 'https://denskill-backend.onrender.com',
+//         description: 'Production Server (Render)',
 //       },
 //       {
 //         url: 'http://localhost:5000',
@@ -148,7 +148,7 @@
 //     res.send(swaggerSpec)
 //   })
 
-//   // Serve Swagger UI HTML using official CDN assets (Bypasses serverless static routing bugs)
+//   // Serve Swagger UI HTML using official CDN assets
 //   app.get('/api-docs', (req, res) => {
 //     res.send(`
 //       <!DOCTYPE html>
@@ -160,7 +160,7 @@
 //         <style>
 //           html { box-sizing: border-box; overflow: -moz-scrollbars-vertical; overflow-y: scroll; }
 //           *, *:before, *:after { box-sizing: inherit; }
-//           body { margin: background: #fafafa; }
+//           body { margin: 0; background: #fafafa; }
 //         </style>
 //       </head>
 //       <body>
@@ -221,10 +221,11 @@ const options = {
       { name: 'Admin Auth', description: 'System administrator authentication' },
       { name: 'Admin', description: 'Platform management, oversight, scholarship cohorts, and application reviews' },
       { name: 'Tutors', description: 'Instructor authentication, assessment, grading, attendance portal, and assigned cohort student tracking' },
+      { name: 'Scholarship Admin', description: 'Platform management, scholarship cohort creation, application reviews, and manual onboarding' },
     ],
     components: {
       securitySchemes: {
-        bearerAuth: {
+        BearerAuth: {
           type: 'http',
           scheme: 'bearer',
           bearerFormat: 'JWT',
