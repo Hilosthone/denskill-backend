@@ -1,4 +1,4 @@
-// //src/routes/tutorRoures.js
+// // src/routes/tutorRoutes.js
 // const express = require('express')
 // const router = express.Router()
 // const { protect } = require('../middleware/authMiddleware')
@@ -20,7 +20,7 @@
 //   createCourseAnnouncement,
 //   getClassAnalytics,
 //   getAssignedCohortStudents,
-//   getTutorCourses, // Added import for assigned courses controller
+//   getTutorCourses,
 // } = require('../controllers/tutorController')
 
 // // --- Public Route ---
@@ -397,7 +397,7 @@
 //  *       - bearerAuth: []
 //  *     responses:
 //  *       201:
-//  *         description: Announcement created successfully...
+//  *         description: Announcement created successfully
 //  */
 // router.post('/announcements', createCourseAnnouncement)
 
@@ -443,6 +443,8 @@
 // router.get('/students/cohort', getAssignedCohortStudents)
 
 // module.exports = router
+
+
 
 
 
