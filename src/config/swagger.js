@@ -264,6 +264,8 @@ const swaggerDocs = (app) => {
         <meta charset="UTF-8">
         <title>D Enskill Academy API Docs</title>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.min.css" />
+        <link rel="icon" type="image/png" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/favicon-32x32.png" sizes="32x32" />
+        <link rel="icon" type="image/png" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/favicon-16x16.png" sizes="16x16" />
         <style>
           html { box-sizing: border-box; overflow: -moz-scrollbars-vertical; overflow-y: scroll; }
           *, *:before, *:after { box-sizing: inherit; }
@@ -279,6 +281,7 @@ const swaggerDocs = (app) => {
             window.ui = SwaggerUIBundle({
               url: '/api-docs.json',
               dom_id: '#swagger-ui',
+              deepLinking: true,
               presets: [
                 SwaggerUIBundle.presets.apis,
                 SwaggerUIStandalonePreset
