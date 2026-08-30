@@ -558,10 +558,17 @@ const runMigrations = async () => {
         email VARCHAR(255) UNIQUE NOT NULL,
         specialty VARCHAR(255) NOT NULL,
         role VARCHAR(100) DEFAULT 'Instructor',
+        phone VARCHAR(50),
+        avatar_url TEXT,
+        status VARCHAR(20) DEFAULT 'active',
         password VARCHAR(255),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      
       ALTER TABLE instructors ADD COLUMN IF NOT EXISTS password VARCHAR(255);
+      ALTER TABLE instructors ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
+      ALTER TABLE instructors ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+      ALTER TABLE instructors ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active';
 
       CREATE TABLE IF NOT EXISTS assessments (
         id SERIAL PRIMARY KEY,
@@ -571,11 +578,13 @@ const runMigrations = async () => {
         type VARCHAR(50) DEFAULT 'assignment',
         total_marks INTEGER DEFAULT 100,
         weight NUMERIC DEFAULT 0,
+        tutor_id INTEGER,
         created_by INTEGER,
         due_date TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      ALTER TABLE assessments ADD COLUMN IF NOT EXISTS tutor_id INTEGER;
 
       CREATE TABLE IF NOT EXISTS student_submissions (
         id SERIAL PRIMARY KEY,
@@ -610,9 +619,11 @@ const runMigrations = async () => {
         content TEXT,
         resource_url TEXT,
         description TEXT,
+        tutor_id INTEGER,
         created_by INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      ALTER TABLE course_modules ADD COLUMN IF NOT EXISTS tutor_id INTEGER;
 
       CREATE TABLE IF NOT EXISTS live_sessions (
         id SERIAL PRIMARY KEY,
@@ -625,6 +636,7 @@ const runMigrations = async () => {
         tutor_id INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      ALTER TABLE live_sessions ADD COLUMN IF NOT EXISTS tutor_id INTEGER;
 
       CREATE TABLE IF NOT EXISTS course_announcements (
         id SERIAL PRIMARY KEY,
@@ -634,6 +646,7 @@ const runMigrations = async () => {
         tutor_id INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      ALTER TABLE course_announcements ADD COLUMN IF NOT EXISTS tutor_id INTEGER;
 
       CREATE TABLE IF NOT EXISTS announcements (
         id SERIAL PRIMARY KEY,
@@ -647,9 +660,6 @@ const runMigrations = async () => {
       ALTER TABLE announcements ADD COLUMN IF NOT EXISTS tag VARCHAR(100) DEFAULT 'Bulletin';
       ALTER TABLE announcements ADD COLUMN IF NOT EXISTS date VARCHAR(100);
     `)
-    console.log(
-      '✅ Database migration checked: instructors, assessments, submissions, attendance, modules, sessions & announcements tables verified.',
-    )
   } catch (err) {
     console.error('❌ Migration execution error:', err.message)
   }
