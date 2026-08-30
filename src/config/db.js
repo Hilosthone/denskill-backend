@@ -568,7 +568,7 @@ const runMigrations = async () => {
 
       CREATE TABLE IF NOT EXISTS assessments (
         id SERIAL PRIMARY KEY,
-        course_id INTEGER,
+        course_id VARCHAR(100),
         title VARCHAR(255) NOT NULL,
         description TEXT,
         type VARCHAR(50) DEFAULT 'assignment',
@@ -580,12 +580,15 @@ const runMigrations = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-      ALTER TABLE assessments ADD COLUMN IF NOT EXISTS course_id INTEGER;
+      ALTER TABLE assessments ADD COLUMN IF NOT EXISTS description TEXT;
+      ALTER TABLE assessments ADD COLUMN IF NOT EXISTS course_id VARCHAR(100);
       ALTER TABLE assessments ADD COLUMN IF NOT EXISTS tutor_id INTEGER;
       ALTER TABLE assessments ADD COLUMN IF NOT EXISTS type VARCHAR(50) DEFAULT 'assignment';
       ALTER TABLE assessments ADD COLUMN IF NOT EXISTS total_marks INTEGER DEFAULT 100;
       ALTER TABLE assessments ADD COLUMN IF NOT EXISTS weight NUMERIC DEFAULT 0;
       ALTER TABLE assessments ADD COLUMN IF NOT EXISTS due_date TIMESTAMP;
+      -- Safely convert course_id to VARCHAR if it was previously created as an INTEGER
+      ALTER TABLE assessments ALTER COLUMN course_id TYPE VARCHAR(100) USING course_id::VARCHAR;
 
       CREATE TABLE IF NOT EXISTS student_submissions (
         id SERIAL PRIMARY KEY,
@@ -607,17 +610,18 @@ const runMigrations = async () => {
       CREATE TABLE IF NOT EXISTS attendance_logs (
         id SERIAL PRIMARY KEY,
         student_id INTEGER,
-        course_id INTEGER,
+        course_id VARCHAR(100),
         session_date DATE NOT NULL DEFAULT CURRENT_DATE,
         status VARCHAR(50) DEFAULT 'present',
         logged_by INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT unique_student_course_date UNIQUE (student_id, course_id, session_date)
       );
+      ALTER TABLE attendance_logs ALTER COLUMN course_id TYPE VARCHAR(100) USING course_id::VARCHAR;
 
       CREATE TABLE IF NOT EXISTS course_modules (
         id SERIAL PRIMARY KEY,
-        course_id INTEGER,
+        course_id VARCHAR(100),
         title VARCHAR(255) NOT NULL,
         week_number INTEGER DEFAULT 1,
         content_type VARCHAR(50) DEFAULT 'video',
@@ -628,12 +632,13 @@ const runMigrations = async () => {
         created_by INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-      ALTER TABLE course_modules ADD COLUMN IF NOT EXISTS course_id INTEGER;
+      ALTER TABLE course_modules ADD COLUMN IF NOT EXISTS course_id VARCHAR(100);
       ALTER TABLE course_modules ADD COLUMN IF NOT EXISTS tutor_id INTEGER;
+      ALTER TABLE course_modules ALTER COLUMN course_id TYPE VARCHAR(100) USING course_id::VARCHAR;
 
       CREATE TABLE IF NOT EXISTS live_sessions (
         id SERIAL PRIMARY KEY,
-        course_id INTEGER,
+        course_id VARCHAR(100),
         title VARCHAR(255) NOT NULL,
         session_type VARCHAR(50) DEFAULT 'lecture',
         meeting_link TEXT NOT NULL,
@@ -642,19 +647,21 @@ const runMigrations = async () => {
         tutor_id INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-      ALTER TABLE live_sessions ADD COLUMN IF NOT EXISTS course_id INTEGER;
+      ALTER TABLE live_sessions ADD COLUMN IF NOT EXISTS course_id VARCHAR(100);
       ALTER TABLE live_sessions ADD COLUMN IF NOT EXISTS tutor_id INTEGER;
+      ALTER TABLE live_sessions ALTER COLUMN course_id TYPE VARCHAR(100) USING course_id::VARCHAR;
 
       CREATE TABLE IF NOT EXISTS course_announcements (
         id SERIAL PRIMARY KEY,
-        course_id INTEGER,
+        course_id VARCHAR(100),
         title VARCHAR(255) NOT NULL,
         content TEXT NOT NULL,
         tutor_id INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-      ALTER TABLE course_announcements ADD COLUMN IF NOT EXISTS course_id INTEGER;
+      ALTER TABLE course_announcements ADD COLUMN IF NOT EXISTS course_id VARCHAR(100);
       ALTER TABLE course_announcements ADD COLUMN IF NOT EXISTS tutor_id INTEGER;
+      ALTER TABLE course_announcements ALTER COLUMN course_id TYPE VARCHAR(100) USING course_id::VARCHAR;
 
       CREATE TABLE IF NOT EXISTS announcements (
         id SERIAL PRIMARY KEY,

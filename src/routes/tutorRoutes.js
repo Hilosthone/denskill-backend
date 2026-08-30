@@ -505,6 +505,7 @@ const {
 router.post('/login', tutorLogin)
 
 // --- Protected Tutor Routes ---
+// All routes declared below this middleware require a valid JWT Bearer token
 router.use(protect)
 
 /**

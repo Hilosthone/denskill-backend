@@ -815,8 +815,8 @@ exports.getAssessmentsByCourse = async (req, res) => {
     const resolvedId = await resolveCourseId(pool, courseId)
 
     const result = await pool.query(
-      'SELECT * FROM assessments WHERE course_id = $1 ORDER BY created_at DESC',
-      [resolvedId],
+      'SELECT * FROM assessments WHERE course_id = $1 OR course_id::text = $2 ORDER BY created_at DESC',
+      [resolvedId, courseId],
     )
     res.status(200).json({ success: true, assessments: result.rows })
   } catch (err) {
@@ -1041,8 +1041,8 @@ exports.getCourseModules = async (req, res) => {
     const resolvedId = await resolveCourseId(pool, courseId)
 
     const result = await pool.query(
-      'SELECT * FROM course_modules WHERE course_id = $1 ORDER BY week_number ASC',
-      [resolvedId],
+      'SELECT * FROM course_modules WHERE course_id = $1 OR course_id::text = $2 ORDER BY week_number ASC',
+      [resolvedId, courseId],
     )
     res.status(200).json({ success: true, modules: result.rows })
   } catch (err) {
@@ -1096,8 +1096,8 @@ exports.getLiveSessions = async (req, res) => {
     const resolvedId = await resolveCourseId(pool, courseId)
 
     const result = await pool.query(
-      'SELECT * FROM live_sessions WHERE course_id = $1 ORDER BY scheduled_at ASC',
-      [resolvedId],
+      'SELECT * FROM live_sessions WHERE course_id = $1 OR course_id::text = $2 ORDER BY scheduled_at ASC',
+      [resolvedId, courseId],
     )
     res.status(200).json({ success: true, sessions: result.rows })
   } catch (err) {
@@ -1119,7 +1119,7 @@ exports.getCourseRoster = async (req, res) => {
              (SELECT COUNT(*) FROM student_submissions s JOIN assessments a ON s.assessment_id = a.id WHERE s.student_id = u.id AND (a.course_id = $1 OR a.course_id::text = $2)) as submissions_count
       FROM enrollments e
       JOIN users u ON e.user_id = u.id
-      WHERE e.course_id = $1 OR LOWER(e.course) = LOWER($2) OR LOWER(e.course) = LOWER($3)
+      WHERE e.course_id = $1 OR e.course_id::text = $2 OR LOWER(e.course) = LOWER($2) OR LOWER(e.course) = LOWER($3)
     `
     const result = await pool.query(query, [resolvedId, courseId, courseName])
     res.status(200).json({ success: true, roster: result.rows })
@@ -1204,7 +1204,7 @@ exports.getClassAnalytics = async (req, res) => {
         COUNT(s.id) as total_submissions
       FROM student_submissions s
       JOIN assessments a ON s.assessment_id = a.id
-      WHERE a.course_id = $1 OR LOWER(a.course_id::text) = LOWER($2) OR LOWER(a.course_id::text) = LOWER($3);
+      WHERE a.course_id = $1 OR a.course_id::text = $2 OR LOWER(a.course_id::text) = LOWER($2) OR LOWER(a.course_id::text) = LOWER($3);
     `
     const statsResult = await pool.query(statsQuery, [resolvedId, courseId, courseName])
 
@@ -1212,12 +1212,12 @@ exports.getClassAnalytics = async (req, res) => {
       SELECT u.id, u.name, u.email
       FROM users u
       JOIN enrollments e ON u.id = e.user_id
-      WHERE (e.course_id = $1 OR LOWER(e.course) = LOWER($2) OR LOWER(e.course) = LOWER($3))
+      WHERE (e.course_id = $1 OR e.course_id::text = $2 OR LOWER(e.course) = LOWER($2) OR LOWER(e.course) = LOWER($3))
       AND u.id NOT IN (
         SELECT DISTINCT s.student_id
         FROM student_submissions s
         JOIN assessments a ON s.assessment_id = a.id
-        WHERE a.course_id = $1 OR LOWER(a.course_id::text) = LOWER($2) OR LOWER(a.course_id::text) = LOWER($3)
+        WHERE a.course_id = $1 OR a.course_id::text = $2 OR LOWER(a.course_id::text) = LOWER($2) OR LOWER(a.course_id::text) = LOWER($3)
       );
     `
     const atRiskResult = await pool.query(atRiskQuery, [resolvedId, courseId, courseName])

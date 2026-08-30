@@ -135,9 +135,21 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000
 
 app.listen(PORT, '0.0.0.0', () => {
+  // Determine if running locally or on a production hosting service like Render
+  const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER
+  const localUrl = `http://localhost:${PORT}`
+  const swaggerDocsUrl = `${localUrl}/api-docs` // Adjust if your swagger route prefix is different (e.g. /docs or /api-docs)
+  
   console.log(`🚀 Server is running on port ${PORT}`)
+  console.log(`🌐 API Documentation available at: ${swaggerDocsUrl}`)
+  
+  if (isProduction) {
+    const host = process.env.RENDER_EXTERNAL_URL || `https://denskill-backend.onrender.com`
+    console.log(`🌍 Live production URL: ${host}`)
+    console.log(`🌍 Live API Docs: ${host}/api-docs`)
+  }
+  
   initTokenCleanupCron()
 })
-
 // Export the app module (safe to keep for backward compatibility)
 module.exports = app

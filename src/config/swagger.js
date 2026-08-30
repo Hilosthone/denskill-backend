@@ -233,17 +233,12 @@ const options = {
         },
       },
     },
-    security: [
-      {
-        bearerAuth: [],
-      },
-    ],
+    // Removed global security array here so public routes (like login) won't be incorrectly locked down.
+    // Instead, specify `security: [{ bearerAuth: [] }]` only on protected routes in your JSDoc blocks.
   },
   apis: [
-    path.join(__dirname, '../routes/*.js'),
-    path.join(__dirname, '../controllers/*.js'),
-    path.join(__dirname, '../routes/scholarship/*.js'),
-    path.join(__dirname, '../controllers/scholarship/*.js'),
+    path.join(__dirname, '../routes/**/*.js'),      // Recursively scans all subfolders in routes
+    path.join(__dirname, '../controllers/**/*.js'), // Recursively scans all subfolders in controllers
   ],
 }
 
