@@ -52,13 +52,48 @@
 //  *             properties:
 //  *               email:
 //  *                 type: string
+//  *                 example: admin@denskill.com
 //  *               password:
 //  *                 type: string
+//  *                 example: SecureAdminPassword123!
 //  *     responses:
 //  *       200:
 //  *         description: Admin logged in successfully
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 success:
+//  *                   type: boolean
+//  *                   example: true
+//  *                 message:
+//  *                   type: string
+//  *                   example: Admin logged in successfully
+//  *                 accessToken:
+//  *                   type: string
+//  *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+//  *                 refreshToken:
+//  *                   type: string
+//  *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+//  *                 admin:
+//  *                   type: object
+//  *                   properties:
+//  *                     name:
+//  *                       type: string
+//  *                       example: System Admin
+//  *                     email:
+//  *                       type: string
+//  *                       example: admin@denskill.com
+//  *                     role:
+//  *                       type: string
+//  *                       example: admin
+//  *       400:
+//  *         description: Please provide email and password
 //  *       401:
-//  *         description: Invalid credentials
+//  *         description: Invalid admin credentials
+//  *       500:
+//  *         description: Server error during admin login
 //  */
 // router.post('/auth/login', adminLogin)
 
@@ -78,8 +113,63 @@
 //  *     responses:
 //  *       200:
 //  *         description: Admin overview retrieved successfully
-//  *       403:
-//  *         description: Admin privileges required
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 status:
+//  *                   type: string
+//  *                   example: success
+//  *                 metrics:
+//  *                   type: object
+//  *                   properties:
+//  *                     totalStudents:
+//  *                       type: integer
+//  *                       example: 250
+//  *                     totalRevenue:
+//  *                       type: number
+//  *                       example: 1250000
+//  *                     activeCourses:
+//  *                       type: integer
+//  *                       example: 12
+//  *                 recentEnrollments:
+//  *                   type: array
+//  *                   items:
+//  *                     type: object
+//  *                     properties:
+//  *                       id:
+//  *                         type: integer
+//  *                         example: 1
+//  *                       first_name:
+//  *                         type: string
+//  *                         example: Hilosthone
+//  *                       middle_name:
+//  *                         type: string
+//  *                         example: Sulyman
+//  *                       last_name:
+//  *                         type: string
+//  *                         example: Developer
+//  *                       course:
+//  *                         type: string
+//  *                         example: Frontend Development
+//  *                       total_amount:
+//  *                         type: number
+//  *                         example: 80000
+//  *                       amount_paid:
+//  *                         type: number
+//  *                         example: 20000
+//  *                       payment_status:
+//  *                         type: string
+//  *                         example: PARTIAL
+//  *                       outstanding_balance:
+//  *                         type: number
+//  *                         example: 60000
+//  *                       created_at:
+//  *                         type: string
+//  *                         example: "2026-03-01T10:00:00.000Z"
+//  *       500:
+//  *         description: Server error while fetching admin overview
 //  */
 // router.get('/dashboard', getAdminOverview)
 
@@ -124,52 +214,46 @@
 //  *                     properties:
 //  *                       id:
 //  *                         type: integer
+//  *                         example: 1
 //  *                       first_name:
 //  *                         type: string
+//  *                         example: Hilosthone
 //  *                       middle_name:
 //  *                         type: string
+//  *                         example: Sulyman
 //  *                       last_name:
 //  *                         type: string
+//  *                         example: Developer
 //  *                       country:
 //  *                         type: string
-//  *                       password:
-//  *                         type: string
-//  *                       name:
-//  *                         type: string
+//  *                         example: Nigeria
 //  *                       email:
 //  *                         type: string
+//  *                         example: hilosthone@example.com
 //  *                       phone:
 //  *                         type: string
+//  *                         example: "+2348012345678"
 //  *                       student_type:
 //  *                         type: string
-//  *                       scholarship_status:
-//  *                         type: string
-//  *                       cohort_id:
-//  *                         type: integer
-//  *                       cohort_name:
-//  *                         type: string
-//  *                       cohort_code:
-//  *                         type: string
+//  *                         example: REGULAR
 //  *                       is_verified:
 //  *                         type: boolean
-//  *                       created_at:
-//  *                         type: string
-//  *                       enrollment_id:
-//  *                         type: integer
-//  *                       course:
-//  *                         type: string
-//  *                       reason:
-//  *                         type: string
-//  *                       referred_by:
-//  *                         type: string
+//  *                         example: true
 //  *                       total_amount:
 //  *                         type: number
+//  *                         example: 80000
 //  *                       amount_paid:
 //  *                         type: number
+//  *                         example: 20000
 //  *                       payment_status:
 //  *                         type: string
-//  *                       reference:
+//  *                         example: PARTIAL
+//  *                       outstanding_balance:
+//  *                         type: number
+//  *                         example: 60000
+//  *                       created_at:
 //  *                         type: string
+//  *                         example: "2026-03-01T10:00:00.000Z"
 //  *       500:
 //  *         description: Server error while fetching students
 //  */
@@ -189,19 +273,37 @@
 //  *         required: true
 //  *         schema:
 //  *           type: integer
+//  *         description: Student ID
 //  *     requestBody:
 //  *       required: true
 //  *       content:
 //  *         application/json:
 //  *           schema:
 //  *             type: object
+//  *             required:
+//  *               - status
 //  *             properties:
 //  *               status:
 //  *                 type: string
 //  *                 enum: [active, frozen]
+//  *                 example: frozen
 //  *     responses:
 //  *       200:
 //  *         description: Account status updated successfully
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 message:
+//  *                   type: string
+//  *                   example: User account status updated to frozen
+//  *                 user:
+//  *                   type: object
+//  *       404:
+//  *         description: User not found
+//  *       500:
+//  *         description: Server error
 //  */
 // router.put('/students/:id/status', toggleFreezeStudent)
 
@@ -219,9 +321,22 @@
 //  *         required: true
 //  *         schema:
 //  *           type: integer
+//  *         description: Student ID
 //  *     responses:
 //  *       200:
 //  *         description: Student account deleted successfully
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 message:
+//  *                   type: string
+//  *                   example: Student account deleted successfully
+//  *       404:
+//  *         description: User not found
+//  *       500:
+//  *         description: Server error
 //  */
 // router.delete('/students/:id', deleteStudentAccount)
 
@@ -236,6 +351,33 @@
 //  *     responses:
 //  *       200:
 //  *         description: Payments list retrieved successfully
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 status:
+//  *                   type: string
+//  *                   example: success
+//  *                 payments:
+//  *                   type: array
+//  *                   items:
+//  *                     type: object
+//  *                     properties:
+//  *                       id:
+//  *                         type: integer
+//  *                         example: 1
+//  *                       reference:
+//  *                         type: string
+//  *                         example: TXN_987654321
+//  *                       amount_paid:
+//  *                         type: number
+//  *                         example: 50000
+//  *                       payment_status:
+//  *                         type: string
+//  *                         example: COMPLETED
+//  *       500:
+//  *         description: Server error while fetching payments
 //  */
 // router.get('/payments', getAllPayments)
 
@@ -250,13 +392,34 @@
 //  *     responses:
 //  *       200:
 //  *         description: Courses retrieved successfully
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 status:
+//  *                   type: string
+//  *                   example: success
+//  *                 courses:
+//  *                   type: array
+//  *                   items:
+//  *                     type: object
+//  *                     properties:
+//  *                       course:
+//  *                         type: string
+//  *                         example: Full-Stack React & Node Engineering
+//  *                       enrolled_count:
+//  *                         type: string
+//  *                         example: "45"
+//  *       500:
+//  *         description: Server error while fetching courses
 //  */
 // router.get('/courses', getAllCourses)
 
 // /**
 //  * @swagger
 //  * /api/admin/courses/{courseId}/assign-tutor:
-//  *   patch:
+//  *   put:
 //  *     summary: Assign a tutor to a course
 //  *     tags: [Admin]
 //  *     security:
@@ -266,21 +429,44 @@
 //  *         name: courseId
 //  *         required: true
 //  *         schema:
-//  *           type: integer
+//  *           type: string
+//  *         description: Course ID or Course Name/Slug
 //  *     requestBody:
 //  *       required: true
 //  *       content:
 //  *         application/json:
 //  *           schema:
 //  *             type: object
+//  *             required:
+//  *               - tutorId
 //  *             properties:
 //  *               tutorId:
 //  *                 type: integer
+//  *                 example: 3
 //  *     responses:
 //  *       200:
 //  *         description: Tutor assigned successfully
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 status:
+//  *                   type: string
+//  *                   example: success
+//  *                 message:
+//  *                   type: string
+//  *                   example: Tutor assigned to course successfully
+//  *                 course:
+//  *                   type: object
+//  *       400:
+//  *         description: tutorId or instructorId is required
+//  *       404:
+//  *         description: Course not found
+//  *       500:
+//  *         description: Server error while assigning tutor
 //  */
-// router.patch('/courses/:courseId/assign-tutor', assignTutorToCourse)
+// router.put('/courses/:courseId/assign-tutor', assignTutorToCourse)
 
 // /**
 //  * @swagger
@@ -296,9 +482,27 @@
 //  *         required: true
 //  *         schema:
 //  *           type: string
+//  *         description: Course ID or Identifier
 //  *     responses:
 //  *       200:
 //  *         description: Attendance overview retrieved successfully
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 status:
+//  *                   type: string
+//  *                   example: success
+//  *                 course_id:
+//  *                   type: string
+//  *                   example: "1"
+//  *                 cohort_attendance:
+//  *                   type: array
+//  *                   items:
+//  *                     type: object
+//  *       500:
+//  *         description: Server error fetching attendance overview
 //  */
 // router.get('/courses/:courseId/attendance', getAttendanceOverview)
 
@@ -313,8 +517,41 @@
 //  *     responses:
 //  *       200:
 //  *         description: Announcements retrieved successfully
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 status:
+//  *                   type: string
+//  *                   example: success
+//  *                 announcements:
+//  *                   type: array
+//  *                   items:
+//  *                     type: object
+//  *                     properties:
+//  *                       id:
+//  *                         type: integer
+//  *                         example: 1
+//  *                       title:
+//  *                         type: string
+//  *                         example: Mid-Term Break Notice
+//  *                       content:
+//  *                         type: string
+//  *                         example: All students are to note...
+//  *                       target:
+//  *                         type: string
+//  *                         example: all
+//  *                       priority:
+//  *                         type: string
+//  *                         example: normal
+//  *                       created_at:
+//  *                         type: string
+//  *                         example: "2026-08-29T10:00:00.000Z"
+//  *       500:
+//  *         description: Server error while fetching announcements
 //  *   post:
-//  *     summary: Create a new announcement (broadcasted to all students)
+//  *     summary: Create a new announcement (broadcasted to students)
 //  *     tags: [Admin]
 //  *     security:
 //  *       - bearerAuth: []
@@ -334,6 +571,9 @@
 //  *               content:
 //  *                 type: string
 //  *                 example: All regular and scholarship students are to note...
+//  *               message:
+//  *                 type: string
+//  *                 example: Alternative field for announcement body
 //  *               target:
 //  *                 type: string
 //  *                 enum: [all, regular, scholarship]
@@ -345,6 +585,10 @@
 //  *     responses:
 //  *       201:
 //  *         description: Announcement created successfully
+//  *       400:
+//  *         description: Title and content are required
+//  *       500:
+//  *         description: Server error while creating announcement
 //  *
 //  * /api/admin/announcements/{id}:
 //  *   put:
@@ -370,6 +614,8 @@
 //  *                 type: string
 //  *               content:
 //  *                 type: string
+//  *               message:
+//  *                 type: string
 //  *               target:
 //  *                 type: string
 //  *                 enum: [all, regular, scholarship]
@@ -381,6 +627,8 @@
 //  *         description: Announcement updated successfully
 //  *       404:
 //  *         description: Announcement not found
+//  *       500:
+//  *         description: Server error while updating announcement
 //  *   delete:
 //  *     summary: Delete an announcement
 //  *     tags: [Admin]
@@ -398,6 +646,8 @@
 //  *         description: Announcement deleted successfully
 //  *       404:
 //  *         description: Announcement not found
+//  *       500:
+//  *         description: Server error while deleting announcement
 //  */
 // router.get('/announcements', getAdminAnnouncements)
 // router.post('/announcements', createAnnouncement)
@@ -415,6 +665,20 @@
 //  *     responses:
 //  *       200:
 //  *         description: Instructors retrieved successfully
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 status:
+//  *                   type: string
+//  *                   example: success
+//  *                 instructors:
+//  *                   type: array
+//  *                   items:
+//  *                     type: object
+//  *       500:
+//  *         description: Server error while fetching instructors
 //  *   post:
 //  *     summary: Create a new instructor/tutor with login credentials
 //  *     tags: [Admin]
@@ -433,17 +697,26 @@
 //  *             properties:
 //  *               name:
 //  *                 type: string
+//  *                 example: John Doe
 //  *               email:
 //  *                 type: string
+//  *                 example: instructor@denskill.com
 //  *               specialty:
 //  *                 type: string
+//  *                 example: Fullstack & Mobile Development
 //  *               role:
 //  *                 type: string
+//  *                 example: Instructor
 //  *               password:
 //  *                 type: string
+//  *                 example: SecurePassword123!
 //  *     responses:
 //  *       201:
 //  *         description: Instructor created successfully with login credentials
+//  *       400:
+//  *         description: Name, email, and specialty are required
+//  *       500:
+//  *         description: Server error while creating instructor
 //  */
 // router.get('/instructors', getInstructors)
 // router.post('/instructors', createInstructor)
@@ -477,9 +750,15 @@
 //  *                 type: string
 //  *               role:
 //  *                 type: string
+//  *               password:
+//  *                 type: string
 //  *     responses:
 //  *       200:
 //  *         description: Instructor updated successfully
+//  *       404:
+//  *         description: Instructor not found
+//  *       500:
+//  *         description: Server error while updating instructor
 //  *   delete:
 //  *     summary: Delete an instructor
 //  *     tags: [Admin]
@@ -494,6 +773,10 @@
 //  *     responses:
 //  *       200:
 //  *         description: Instructor deleted successfully
+//  *       404:
+//  *         description: Instructor not found
+//  *       500:
+//  *         description: Server error while deleting instructor
 //  */
 // router.put('/instructors/:id', updateInstructor)
 // router.delete('/instructors/:id', deleteInstructor)
@@ -509,6 +792,22 @@
 //  *     responses:
 //  *       200:
 //  *         description: Reports retrieved successfully
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 status:
+//  *                   type: string
+//  *                   example: success
+//  *                 metrics:
+//  *                   type: object
+//  *                 student_aggregates:
+//  *                   type: array
+//  *                   items:
+//  *                     type: object
+//  *       500:
+//  *         description: Server error while fetching grading reports
 //  */
 // router.get('/reports', getReports)
 
@@ -526,9 +825,39 @@
 //  *         required: true
 //  *         schema:
 //  *           type: integer
+//  *         description: Grade ID to override
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             required:
+//  *               - new_score
+//  *             properties:
+//  *               new_score:
+//  *                 type: number
+//  *                 example: 85
+//  *               feedback:
+//  *                 type: string
+//  *                 example: Regraded following formal student appeal on question 4.
 //  *     responses:
 //  *       200:
 //  *         description: Grade override executed successfully
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 status:
+//  *                   type: string
+//  *                   example: success
+//  *                 updated_submission:
+//  *                   type: object
+//  *       404:
+//  *         description: Submission/Grade record not found
+//  *       500:
+//  *         description: Server error executing grade override
 //  */
 // router.put('/grades/:gradeId/override', executeGradeOverride)
 
@@ -543,6 +872,16 @@
 //  *     responses:
 //  *       200:
 //  *         description: Settings retrieved successfully
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 status:
+//  *                   type: string
+//  *                   example: success
+//  *                 settings:
+//  *                   type: object
 //  */
 // router.get('/settings', getSettings)
 
@@ -564,38 +903,48 @@
 //  *               - firstName
 //  *               - lastName
 //  *               - email
-//  *               - phone
 //  *               - course
-//  *               - amountPaid
-//  *               - password
 //  *             properties:
 //  *               firstName:
 //  *                 type: string
+//  *                 example: Hilosthone
 //  *               middleName:
 //  *                 type: string
+//  *                 example: Sulyman
 //  *               lastName:
 //  *                 type: string
+//  *                 example: Developer
 //  *               country:
 //  *                 type: string
+//  *                 example: Nigeria
 //  *               phone:
 //  *                 type: string
+//  *                 example: "+2348012345678"
 //  *               email:
 //  *                 type: string
+//  *                 example: student@example.com
 //  *               course:
 //  *                 type: string
+//  *                 example: Mobile App Development
 //  *               amountPaid:
 //  *                 type: number
+//  *                 example: 75000
 //  *               password:
 //  *                 type: string
+//  *                 example: StudentPass123!
 //  *               referredBy:
 //  *                 type: string
+//  *                 example: Direct Outreach
 //  *               reason:
 //  *                 type: string
+//  *                 example: Offline bank transfer confirmed.
 //  *     responses:
-//  *       200:
-//  *         description: Student successfully onboarded with login credentials.
+//  *       201:
+//  *         description: Student manually onboarded successfully.
 //  *       400:
-//  *         description: Validation error or student already exists.
+//  *         description: First name, last name, email, and course are required.
+//  *       500:
+//  *         description: Server error during manual student onboarding.
 //  */
 // router.post('/enrollments/manual-onboard', manualOnboardStudent)
 
@@ -603,7 +952,7 @@
 //  * @swagger
 //  * /api/admin/emails/send:
 //  *   post:
-//  *     summary: Send direct custom email messages to one or multiple users
+//  *     summary: Send direct custom email messages to one or multiple users with full HTML, links, and attachments support
 //  *     tags: [Admin]
 //  *     security:
 //  *       - bearerAuth: []
@@ -616,7 +965,6 @@
 //  *             required:
 //  *               - emails
 //  *               - subject
-//  *               - message
 //  *             properties:
 //  *               emails:
 //  *                 type: string
@@ -627,34 +975,44 @@
 //  *               message:
 //  *                 type: string
 //  *                 example: Hello, please check your dashboard for recent updates.
+//  *               html:
+//  *                 type: string
+//  *                 example: <p>Hello, check your <a href="https://denskill.com">dashboard</a>.</p>
+//  *               attachments:
+//  *                 type: array
+//  *                 items:
+//  *                   type: object
+//  *                   properties:
+//  *                     filename:
+//  *                       type: string
+//  *                     content:
+//  *                       type: string
+//  *               cc:
+//  *                 type: string
+//  *               bcc:
+//  *                 type: string
 //  *     responses:
 //  *       200:
-//  *         description: Message successfully sent to user inbox(es)
+//  *         description: Message successfully sent to user inbox(es)!
 //  *       400:
-//  *         description: Missing required fields
+//  *         description: Please provide recipient emails, subject, and message content.
 //  *       500:
-//  *         description: Failed to deliver emails via Resend
+//  *         description: Failed to deliver emails via Resend or internal server error.
 //  */
 // router.post('/emails/send', sendDirectEmailToUsers)
 
 // module.exports = router
 
-
-
-
-
-
-
-
 // src/routes/adminRoutes.js
 const express = require('express')
 const router = express.Router()
 
+// Middleware imports for securing routes and enforcing admin permissions
 const { protect } = require('../middleware/authMiddleware')
 const { isAdmin } = require('../middleware/adminMiddleware')
 
+// Controller functions that handle the business logic for each administrative endpoint
 const {
-  adminLogin,
   getAdminOverview,
   getAllStudents,
   manualOnboardStudent,
@@ -679,75 +1037,10 @@ const {
 } = require('../controllers/adminController')
 
 // ==========================================
-// 1. PUBLIC ADMIN ROUTES (No Auth Required)
+// PROTECTED ADMIN ROUTES (Auth & Admin Check)
 // ==========================================
-
-/**
- * @swagger
- * /api/admin/auth/login:
- *   post:
- *     summary: Admin login
- *     tags: [Admin Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *             properties:
- *               email:
- *                 type: string
- *                 example: admin@denskill.com
- *               password:
- *                 type: string
- *                 example: SecureAdminPassword123!
- *     responses:
- *       200:
- *         description: Admin logged in successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: Admin logged in successfully
- *                 accessToken:
- *                   type: string
- *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
- *                 refreshToken:
- *                   type: string
- *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
- *                 admin:
- *                   type: object
- *                   properties:
- *                     name:
- *                       type: string
- *                       example: System Admin
- *                     email:
- *                       type: string
- *                       example: admin@denskill.com
- *                     role:
- *                       type: string
- *                       example: admin
- *       400:
- *         description: Please provide email and password
- *       401:
- *         description: Invalid admin credentials
- *       500:
- *         description: Server error during admin login
- */
-router.post('/auth/login', adminLogin)
-
-// ==========================================
-// 2. PROTECTED ADMIN ROUTES (Auth & Admin Check)
-// ==========================================
+// This global middleware layer intercepts all subsequent routes, ensuring 
+// that incoming requests possess a valid Bearer token and hold admin privileges.
 router.use(protect, isAdmin)
 
 /**
@@ -785,37 +1078,6 @@ router.use(protect, isAdmin)
  *                   type: array
  *                   items:
  *                     type: object
- *                     properties:
- *                       id:
- *                         type: integer
- *                         example: 1
- *                       first_name:
- *                         type: string
- *                         example: Hilosthone
- *                       middle_name:
- *                         type: string
- *                         example: Sulyman
- *                       last_name:
- *                         type: string
- *                         example: Developer
- *                       course:
- *                         type: string
- *                         example: Frontend Development
- *                       total_amount:
- *                         type: number
- *                         example: 80000
- *                       amount_paid:
- *                         type: number
- *                         example: 20000
- *                       payment_status:
- *                         type: string
- *                         example: PARTIAL
- *                       outstanding_balance:
- *                         type: number
- *                         example: 60000
- *                       created_at:
- *                         type: string
- *                         example: "2026-03-01T10:00:00.000Z"
  *       500:
  *         description: Server error while fetching admin overview
  */
@@ -844,64 +1106,6 @@ router.get('/dashboard', getAdminOverview)
  *     responses:
  *       200:
  *         description: Students list retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 count:
- *                   type: integer
- *                   example: 10
- *                 students:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       id:
- *                         type: integer
- *                         example: 1
- *                       first_name:
- *                         type: string
- *                         example: Hilosthone
- *                       middle_name:
- *                         type: string
- *                         example: Sulyman
- *                       last_name:
- *                         type: string
- *                         example: Developer
- *                       country:
- *                         type: string
- *                         example: Nigeria
- *                       email:
- *                         type: string
- *                         example: hilosthone@example.com
- *                       phone:
- *                         type: string
- *                         example: "+2348012345678"
- *                       student_type:
- *                         type: string
- *                         example: REGULAR
- *                       is_verified:
- *                         type: boolean
- *                         example: true
- *                       total_amount:
- *                         type: number
- *                         example: 80000
- *                       amount_paid:
- *                         type: number
- *                         example: 20000
- *                       payment_status:
- *                         type: string
- *                         example: PARTIAL
- *                       outstanding_balance:
- *                         type: number
- *                         example: 60000
- *                       created_at:
- *                         type: string
- *                         example: "2026-03-01T10:00:00.000Z"
  *       500:
  *         description: Server error while fetching students
  */
@@ -938,16 +1142,6 @@ router.get('/students', getAllStudents)
  *     responses:
  *       200:
  *         description: Account status updated successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: User account status updated to frozen
- *                 user:
- *                   type: object
  *       404:
  *         description: User not found
  *       500:
@@ -973,14 +1167,6 @@ router.put('/students/:id/status', toggleFreezeStudent)
  *     responses:
  *       200:
  *         description: Student account deleted successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: Student account deleted successfully
  *       404:
  *         description: User not found
  *       500:
@@ -999,31 +1185,6 @@ router.delete('/students/:id', deleteStudentAccount)
  *     responses:
  *       200:
  *         description: Payments list retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 payments:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       id:
- *                         type: integer
- *                         example: 1
- *                       reference:
- *                         type: string
- *                         example: TXN_987654321
- *                       amount_paid:
- *                         type: number
- *                         example: 50000
- *                       payment_status:
- *                         type: string
- *                         example: COMPLETED
  *       500:
  *         description: Server error while fetching payments
  */
@@ -1040,25 +1201,6 @@ router.get('/payments', getAllPayments)
  *     responses:
  *       200:
  *         description: Courses retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 courses:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       course:
- *                         type: string
- *                         example: Full-Stack React & Node Engineering
- *                       enrolled_count:
- *                         type: string
- *                         example: "45"
  *       500:
  *         description: Server error while fetching courses
  */
@@ -1094,21 +1236,8 @@ router.get('/courses', getAllCourses)
  *     responses:
  *       200:
  *         description: Tutor assigned successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 message:
- *                   type: string
- *                   example: Tutor assigned to course successfully
- *                 course:
- *                   type: object
  *       400:
- *         description: tutorId or instructorId is required
+ *         description: tutorId is required
  *       404:
  *         description: Course not found
  *       500:
@@ -1134,21 +1263,6 @@ router.put('/courses/:courseId/assign-tutor', assignTutorToCourse)
  *     responses:
  *       200:
  *         description: Attendance overview retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 course_id:
- *                   type: string
- *                   example: "1"
- *                 cohort_attendance:
- *                   type: array
- *                   items:
- *                     type: object
  *       500:
  *         description: Server error fetching attendance overview
  */
@@ -1165,39 +1279,6 @@ router.get('/courses/:courseId/attendance', getAttendanceOverview)
  *     responses:
  *       200:
  *         description: Announcements retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 announcements:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       id:
- *                         type: integer
- *                         example: 1
- *                       title:
- *                         type: string
- *                         example: Mid-Term Break Notice
- *                       content:
- *                         type: string
- *                         example: All students are to note...
- *                       target:
- *                         type: string
- *                         example: all
- *                       priority:
- *                         type: string
- *                         example: normal
- *                       created_at:
- *                         type: string
- *                         example: "2026-08-29T10:00:00.000Z"
- *       500:
- *         description: Server error while fetching announcements
  *   post:
  *     summary: Create a new announcement (broadcasted to students)
  *     tags: [Admin]
@@ -1215,28 +1296,17 @@ router.get('/courses/:courseId/attendance', getAttendanceOverview)
  *             properties:
  *               title:
  *                 type: string
- *                 example: Mid-Term Break Notice
  *               content:
  *                 type: string
- *                 example: All regular and scholarship students are to note...
- *               message:
- *                 type: string
- *                 example: Alternative field for announcement body
  *               target:
  *                 type: string
  *                 enum: [all, regular, scholarship]
- *                 example: all
  *               priority:
  *                 type: string
  *                 enum: [normal, high, urgent]
- *                 example: normal
  *     responses:
  *       201:
  *         description: Announcement created successfully
- *       400:
- *         description: Title and content are required
- *       500:
- *         description: Server error while creating announcement
  *
  * /api/admin/announcements/{id}:
  *   put:
@@ -1250,33 +1320,6 @@ router.get('/courses/:courseId/attendance', getAttendanceOverview)
  *         required: true
  *         schema:
  *           type: integer
- *         description: Announcement ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               title:
- *                 type: string
- *               content:
- *                 type: string
- *               message:
- *                 type: string
- *               target:
- *                 type: string
- *                 enum: [all, regular, scholarship]
- *               priority:
- *                 type: string
- *                 enum: [normal, high, urgent]
- *     responses:
- *       200:
- *         description: Announcement updated successfully
- *       404:
- *         description: Announcement not found
- *       500:
- *         description: Server error while updating announcement
  *   delete:
  *     summary: Delete an announcement
  *     tags: [Admin]
@@ -1288,14 +1331,6 @@ router.get('/courses/:courseId/attendance', getAttendanceOverview)
  *         required: true
  *         schema:
  *           type: integer
- *         description: Announcement ID
- *     responses:
- *       200:
- *         description: Announcement deleted successfully
- *       404:
- *         description: Announcement not found
- *       500:
- *         description: Server error while deleting announcement
  */
 router.get('/announcements', getAdminAnnouncements)
 router.post('/announcements', createAnnouncement)
@@ -1313,20 +1348,6 @@ router.delete('/announcements/:id', deleteAnnouncement)
  *     responses:
  *       200:
  *         description: Instructors retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 instructors:
- *                   type: array
- *                   items:
- *                     type: object
- *       500:
- *         description: Server error while fetching instructors
  *   post:
  *     summary: Create a new instructor/tutor with login credentials
  *     tags: [Admin]
@@ -1345,26 +1366,13 @@ router.delete('/announcements/:id', deleteAnnouncement)
  *             properties:
  *               name:
  *                 type: string
- *                 example: John Doe
  *               email:
  *                 type: string
- *                 example: instructor@denskill.com
  *               specialty:
  *                 type: string
- *                 example: Fullstack & Mobile Development
- *               role:
- *                 type: string
- *                 example: Instructor
- *               password:
- *                 type: string
- *                 example: SecurePassword123!
  *     responses:
  *       201:
- *         description: Instructor created successfully with login credentials
- *       400:
- *         description: Name, email, and specialty are required
- *       500:
- *         description: Server error while creating instructor
+ *         description: Instructor created successfully
  */
 router.get('/instructors', getInstructors)
 router.post('/instructors', createInstructor)
@@ -1383,30 +1391,6 @@ router.post('/instructors', createInstructor)
  *         required: true
  *         schema:
  *           type: integer
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *               email:
- *                 type: string
- *               specialty:
- *                 type: string
- *               role:
- *                 type: string
- *               password:
- *                 type: string
- *     responses:
- *       200:
- *         description: Instructor updated successfully
- *       404:
- *         description: Instructor not found
- *       500:
- *         description: Server error while updating instructor
  *   delete:
  *     summary: Delete an instructor
  *     tags: [Admin]
@@ -1418,13 +1402,6 @@ router.post('/instructors', createInstructor)
  *         required: true
  *         schema:
  *           type: integer
- *     responses:
- *       200:
- *         description: Instructor deleted successfully
- *       404:
- *         description: Instructor not found
- *       500:
- *         description: Server error while deleting instructor
  */
 router.put('/instructors/:id', updateInstructor)
 router.delete('/instructors/:id', deleteInstructor)
@@ -1440,22 +1417,6 @@ router.delete('/instructors/:id', deleteInstructor)
  *     responses:
  *       200:
  *         description: Reports retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 metrics:
- *                   type: object
- *                 student_aggregates:
- *                   type: array
- *                   items:
- *                     type: object
- *       500:
- *         description: Server error while fetching grading reports
  */
 router.get('/reports', getReports)
 
@@ -1463,7 +1424,7 @@ router.get('/reports', getReports)
  * @swagger
  * /api/admin/grades/{gradeId}/override:
  *   put:
- *     summary: Execute an administrative override for any disputed score or academic adjustment
+ *     summary: Execute an administrative override for any disputed score
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
@@ -1473,7 +1434,6 @@ router.get('/reports', getReports)
  *         required: true
  *         schema:
  *           type: integer
- *         description: Grade ID to override
  *     requestBody:
  *       required: true
  *       content:
@@ -1485,27 +1445,9 @@ router.get('/reports', getReports)
  *             properties:
  *               new_score:
  *                 type: number
- *                 example: 85
- *               feedback:
- *                 type: string
- *                 example: Regraded following formal student appeal on question 4.
  *     responses:
  *       200:
  *         description: Grade override executed successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 updated_submission:
- *                   type: object
- *       404:
- *         description: Submission/Grade record not found
- *       500:
- *         description: Server error executing grade override
  */
 router.put('/grades/:gradeId/override', executeGradeOverride)
 
@@ -1520,16 +1462,6 @@ router.put('/grades/:gradeId/override', executeGradeOverride)
  *     responses:
  *       200:
  *         description: Settings retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 settings:
- *                   type: object
  */
 router.get('/settings', getSettings)
 
@@ -1552,47 +1484,9 @@ router.get('/settings', getSettings)
  *               - lastName
  *               - email
  *               - course
- *             properties:
- *               firstName:
- *                 type: string
- *                 example: Hilosthone
- *               middleName:
- *                 type: string
- *                 example: Sulyman
- *               lastName:
- *                 type: string
- *                 example: Developer
- *               country:
- *                 type: string
- *                 example: Nigeria
- *               phone:
- *                 type: string
- *                 example: "+2348012345678"
- *               email:
- *                 type: string
- *                 example: student@example.com
- *               course:
- *                 type: string
- *                 example: Mobile App Development
- *               amountPaid:
- *                 type: number
- *                 example: 75000
- *               password:
- *                 type: string
- *                 example: StudentPass123!
- *               referredBy:
- *                 type: string
- *                 example: Direct Outreach
- *               reason:
- *                 type: string
- *                 example: Offline bank transfer confirmed.
  *     responses:
  *       201:
- *         description: Student manually onboarded successfully.
- *       400:
- *         description: First name, last name, email, and course are required.
- *       500:
- *         description: Server error during manual student onboarding.
+ *         description: Student manually onboarded successfully
  */
 router.post('/enrollments/manual-onboard', manualOnboardStudent)
 
@@ -1600,7 +1494,7 @@ router.post('/enrollments/manual-onboard', manualOnboardStudent)
  * @swagger
  * /api/admin/emails/send:
  *   post:
- *     summary: Send direct custom email messages to one or multiple users with full HTML, links, and attachments support
+ *     summary: Send direct custom email messages to one or multiple users
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
@@ -1613,39 +1507,9 @@ router.post('/enrollments/manual-onboard', manualOnboardStudent)
  *             required:
  *               - emails
  *               - subject
- *             properties:
- *               emails:
- *                 type: string
- *                 example: student1@gmail.com, student2@gmail.com
- *               subject:
- *                 type: string
- *                 example: Important Update Regarding Your Portal Access
- *               message:
- *                 type: string
- *                 example: Hello, please check your dashboard for recent updates.
- *               html:
- *                 type: string
- *                 example: <p>Hello, check your <a href="https://denskill.com">dashboard</a>.</p>
- *               attachments:
- *                 type: array
- *                 items:
- *                   type: object
- *                   properties:
- *                     filename:
- *                       type: string
- *                     content:
- *                       type: string
- *               cc:
- *                 type: string
- *               bcc:
- *                 type: string
  *     responses:
  *       200:
- *         description: Message successfully sent to user inbox(es)!
- *       400:
- *         description: Please provide recipient emails, subject, and message content.
- *       500:
- *         description: Failed to deliver emails via Resend or internal server error.
+ *         description: Message successfully sent
  */
 router.post('/emails/send', sendDirectEmailToUsers)
 
