@@ -559,6 +559,9 @@ const runMigrations = async () => {
         specialty VARCHAR(255) NOT NULL,
         role VARCHAR(100) DEFAULT 'Instructor',
         password VARCHAR(255),
+        phone VARCHAR(50),
+        avatar_url TEXT,
+        status VARCHAR(20) DEFAULT 'active',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       ALTER TABLE instructors ADD COLUMN IF NOT EXISTS password VARCHAR(255);
@@ -587,8 +590,16 @@ const runMigrations = async () => {
       ALTER TABLE assessments ADD COLUMN IF NOT EXISTS total_marks INTEGER DEFAULT 100;
       ALTER TABLE assessments ADD COLUMN IF NOT EXISTS weight NUMERIC DEFAULT 0;
       ALTER TABLE assessments ADD COLUMN IF NOT EXISTS due_date TIMESTAMP;
-      -- Safely convert course_id to VARCHAR if it was previously created as an INTEGER
-      ALTER TABLE assessments ALTER COLUMN course_id TYPE VARCHAR(100) USING course_id::VARCHAR;
+      -- Safely convert course_id to VARCHAR if it was previously created as an INTEGER (Wrapped in DO block to prevent syntax/type casting errors)
+      DO $$ 
+      BEGIN 
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'assessments' AND column_name = 'course_id' AND data_type = 'integer'
+        ) THEN
+          ALTER TABLE assessments ALTER COLUMN course_id TYPE VARCHAR(100) USING course_id::VARCHAR;
+        END IF;
+      END $$;
 
       CREATE TABLE IF NOT EXISTS student_submissions (
         id SERIAL PRIMARY KEY,
@@ -617,7 +628,15 @@ const runMigrations = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT unique_student_course_date UNIQUE (student_id, course_id, session_date)
       );
-      ALTER TABLE attendance_logs ALTER COLUMN course_id TYPE VARCHAR(100) USING course_id::VARCHAR;
+      DO $$ 
+      BEGIN 
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'attendance_logs' AND column_name = 'course_id' AND data_type = 'integer'
+        ) THEN
+          ALTER TABLE attendance_logs ALTER COLUMN course_id TYPE VARCHAR(100) USING course_id::VARCHAR;
+        END IF;
+      END $$;
 
       CREATE TABLE IF NOT EXISTS course_modules (
         id SERIAL PRIMARY KEY,
@@ -634,7 +653,15 @@ const runMigrations = async () => {
       );
       ALTER TABLE course_modules ADD COLUMN IF NOT EXISTS course_id VARCHAR(100);
       ALTER TABLE course_modules ADD COLUMN IF NOT EXISTS tutor_id INTEGER;
-      ALTER TABLE course_modules ALTER COLUMN course_id TYPE VARCHAR(100) USING course_id::VARCHAR;
+      DO $$ 
+      BEGIN 
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'course_modules' AND column_name = 'course_id' AND data_type = 'integer'
+        ) THEN
+          ALTER TABLE course_modules ALTER COLUMN course_id TYPE VARCHAR(100) USING course_id::VARCHAR;
+        END IF;
+      END $$;
 
       CREATE TABLE IF NOT EXISTS live_sessions (
         id SERIAL PRIMARY KEY,
@@ -649,7 +676,15 @@ const runMigrations = async () => {
       );
       ALTER TABLE live_sessions ADD COLUMN IF NOT EXISTS course_id VARCHAR(100);
       ALTER TABLE live_sessions ADD COLUMN IF NOT EXISTS tutor_id INTEGER;
-      ALTER TABLE live_sessions ALTER COLUMN course_id TYPE VARCHAR(100) USING course_id::VARCHAR;
+      DO $$ 
+      BEGIN 
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'live_sessions' AND column_name = 'course_id' AND data_type = 'integer'
+        ) THEN
+          ALTER TABLE live_sessions ALTER COLUMN course_id TYPE VARCHAR(100) USING course_id::VARCHAR;
+        END IF;
+      END $$;
 
       CREATE TABLE IF NOT EXISTS course_announcements (
         id SERIAL PRIMARY KEY,
@@ -661,7 +696,15 @@ const runMigrations = async () => {
       );
       ALTER TABLE course_announcements ADD COLUMN IF NOT EXISTS course_id VARCHAR(100);
       ALTER TABLE course_announcements ADD COLUMN IF NOT EXISTS tutor_id INTEGER;
-      ALTER TABLE course_announcements ALTER COLUMN course_id TYPE VARCHAR(100) USING course_id::VARCHAR;
+      DO $$ 
+      BEGIN 
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'course_announcements' AND column_name = 'course_id' AND data_type = 'integer'
+        ) THEN
+          ALTER TABLE course_announcements ALTER COLUMN course_id TYPE VARCHAR(100) USING course_id::VARCHAR;
+        END IF;
+      END $$;
 
       CREATE TABLE IF NOT EXISTS announcements (
         id SERIAL PRIMARY KEY,

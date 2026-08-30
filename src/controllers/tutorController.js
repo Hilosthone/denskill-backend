@@ -754,13 +754,13 @@ exports.getTutorCourses = async (req, res) => {
     `
     const result = await pool.query(query, [tutorId])
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       courses: result.rows,
     })
   } catch (err) {
     console.error('Error fetching tutor courses:', err)
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Server error fetching assigned courses.',
     })
@@ -800,10 +800,10 @@ exports.createAssessment = async (req, res) => {
     ]
 
     const result = await pool.query(assessmentQuery, values)
-    res.status(201).json({ success: true, assessment: result.rows[0] })
+    return res.status(201).json({ success: true, assessment: result.rows[0] })
   } catch (err) {
     console.error('Error creating assessment:', err)
-    res
+    return res
       .status(500)
       .json({ success: false, message: 'Server error creating assessment.' })
   }
@@ -818,10 +818,10 @@ exports.getAssessmentsByCourse = async (req, res) => {
       'SELECT * FROM assessments WHERE course_id = $1 OR course_id::text = $2 ORDER BY created_at DESC',
       [resolvedId, courseId],
     )
-    res.status(200).json({ success: true, assessments: result.rows })
+    return res.status(200).json({ success: true, assessments: result.rows })
   } catch (err) {
     console.error('Error fetching assessments:', err)
-    res
+    return res
       .status(500)
       .json({ success: false, message: 'Server error fetching assessments.' })
   }
@@ -861,10 +861,10 @@ exports.updateAssessment = async (req, res) => {
         .json({ success: false, message: 'Assessment not found.' })
     }
 
-    res.status(200).json({ success: true, assessment: result.rows[0] })
+    return res.status(200).json({ success: true, assessment: result.rows[0] })
   } catch (err) {
     console.error('Error updating assessment:', err)
-    res
+    return res
       .status(500)
       .json({ success: false, message: 'Server error updating assessment.' })
   }
@@ -885,12 +885,12 @@ exports.deleteAssessment = async (req, res) => {
         .json({ success: false, message: 'Assessment not found.' })
     }
 
-    res
+    return res
       .status(200)
       .json({ success: true, message: 'Assessment deleted successfully.' })
   } catch (err) {
     console.error('Error deleting assessment:', err)
-    res
+    return res
       .status(500)
       .json({ success: false, message: 'Server error deleting assessment.' })
   }
@@ -906,10 +906,10 @@ exports.getSubmissionsByAssessment = async (req, res) => {
       WHERE s.assessment_id = $1
     `
     const result = await pool.query(query, [assessmentId])
-    res.status(200).json({ success: true, submissions: result.rows })
+    return res.status(200).json({ success: true, submissions: result.rows })
   } catch (err) {
     console.error('Error fetching submissions:', err)
-    res
+    return res
       .status(500)
       .json({ success: false, message: 'Server error fetching submissions.' })
   }
@@ -940,10 +940,10 @@ exports.gradeSubmission = async (req, res) => {
         .json({ success: false, message: 'Submission not found.' })
     }
 
-    res.status(200).json({ success: true, submission: result.rows[0] })
+    return res.status(200).json({ success: true, submission: result.rows[0] })
   } catch (err) {
     console.error('Error grading submission:', err)
-    res
+    return res
       .status(500)
       .json({ success: false, message: 'Server error grading submission.' })
   }
@@ -972,8 +972,8 @@ exports.logAttendance = async (req, res) => {
       RETURNING *;
     `
 
-    const savedLogs = []
-    for (const record of attendance_records) {
+    // Optimized using Promise.all to avoid blocking sequential queries
+    const logPromises = attendance_records.map(async (record) => {
       const values = [
         resolvedCourseId,
         record.student_id,
@@ -982,17 +982,19 @@ exports.logAttendance = async (req, res) => {
         tutorId,
       ]
       const result = await pool.query(query, values)
-      savedLogs.push(result.rows[0])
-    }
+      return result.rows[0]
+    })
 
-    res.status(200).json({
+    const savedLogs = await Promise.all(logPromises)
+
+    return res.status(200).json({
       success: true,
       message: 'Attendance logged successfully.',
       logs: savedLogs,
     })
   } catch (err) {
     console.error('Error logging attendance:', err)
-    res
+    return res
       .status(500)
       .json({ success: false, message: 'Server error logging attendance.' })
   }
@@ -1025,10 +1027,10 @@ exports.uploadCourseModule = async (req, res) => {
       description,
       tutorId,
     ])
-    res.status(201).json({ success: true, module: result.rows[0] })
+    return res.status(201).json({ success: true, module: result.rows[0] })
   } catch (err) {
     console.error('Error uploading module:', err)
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Server error uploading course module.',
     })
@@ -1044,10 +1046,10 @@ exports.getCourseModules = async (req, res) => {
       'SELECT * FROM course_modules WHERE course_id = $1 OR course_id::text = $2 ORDER BY week_number ASC',
       [resolvedId, courseId],
     )
-    res.status(200).json({ success: true, modules: result.rows })
+    return res.status(200).json({ success: true, modules: result.rows })
   } catch (err) {
     console.error('Error fetching modules:', err)
-    res
+    return res
       .status(500)
       .json({ success: false, message: 'Server error fetching modules.' })
   }
@@ -1080,10 +1082,10 @@ exports.scheduleLiveSession = async (req, res) => {
       description,
       tutorId,
     ])
-    res.status(201).json({ success: true, session: result.rows[0] })
+    return res.status(201).json({ success: true, session: result.rows[0] })
   } catch (err) {
     console.error('Error scheduling live session:', err)
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Server error scheduling live session.',
     })
@@ -1099,10 +1101,10 @@ exports.getLiveSessions = async (req, res) => {
       'SELECT * FROM live_sessions WHERE course_id = $1 OR course_id::text = $2 ORDER BY scheduled_at ASC',
       [resolvedId, courseId],
     )
-    res.status(200).json({ success: true, sessions: result.rows })
+    return res.status(200).json({ success: true, sessions: result.rows })
   } catch (err) {
     console.error('Error fetching sessions:', err)
-    res
+    return res
       .status(500)
       .json({ success: false, message: 'Server error fetching live sessions.' })
   }
@@ -1122,10 +1124,10 @@ exports.getCourseRoster = async (req, res) => {
       WHERE e.course_id = $1 OR e.course_id::text = $2 OR LOWER(e.course) = LOWER($2) OR LOWER(e.course) = LOWER($3)
     `
     const result = await pool.query(query, [resolvedId, courseId, courseName])
-    res.status(200).json({ success: true, roster: result.rows })
+    return res.status(200).json({ success: true, roster: result.rows })
   } catch (err) {
     console.error('Error fetching roster:', err)
-    res
+    return res
       .status(500)
       .json({ success: false, message: 'Server error fetching course roster.' })
   }
@@ -1159,10 +1161,10 @@ exports.submitIterativeFeedback = async (req, res) => {
         .status(404)
         .json({ success: false, message: 'Submission not found.' })
     }
-    res.status(200).json({ success: true, submission: result.rows[0] })
+    return res.status(200).json({ success: true, submission: result.rows[0] })
   } catch (err) {
     console.error('Error submitting review:', err)
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Server error updating repository review.',
     })
@@ -1181,10 +1183,10 @@ exports.createCourseAnnouncement = async (req, res) => {
       RETURNING *;
     `
     const result = await pool.query(query, [resolvedCourseId, title, content, tutorId])
-    res.status(201).json({ success: true, announcement: result.rows[0] })
+    return res.status(201).json({ success: true, announcement: result.rows[0] })
   } catch (err) {
     console.error('Error creating course announcement:', err)
-    res
+    return res
       .status(500)
       .json({ success: false, message: 'Server error creating announcement.' })
   }
@@ -1222,7 +1224,7 @@ exports.getClassAnalytics = async (req, res) => {
     `
     const atRiskResult = await pool.query(atRiskQuery, [resolvedId, courseId, courseName])
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       analytics: {
         summary: statsResult.rows[0],
@@ -1231,7 +1233,7 @@ exports.getClassAnalytics = async (req, res) => {
     })
   } catch (err) {
     console.error('Error fetching analytics:', err)
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Server error generating class analytics.',
     })
@@ -1245,7 +1247,9 @@ exports.getAssignedCohortStudents = async (req, res) => {
     const cohortName = normalizeCourseName(cohortId)
 
     let query = `
-      SELECT DISTINCT u.id, u.first_name, u.last_name, u.name, u.email, u.phone, u.scholarship_status, u.student_type 
+      SELECT DISTINCT u.id, u.name, u.email, u.phone, 
+             COALESCE(u.scholarship_status, 'none') as scholarship_status, 
+             COALESCE(u.student_type, 'regular') as student_type 
       FROM users u
       JOIN enrollments e ON u.id = e.user_id
     `
@@ -1257,9 +1261,9 @@ exports.getAssignedCohortStudents = async (req, res) => {
     }
 
     const result = await pool.query(query, params)
-    res.status(200).json({ success: true, students: result.rows })
+    return res.status(200).json({ success: true, students: result.rows })
   } catch (error) {
      console.error('Error fetching tutor students:', error)
-     res.status(500).json({ success: false, message: 'Server error fetching students.' })
+     return res.status(500).json({ success: false, message: 'Server error fetching students.' })
   }
 }
