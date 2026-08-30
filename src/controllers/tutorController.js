@@ -23,14 +23,13 @@
 //     return Number(courseIdentifier)
 //   }
 
-//   // Otherwise, attempt to look up the course by ID first, then by title/slug match
+//   // Otherwise, attempt to look up the course by ID first, then by title/slug match (removed non-existent 'code' column)
 //   const normalizedName = normalizeCourseName(courseIdentifier)
 //   const query = `
 //     SELECT id FROM courses
 //     WHERE id::text = $1
 //        OR LOWER(title) = LOWER($1)
 //        OR LOWER(title) = LOWER($2)
-//        OR LOWER(code) = LOWER($1)
 //     LIMIT 1;
 //   `
 //   const result = await client.query(query, [courseIdentifier, normalizedName])
@@ -96,13 +95,13 @@
 //   }
 // }
 
-// // Fetch courses explicitly assigned to the logged-in tutor
+// // Fetch courses explicitly assigned to the logged-in tutor (removed non-existent 'code' column)
 // exports.getTutorCourses = async (req, res) => {
 //   try {
 //     const tutorId = req.user.id
 
 //     const query = `
-//       SELECT id, title, description, code, category, tutor_id
+//       SELECT id, title, description, category, tutor_id
 //       FROM courses
 //       WHERE tutor_id = $1
 //     `
@@ -643,6 +642,8 @@
 
 
 
+
+
 // src/controllers/tutorController.js
 const pool = require('../config/db')
 const jwt = require('jsonwebtoken')
@@ -657,8 +658,8 @@ const normalizeCourseName = (courseParam) => {
 }
 
 /**
- * HELPER: Resolve course identifier (handles both numeric IDs / UUIDs and string slugs/names)
- * Prevents PostgreSQL type mismatch errors (e.g., passing "fullstack-dev" into an integer/UUID column).
+ * HELPER: Resolve course identifier (handles both numeric IDs and string slugs/names)
+ * Prevents PostgreSQL type mismatch errors (e.g., passing "fullstack-dev" into an integer column).
  */
 const resolveCourseId = async (client, courseIdentifier) => {
   if (!courseIdentifier) return null
@@ -668,13 +669,14 @@ const resolveCourseId = async (client, courseIdentifier) => {
     return Number(courseIdentifier)
   }
 
-  // Otherwise, attempt to look up the course by ID first, then by title/slug match (removed non-existent 'code' column)
+  // Attempt to look up the course by matching title, slug transformation, or ID text
   const normalizedName = normalizeCourseName(courseIdentifier)
   const query = `
     SELECT id FROM courses 
     WHERE id::text = $1 
        OR LOWER(title) = LOWER($1) 
        OR LOWER(title) = LOWER($2) 
+       OR LOWER(REPLACE(title, ' ', '-')) = LOWER($1)
     LIMIT 1;
   `
   const result = await client.query(query, [courseIdentifier, normalizedName])
@@ -740,7 +742,7 @@ exports.tutorLogin = async (req, res) => {
   }
 }
 
-// Fetch courses explicitly assigned to the logged-in tutor (removed non-existent 'code' column)
+// Fetch courses explicitly assigned to the logged-in tutor
 exports.getTutorCourses = async (req, res) => {
   try {
     const tutorId = req.user.id
@@ -781,24 +783,9 @@ exports.createAssessment = async (req, res) => {
     // Resolve course_id in case a slug or name was passed from frontend params
     const resolvedCourseId = await resolveCourseId(pool, course_id)
 
-    const query = `
-      SELECT id FROM courses WHERE id = $1 AND tutor_id = $2
-    `
-    const courseCheck = await pool.query(query, [resolvedCourseId, tutorId])
-    
-    // Optional safety check: ensure tutor is assigned to this course (uncomment if strict enforcement is needed)
-    /*
-    if (courseCheck.rows.length === 0) {
-      return res.status(403).json({ success: false, message: 'Unauthorized: You are not assigned to this course.' })
-    }
-    */
-
-    const insertQuery = `
-      SELECT * FROM assessments; -- placeholder check
-    `
     const assessmentQuery = `
-      INSERT INTO assessments (course_id, title, description, type, total_marks, weight, tutor_id, due_date)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO assessments (course_id, title, description, type, total_marks, weight, tutor_id, created_by, due_date)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $7, $8)
       RETURNING *;
     `
     const values = [
@@ -808,7 +795,7 @@ exports.createAssessment = async (req, res) => {
       type || 'assignment',
       total_marks || 100,
       weight || 0,
-      tutorId, // Aligned with tutor_id across all tutor-created tables
+      tutorId, 
       due_date || null,
     ]
 
@@ -1044,7 +1031,7 @@ exports.uploadCourseModule = async (req, res) => {
       content_type || 'video',
       resource_url,
       description,
-      tutorId, // Aligned to tutor_id for consistency with admin & live sessions
+      tutorId,
     ])
     res.status(201).json({ success: true, module: result.rows[0] })
   } catch (err) {

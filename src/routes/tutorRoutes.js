@@ -447,7 +447,6 @@
 
 
 
-
 // src/routes/tutorRoutes.js
 const express = require('express')
 const router = express.Router()
@@ -884,8 +883,8 @@ router.get('/analytics/:courseId', getClassAnalytics)
  *       - in: query
  *         name: cohortId
  *         schema:
- *           type: integer
- *         example: 3
+ *           type: string
+ *         example: "3"
  *     responses:
  *       200:
  *         description: Cohort students retrieved successfully
