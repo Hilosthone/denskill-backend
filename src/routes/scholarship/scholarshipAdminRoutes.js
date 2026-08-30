@@ -42,7 +42,7 @@ router.use(protect, isAdmin)
  *     summary: Get scholarship dashboard metrics and active cohort
  *     tags: [Scholarship Admin]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: cohortId
@@ -63,7 +63,7 @@ router.get('/metrics', getScholarshipDashboardMetrics)
  *     summary: View all filtered scholarship applications
  *     tags: [Scholarship Admin]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: cohortId
@@ -90,7 +90,7 @@ router.get('/applications', getAllApplications)
  *     summary: Get all pending scholarship applications
  *     tags: [Scholarship Admin]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: cohortId
@@ -111,7 +111,7 @@ router.get('/applications/pending', getPendingApplications)
  *     summary: Get applications approved and awaiting student contribution payment
  *     tags: [Scholarship Admin]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: cohortId
@@ -132,7 +132,7 @@ router.get('/applications/awaiting-payment', getAwaitingPaymentApplications)
  *     summary: Get successfully paid and enrolled scholarship students + revenue total
  *     tags: [Scholarship Admin]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: cohortId
@@ -153,7 +153,7 @@ router.get('/applications/paid', getPaidAndEnrolledStudents)
  *     summary: Approve a scholarship application and generate payment reference
  *     tags: [Scholarship Admin]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -184,7 +184,7 @@ router.put('/applications/:id/approve', approveApplication)
  *     summary: Reject a scholarship application
  *     tags: [Scholarship Admin]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -215,7 +215,7 @@ router.put('/applications/:id/reject', rejectApplication)
  *     summary: Manually onboard a scholarship student with credentials and payment tracking
  *     tags: [Scholarship Admin]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -296,7 +296,7 @@ router.post('/students/manual-onboard', manualOnboardScholarshipStudent)
  *     summary: List all scholarship cohorts
  *     tags: [Scholarship Admin]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Cohorts retrieved successfully
@@ -310,7 +310,7 @@ router.get('/cohorts', getAllCohorts)
  *     summary: Create a new scholarship cohort
  *     tags: [Scholarship Admin]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -362,7 +362,7 @@ router.post('/cohorts', createCohort)
  *     summary: Update scholarship cohort status (e.g., ACTIVE, CLOSED)
  *     tags: [Scholarship Admin]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -395,7 +395,7 @@ router.put('/cohorts/:id/status', updateCohortStatus)
  *     summary: Activate a scholarship cohort
  *     tags: [Scholarship Admin]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -416,7 +416,7 @@ router.patch('/cohorts/:id/activate', activateCohort)
  *     summary: Deactivate a scholarship cohort
  *     tags: [Scholarship Admin]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -441,7 +441,7 @@ router.patch('/cohorts/:id/deactivate', deactivateCohort)
  *     summary: Edit or update scholarship cohort details
  *     tags: [Scholarship Admin]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -487,7 +487,7 @@ router.put('/cohorts/:id', updateCohort)
  *     summary: Delete a scholarship cohort
  *     tags: [Scholarship Admin]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
