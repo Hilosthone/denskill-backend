@@ -950,7 +950,6 @@ exports.gradeSubmission = async (req, res) => {
 }
 
 exports.logAttendance = async (req, res) => {
-  const client = await pool.connect()
   try {
     const { course_id, attendance_records } = req.body
     const tutorId = req.user.id
@@ -963,9 +962,7 @@ exports.logAttendance = async (req, res) => {
       })
     }
 
-    const resolvedCourseId = await resolveCourseId(client, course_id)
-
-    await client.query('BEGIN')
+    const resolvedCourseId = await resolveCourseId(pool, course_id)
 
     const query = `
       INSERT INTO attendance_logs (course_id, student_id, session_date, status, logged_by)
@@ -981,14 +978,12 @@ exports.logAttendance = async (req, res) => {
         resolvedCourseId,
         record.student_id,
         sessionDate,
-        record.status,
+        record.status || 'present',
         tutorId,
       ]
-      const result = await client.query(query, values)
+      const result = await pool.query(query, values)
       savedLogs.push(result.rows[0])
     }
-
-    await client.query('COMMIT')
 
     res.status(200).json({
       success: true,
@@ -996,13 +991,10 @@ exports.logAttendance = async (req, res) => {
       logs: savedLogs,
     })
   } catch (err) {
-    await client.query('ROLLBACK')
     console.error('Error logging attendance:', err)
     res
       .status(500)
       .json({ success: false, message: 'Server error logging attendance.' })
-  } finally {
-    client.release()
   }
 }
 

@@ -191,6 +191,7 @@
 
 // src/config/swagger.js
 const swaggerJSDoc = require('swagger-jsdoc')
+const path = require('path')
 
 const options = {
   definition: {
@@ -239,10 +240,10 @@ const options = {
     ],
   },
   apis: [
-    './src/routes/*.js',
-    './src/controllers/*.js',
-    './src/routes/scholarship/*.js',
-    './src/controllers/scholarship/*.js',
+    path.join(__dirname, '../routes/*.js'),
+    path.join(__dirname, '../controllers/*.js'),
+    path.join(__dirname, '../routes/scholarship/*.js'),
+    path.join(__dirname, '../controllers/scholarship/*.js'),
   ],
 }
 
