@@ -95,6 +95,24 @@ router.use(protect)
  *                 items:
  *                   type: string
  *                 example: ["Async/Await", "REST APIs", "React State Management"]
+ *               durationMinutes:
+ *                 type: integer
+ *                 example: 45
+ *                 description: Assessment duration in minutes
+ *               expiresAt:
+ *                 type: string
+ *                 format: date-time
+ *                 example: "2026-12-31T23:59:59Z"
+ *                 description: Expiry date and time for the question bank
+ *               startTime:
+ *                 type: string
+ *                 format: date-time
+ *                 example: "2026-09-01T08:00:00Z"
+ *                 description: Scheduled start time for the assessment
+ *               maxAttempts:
+ *                 type: integer
+ *                 example: 2
+ *                 description: Maximum allowed attempts per candidate
  *     responses:
  *       201:
  *         description: Question bank successfully created
@@ -197,6 +215,18 @@ router.post('/validate-import', authorize('ADMIN', 'TUTOR'), validateImport)
  *                 items:
  *                   type: string
  *                 example: ["Bloc Architecture", "Riverpod Providers"]
+ *               durationMinutes:
+ *                 type: integer
+ *                 example: 60
+ *               expiresAt:
+ *                 type: string
+ *                 format: date-time
+ *               startTime:
+ *                 type: string
+ *                 format: date-time
+ *               maxAttempts:
+ *                 type: integer
+ *                 example: 1
  *     responses:
  *       200:
  *         description: Question bank updated successfully

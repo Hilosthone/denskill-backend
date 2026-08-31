@@ -1,4 +1,4 @@
-// src/routes/questionRoutes.js
+// // src/routes/questionRoutes.js
 const express = require('express')
 const router = express.Router()
 const { protect, authorize } = require('../middleware/authMiddleware')
@@ -25,7 +25,7 @@ router.use(protect)
  * @swagger
  * /api/questions:
  *   get:
- *     summary: Get all programming assessment questions with optional filters (Accessible by Admin, Tutors, and Students)
+ *     summary: Get all programming assessment questions with optional filters and pagination
  *     tags: [Questions]
  *     security:
  *       - BearerAuth: []
@@ -45,9 +45,21 @@ router.use(protect)
  *         schema:
  *           type: string
  *         description: Filter questions by course ID (e.g., FULLSTACK_MERN, MOBILE_FLUTTER)
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Number of records per page
  *     responses:
  *       200:
- *         description: List of programming questions successfully retrieved
+ *         description: List of programming questions successfully retrieved with pagination metadata
  *       401:
  *         description: Unauthorized
  *   post:
@@ -101,12 +113,12 @@ router.use(protect)
  *                       example: true
  *                     explanation:
  *                       type: string
- *                       example: useMemo caches the result of a function calculation between renders, whereas useCallback caches function definitions.
+ *                       example: useMemo caches the result of a function calculation between renders.
  *     responses:
  *       201:
  *         description: Programming question successfully created
  *       400:
- *         description: Bad request or validation failure
+ *         description: Bad request or validation failure (e.g., missing correct option)
  *       401:
  *         description: Unauthorized
  *       403:
@@ -164,7 +176,7 @@ router
  *                 example: MERN_STACK_PRO
  *               questionText:
  *                 type: string
- *                 example: What will be the output of executing an async function that encounters an unhandled rejected Promise without a try/catch block?
+ *                 example: What will be the output of executing an async function that encounters an unhandled rejected Promise?
  *               questionType:
  *                 type: string
  *                 example: MCQ
@@ -180,6 +192,8 @@ router
  *     responses:
  *       200:
  *         description: Question updated successfully
+ *       400:
+ *         description: Validation error (e.g. invalid options count)
  *       403:
  *         description: Forbidden - Insufficient permissions
  *       404:

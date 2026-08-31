@@ -794,7 +794,7 @@ const runMigrations = async () => {
       '✅ Database migration checked: announcements & additional tables verified.',
     )
 
-    // 8. Automatically ensure question_banks, questions, and question_options tables exist
+    // 8. Automatically ensure question_banks, questions, and question_options tables exist with timer columns
     await pool.query(`
       CREATE TABLE IF NOT EXISTS question_banks (
         id SERIAL PRIMARY KEY,
@@ -802,6 +802,10 @@ const runMigrations = async () => {
         description TEXT,
         course_id VARCHAR(100),
         subjects TEXT[],
+        duration_minutes INTEGER DEFAULT 30,
+        expires_at TIMESTAMP WITH TIME ZONE,
+        start_time TIMESTAMP WITH TIME ZONE,
+        max_attempts INTEGER DEFAULT 1,
         created_by INTEGER REFERENCES instructors(id) ON DELETE SET NULL,
         created_by_role VARCHAR(50) DEFAULT 'TUTOR',
         status VARCHAR(50) DEFAULT 'DRAFT',
@@ -809,6 +813,11 @@ const runMigrations = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      ALTER TABLE question_banks ADD COLUMN IF NOT EXISTS duration_minutes INTEGER DEFAULT 30;
+      ALTER TABLE question_banks ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE;
+      ALTER TABLE question_banks ADD COLUMN IF NOT EXISTS start_time TIMESTAMP WITH TIME ZONE;
+      ALTER TABLE question_banks ADD COLUMN IF NOT EXISTS max_attempts INTEGER DEFAULT 1;
 
       CREATE TABLE IF NOT EXISTS questions (
         id SERIAL PRIMARY KEY,
