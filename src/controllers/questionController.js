@@ -465,7 +465,6 @@
  */
 
 const pool = require('../config/db')
-const client = await pool.getClient()
 
 /**
  * @desc    Create a question and its associated options
@@ -506,7 +505,8 @@ const createQuestion = async (req, res) => {
       await client.query('ROLLBACK')
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields or insufficient options (minimum 2 required).',
+        message:
+          'Missing required fields or insufficient options (minimum 2 required).',
       })
     }
 

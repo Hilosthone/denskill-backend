@@ -5,7 +5,6 @@
  */
 
 const pool = require('../config/db')
-const client = await pool.getClient()
 
 /**
  * @desc    Get question banks with filters, search, and pagination
@@ -13,6 +12,9 @@ const client = await pool.getClient()
  * @access  Admin or Tutor
  */
 const getQuestionBanks = async (req, res) => {
+  // 1. Get the client INSIDE the async function function block
+  const client = await pool.getClient()
+
   try {
     const { status, courseId, search, page = 1, limit = 20 } = req.query
     const parsedPage = parseInt(page, 10)
