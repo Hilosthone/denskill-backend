@@ -1,135 +1,7 @@
-// // src/routes/questionBankRoutes.js
-// const express = require('express')
-// const router = express.Router()
-// const { protect } = require('../middleware/authMiddleware')
-// const {
-//   getQuestionBanks,
-//   createQuestionBank,
-//   submitQuestionBank,
-// } = require('../controllers/questionBankController')
-
-// /**
-//  * @swagger
-//  * tags:
-//  *   name: Question Banks
-//  *   description: API endpoints for managing question banks
-//  */
-
-// // All routes are protected and require a valid Bearer token
-// router.use(protect)
-
-// /**
-//  * @swagger
-//  * /api/question-banks:
-//  *   get:
-//  *     summary: Retrieve a list of question banks
-//  *     tags: [Question Banks]
-//  *     security:
-//  *       - BearerAuth: []
-//  *     parameters:
-//  *       - in: query
-//  *         name: course_id
-//  *         schema:
-//  *           type: string
-//  *         description: Filter question banks by course ID
-//  *       - in: query
-//  *         name: status
-//  *         schema:
-//  *           type: string
-//  *         description: Filter question banks by status (e.g. DRAFT, PENDING_REVIEW, APPROVED)
-//  *     responses:
-//  *       200:
-//  *         description: Successfully retrieved question banks
-//  *         content:
-//  *           application/json:
-//  *             schema:
-//  *               type: object
-//  *               properties:
-//  *                 status:
-//  *                   type: string
-//  *                   example: success
-//  *                 data:
-//  *                   type: array
-//  *                   items:
-//  *                     type: object
-//  *       401:
-//  *         description: Unauthorized token missing or invalid
-//  *       500:
-//  *         description: Internal server error
-//  *   post:
-//  *     summary: Create a new question bank
-//  *     tags: [Question Banks]
-//  *     security:
-//  *       - BearerAuth: []
-//  *     requestBody:
-//  *       required: true
-//  *       content:
-//  *abor:
-//  *         application/json:
-//  *           schema:
-//  *             type: object
-//  *             required:
-//  *               - title
-//  *             properties:
-//  *               title:
-//  *                 type: string
-//  *                 example: Midterm Assessment Bank
-//  *               description:
-//  *                 type: string
-//  *                 example: Question bank covering chapters 1 to 5
-//  *               course_id:
-//  *                 type: string
-//  *                 example: CS101
-//  *               subjects:
-//  *                 type: array
-//  *                 items:
-//  *                   type: string
-//  *                 example: ["Algebra", "Calculus"]
-//  *     responses:
-//  *       201:
-//  *         description: Question bank successfully created
-//  *       400:
-//  *         description: Bad request or validation failure
-//  *       401:
-//  *         description: Unauthorized
-//  */
-// router.route('/').get(getQuestionBanks).post(createQuestionBank)
-
-// /**
-//  * @swagger
-//  * /api/question-banks/{id}/submit:
-//  *   patch:
-//  *     summary: Submit a question bank for review
-//  *     tags: [Question Banks]
-//  *     security:
-//  *       - BearerAuth: []
-//  *     parameters:
-//  *       - in: path
-//  *         name: id
-//  *         required: true
-//  *         schema:
-//  *           type: integer
-//  *         description: ID of the question bank to submit
-//  *     responses:
-//  *       200:
-//  *         description: Question bank successfully submitted for review
-//  *       400:
-//  *         description: Invalid input or already submitted
-//  *       404:
-//  *         description: Question bank not found
-//  *       401:
-//  *         description: Unauthorized
-//  */
-// router.patch('/:id/submit', submitQuestionBank)
-
-// module.exports = router
-
-
-
 // src/routes/questionBankRoutes.js
 const express = require('express')
 const router = express.Router()
-const { protect } = require('../middleware/authMiddleware')
+const { protect, authorize } = require('../middleware/authMiddleware')
 const {
   getQuestionBanks,
   createQuestionBank,
@@ -146,7 +18,7 @@ const {
  * @swagger
  * tags:
  *   name: Question Banks
- *   description: API endpoints for managing question banks
+ *   description: API endpoints for managing coding test and programming assessment question banks
  */
 
 // All routes are protected and require a valid Bearer token
@@ -156,7 +28,7 @@ router.use(protect)
  * @swagger
  * /api/question-banks:
  *   get:
- *     summary: Retrieve a list of question banks
+ *     summary: Retrieve a list of programming question banks (Accessible by Admin, Tutors, and Students)
  *     tags: [Question Banks]
  *     security:
  *       - BearerAuth: []
@@ -170,7 +42,7 @@ router.use(protect)
  *         name: courseId
  *         schema:
  *           type: string
- *         description: Filter question banks by course ID
+ *         description: Filter question banks by programming course ID (e.g., FULLSTACK_JS, MOBILE_FLUTTER)
  *       - in: query
  *         name: search
  *         schema:
@@ -196,7 +68,7 @@ router.use(protect)
  *       500:
  *         description: Internal server error
  *   post:
- *     summary: Create a new question bank
+ *     summary: Create a new programming question bank (Restricted to Admins and Tutors)
  *     tags: [Question Banks]
  *     security:
  *       - BearerAuth: []
@@ -211,18 +83,18 @@ router.use(protect)
  *             properties:
  *               title:
  *                 type: string
- *                 example: Midterm Assessment Bank
+ *                 example: Full-Stack JavaScript Midterm Assessment Bank
  *               description:
  *                 type: string
- *                 example: Question bank covering chapters 1 to 5
+ *                 example: Comprehensive coding assessment bank covering Node.js, Express, and React hooks
  *               courseId:
  *                 type: string
- *                 example: CS101
+ *                 example: MERN_STACK_PRO
  *               subjects:
  *                 type: array
  *                 items:
  *                   type: string
- *                 example: ["Algebra", "Calculus"]
+ *                 example: ["Async/Await", "REST APIs", "React State Management"]
  *     responses:
  *       201:
  *         description: Question bank successfully created
@@ -230,14 +102,19 @@ router.use(protect)
  *         description: Bad request or missing title
  *       401:
  *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Insufficient permissions (Requires Admin or Tutor role)
  */
-router.route('/').get(getQuestionBanks).post(createQuestionBank)
+router
+  .route('/')
+  .get(getQuestionBanks)
+  .post(authorize('ADMIN', 'TUTOR'), createQuestionBank)
 
 /**
  * @swagger
  * /api/question-banks/validate-import:
  *   post:
- *     summary: Validate question import payload
+ *     summary: Validate bulk coding question import payload (Restricted to Admins and Tutors)
  *     tags: [Question Banks]
  *     security:
  *       - BearerAuth: []
@@ -254,6 +131,7 @@ router.route('/').get(getQuestionBanks).post(createQuestionBank)
  *                 type: array
  *                 items:
  *                   type: object
+ *                 example: [{"questionText": "What does CORS stand for?", "options": [{"text": "Cross-Origin Resource Sharing", "isCorrect": true}]}]
  *     responses:
  *       200:
  *         description: Import validation results returned
@@ -261,14 +139,16 @@ router.route('/').get(getQuestionBanks).post(createQuestionBank)
  *         description: Invalid payload format
  *       401:
  *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Requires Admin or Tutor role
  */
-router.post('/validate-import', validateImport)
+router.post('/validate-import', authorize('ADMIN', 'TUTOR'), validateImport)
 
 /**
  * @swagger
  * /api/question-banks/{id}:
  *   get:
- *     summary: Get a single question bank by ID with its questions and options
+ *     summary: Get a single programming question bank by ID with its questions and code options (Accessible by Admin, Tutors, and Students)
  *     tags: [Question Banks]
  *     security:
  *       - BearerAuth: []
@@ -285,7 +165,7 @@ router.post('/validate-import', validateImport)
  *       404:
  *         description: Question bank not found
  *   put:
- *     summary: Update a question bank
+ *     summary: Update a programming question bank (Restricted to Admins and Tutors)
  *     tags: [Question Banks]
  *     security:
  *       - BearerAuth: []
@@ -305,21 +185,27 @@ router.post('/validate-import', validateImport)
  *             properties:
  *               title:
  *                 type: string
+ *                 example: Advanced Flutter State Management Question Bank
  *               description:
  *                 type: string
+ *                 example: Updated assessment covering Provider, Bloc, and Riverpod patterns
  *               courseId:
  *                 type: string
+ *                 example: MOBILE_FLUTTER_PRO
  *               subjects:
  *                 type: array
  *                 items:
  *                   type: string
+ *                 example: ["Bloc Architecture", "Riverpod Providers"]
  *     responses:
  *       200:
  *         description: Question bank updated successfully
+ *       403:
+ *         description: Forbidden - Insufficient permissions
  *       404:
  *         description: Question bank not found
  *   delete:
- *     summary: Delete a question bank
+ *     summary: Delete a programming question bank (Restricted to Admins and Tutors)
  *     tags: [Question Banks]
  *     security:
  *       - BearerAuth: []
@@ -333,20 +219,22 @@ router.post('/validate-import', validateImport)
  *     responses:
  *       200:
  *         description: Question bank deleted successfully
+ *       403:
+ *         description: Forbidden - Insufficient permissions
  *       404:
  *         description: Question bank not found
  */
 router
   .route('/:id')
   .get(getQuestionBankById)
-  .put(updateQuestionBank)
-  .delete(deleteQuestionBank)
+  .put(authorize('ADMIN', 'TUTOR'), updateQuestionBank)
+  .delete(authorize('ADMIN', 'TUTOR'), deleteQuestionBank)
 
 /**
  * @swagger
  * /api/question-banks/{id}/submit:
  *   patch:
- *     summary: Submit a question bank for review
+ *     summary: Submit a programming question bank for review (Restricted to Tutors)
  *     tags: [Question Banks]
  *     security:
  *       - BearerAuth: []
@@ -362,16 +250,18 @@ router
  *         description: Question bank successfully submitted for review
  *       400:
  *         description: Validation failed (e.g. missing questions, insufficient options)
+ *       403:
+ *         description: Forbidden - Requires Tutor role
  *       404:
  *         description: Question bank not found or unauthorized
  */
-router.patch('/:id/submit', submitQuestionBank)
+router.patch('/:id/submit', authorize('TUTOR'), submitQuestionBank)
 
 /**
  * @swagger
  * /api/question-banks/{id}/review:
  *   patch:
- *     summary: Review (Approve or Reject) a question bank
+ *     summary: Review (Approve or Reject) a programming question bank (Restricted to Admins)
  *     tags: [Question Banks]
  *     security:
  *       - BearerAuth: []
@@ -396,22 +286,24 @@ router.patch('/:id/submit', submitQuestionBank)
  *                 example: APPROVED
  *               reviewComment:
  *                 type: string
- *                 example: Looks good. Approved for deployment.
+ *                 example: Code snippets and options verified. Approved for deployment.
  *     responses:
  *       200:
  *         description: Question bank review status updated successfully
  *       400:
  *         description: Invalid status provided
+ *       403:
+ *         description: Forbidden - Requires Administrator role
  *       404:
  *         description: Question bank not found
  */
-router.patch('/:id/review', reviewQuestionBank)
+router.patch('/:id/review', authorize('ADMIN'), reviewQuestionBank)
 
 /**
  * @swagger
  * /api/question-banks/{id}/import:
  *   post:
- *     summary: Bulk import questions into a question bank
+ *     summary: Bulk import programming questions into a question bank (Restricted to Admins and Tutors)
  *     tags: [Question Banks]
  *     security:
  *       - BearerAuth: []
@@ -440,11 +332,13 @@ router.patch('/:id/review', reviewQuestionBank)
  *         description: Questions successfully imported
  *       400:
  *         description: No questions provided
+ *       403:
+ *         description: Forbidden - Requires Admin or Tutor role
  *       404:
  *         description: Question bank not found
  *       500:
  *         description: Server error during import
  */
-router.post('/:id/import', importQuestions)
+router.post('/:id/import', authorize('ADMIN', 'TUTOR'), importQuestions)
 
 module.exports = router

@@ -1,92 +1,7 @@
-// // src/routes/questionRoutes.js
-// const express = require('express')
-// const router = express.Router()
-// const { protect } = require('../middleware/authMiddleware')
-// const { createQuestion } = require('../controllers/questionController')
-
-// /**
-//  * @swagger
-//  * tags:
-//  *   name: Questions
-//  *   description: API endpoints for managing individual questions within banks
-//  */
-
-// // All routes are protected and require a valid Bearer token
-// router.use(protect)
-
-// /**
-//  * @swagger
-//  * /api/questions:
-//  *   post:
-//  *     summary: Create a new question
-//  *     tags: [Questions]
-//  *     security:
-//  *       - BearerAuth: []
-//  *     requestBody:
-//  *       required: true
-//  *       content:
-//  *         application/json:
-//  *           schema:
-//  *             type: object
-//  *             required:
-//  *               - question_bank_id
-//  *               - subject_id
-//  *               - question_text
-//  *             properties:
-//  *               question_bank_id:
-//  *                 type: integer
-//  *                 example: 1
-//  *               subject_id:
-//  *                 type: string
-//  *                 example: sub_algebra_01
-//  *               course_id:
-//  *                 type: string
-//  *                 example: CS101
-//  *               question_text:
-//  *                 type: string
-//  *                 example: What is the derivative of x^2?
-//  *               question_type:
-//  *                 type: string
-//  *                 example: MCQ
-//  *               image_url:
-//  *                 type: string
-//  *                 example: https://example.com/images/question-1.png
-//  *               marks:
-//  *                 type: integer
-//  *                 example: 2
-//  *               options:
-//  *                 type: array
-//  *                 items:
-//  *                   type: object
-//  *                   properties:
-//  *                     text:
-//  *                       type: string
-//  *                       example: 2x
-//  *                     is_correct:
-//  *                       type: boolean
-//  *                       example: true
-//  *                     explanation:
-//  *                       type: string
-//  *                       example: Using the power rule, d/dx(x^2) = 2x.
-//  *     responses:
-//  *       201:
-//  *         description: Question successfully created
-//  *       400:
-//  *         description: Bad request or validation failure
-//  *       401:
-//  *         description: Unauthorized
-//  *       404:
-//  *         description: Question bank not found
-//  */
-// router.post('/', createQuestion)
-
-// module.exports = router
-
-
 // src/routes/questionRoutes.js
 const express = require('express')
 const router = express.Router()
-const { protect } = require('../middleware/authMiddleware')
+const { protect, authorize } = require('../middleware/authMiddleware')
 const {
   createQuestion,
   getQuestions,
@@ -100,7 +15,7 @@ const {
  * @swagger
  * tags:
  *   name: Questions
- *   description: API endpoints for managing individual questions within banks
+ *   description: API endpoints for managing individual programming and computer science assessment questions within banks
  */
 
 // All routes are protected and require a valid Bearer token
@@ -110,7 +25,7 @@ router.use(protect)
  * @swagger
  * /api/questions:
  *   get:
- *     summary: Get all questions with optional filters
+ *     summary: Get all programming assessment questions with optional filters (Accessible by Admin, Tutors, and Students)
  *     tags: [Questions]
  *     security:
  *       - BearerAuth: []
@@ -124,19 +39,19 @@ router.use(protect)
  *         name: subject_id
  *         schema:
  *           type: string
- *         description: Filter questions by subject ID
+ *         description: Filter questions by programming track/subject ID (e.g., sub_react_01, sub_nodejs_01)
  *       - in: query
  *         name: course_id
  *         schema:
  *           type: string
- *         description: Filter questions by course ID
+ *         description: Filter questions by course ID (e.g., FULLSTACK_MERN, MOBILE_FLUTTER)
  *     responses:
  *       200:
- *         description: List of questions successfully retrieved
+ *         description: List of programming questions successfully retrieved
  *       401:
  *         description: Unauthorized
  *   post:
- *     summary: Create a new question
+ *     summary: Create a new programming assessment question (Restricted to Admins and Tutors)
  *     tags: [Questions]
  *     security:
  *       - BearerAuth: []
@@ -157,22 +72,22 @@ router.use(protect)
  *                 example: 1
  *               subjectId:
  *                 type: string
- *                 example: sub_algebra_01
+ *                 example: sub_react_hooks_01
  *               courseId:
  *                 type: string
- *                 example: CS101
+ *                 example: MERN_STACK_PRO
  *               questionText:
  *                 type: string
- *                 example: What is the derivative of x^2?
+ *                 example: What is the correct way to memoize a computational expensive function in React using the useCallback hook?
  *               questionType:
  *                 type: string
  *                 example: MCQ
  *               imageUrl:
  *                 type: string
- *                 example: https://example.com/images/question-1.png
+ *                 example: https://enskill.com/assets/code-snippet-1.png
  *               marks:
  *                 type: integer
- *                 example: 2
+ *                 example: 5
  *               options:
  *                 type: array
  *                 items:
@@ -180,28 +95,33 @@ router.use(protect)
  *                   properties:
  *                     text:
  *                       type: string
- *                       example: 2x
+ *                       example: useMemo(() => compute(x), [x])
  *                     isCorrect:
  *                       type: boolean
  *                       example: true
  *                     explanation:
  *                       type: string
- *                       example: Using the power rule, d/dx(x^2) = 2x.
+ *                       example: useMemo caches the result of a function calculation between renders, whereas useCallback caches function definitions.
  *     responses:
  *       201:
- *         description: Question successfully created
+ *         description: Programming question successfully created
  *       400:
  *         description: Bad request or validation failure
  *       401:
  *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Insufficient permissions (Requires Admin or Tutor role)
  */
-router.route('/').get(getQuestions).post(createQuestion)
+router
+  .route('/')
+  .get(getQuestions)
+  .post(authorize('ADMIN', 'TUTOR'), createQuestion)
 
 /**
  * @swagger
  * /api/questions/{id}:
  *   get:
- *     summary: Get a single question by ID
+ *     summary: Get a single programming question by ID (Accessible by Admin, Tutors, and Students)
  *     tags: [Questions]
  *     security:
  *       - BearerAuth: []
@@ -214,11 +134,11 @@ router.route('/').get(getQuestions).post(createQuestion)
  *         description: Question ID
  *     responses:
  *       200:
- *         description: Question details retrieved successfully
+ *         description: Programming question details retrieved successfully
  *       404:
  *         description: Question not found
  *   put:
- *     summary: Update a question and its options
+ *     summary: Update a programming question and its options (Restricted to Admins and Tutors)
  *     tags: [Questions]
  *     security:
  *       - BearerAuth: []
@@ -238,16 +158,21 @@ router.route('/').get(getQuestions).post(createQuestion)
  *             properties:
  *               subjectId:
  *                 type: string
+ *                 example: sub_async_js_02
  *               courseId:
  *                 type: string
+ *                 example: MERN_STACK_PRO
  *               questionText:
  *                 type: string
+ *                 example: What will be the output of executing an async function that encounters an unhandled rejected Promise without a try/catch block?
  *               questionType:
  *                 type: string
+ *                 example: MCQ
  *               imageUrl:
  *                 type: string
  *               marks:
  *                 type: integer
+ *                 example: 3
  *               options:
  *                 type: array
  *                 items:
@@ -255,10 +180,12 @@ router.route('/').get(getQuestions).post(createQuestion)
  *     responses:
  *       200:
  *         description: Question updated successfully
+ *       403:
+ *         description: Forbidden - Insufficient permissions
  *       404:
  *         description: Question not found
  *   delete:
- *     summary: Delete a question
+ *     summary: Delete a programming question (Restricted to Admin and Creator Tutor)
  *     tags: [Questions]
  *     security:
  *       - BearerAuth: []
@@ -272,20 +199,22 @@ router.route('/').get(getQuestions).post(createQuestion)
  *     responses:
  *       200:
  *         description: Question deleted successfully
+ *       403:
+ *         description: Forbidden - Insufficient permissions
  *       404:
  *         description: Question not found
  */
 router
   .route('/:id')
   .get(getQuestionById)
-  .put(updateQuestion)
-  .delete(deleteQuestion)
+  .put(authorize('ADMIN', 'TUTOR'), updateQuestion)
+  .delete(authorize('ADMIN', 'TUTOR'), deleteQuestion)
 
 /**
  * @swagger
  * /api/questions/{id}/status:
  *   patch:
- *     summary: Update question status (e.g., ACTIVE, ARCHIVED)
+ *     summary: Update question status (e.g., ACTIVE, ARCHIVED) (Restricted to Admins and Tutors)
  *     tags: [Questions]
  *     security:
  *       - BearerAuth: []
@@ -313,9 +242,11 @@ router
  *         description: Question status updated successfully
  *       400:
  *         description: Status is required
+ *       403:
+ *         description: Forbidden - Insufficient permissions
  *       404:
  *         description: Question not found
  */
-router.patch('/:id/status', updateQuestionStatus)
+router.patch('/:id/status', authorize('ADMIN', 'TUTOR'), updateQuestionStatus)
 
 module.exports = router
