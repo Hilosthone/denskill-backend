@@ -119,6 +119,11 @@ app.use('/api/admin/scholarships', scholarshipAdminRoutes)
 app.use('/api/scholarship/auth', scholarshipAuthRoutes)
 app.use('/api/scholarship/enrollment', scholarshipEnrollmentRoutes)
 
+// Mount question banks and individual questions modules under clean API namespaces
+// These routes handle management, imports, reviews, and question-option mapping for tutors and admins
+app.use('/api/question-banks', require('./routes/questionBankRoutes'))
+app.use('/api/questions', require('./routes/questionRoutes'))
+
 // Initialize Swagger Documentation UI
 swaggerDocs(app)
 
