@@ -115,7 +115,7 @@ const options = {
       title: 'D Enskill Academy API Docs',
       version: '1.0.0',
       description:
-        'API documentation for D Enskill Academy backend admin, tutors, student portals, scholarship programme, auth, and flutterwave payments by Hilosthone.',
+        'API documentation for D Enskill Academy backend admin, tutors, student portals, scholarship programme, auth, leaderboard rankings, and flutterwave payments by Hilosthone.',
     },
     servers: [
       {
@@ -140,6 +140,7 @@ const options = {
       { name: 'Scholarship Admin', description: 'Platform management, scholarship cohort creation, application reviews, and manual onboarding' },
       { name: 'Question Banks', description: 'API endpoints for managing question banks' },
       { name: 'Questions', description: 'API endpoints for managing individual questions within banks' },
+      { name: 'Leaderboard', description: 'Global student percentage-based CGPA ranking system' },
     ],
     components: {
       securitySchemes: {

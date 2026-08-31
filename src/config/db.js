@@ -658,7 +658,7 @@ const runMigrations = async () => {
       ALTER TABLE assessments ADD COLUMN IF NOT EXISTS total_marks INTEGER DEFAULT 100;
       ALTER TABLE assessments ADD COLUMN IF NOT EXISTS weight NUMERIC DEFAULT 0;
       ALTER TABLE assessments ADD COLUMN IF NOT EXISTS due_date TIMESTAMP;
-      -- Safely convert course_id to VARCHAR if it was previously created as an INTEGER (Wrapped in DO block to prevent syntax/type casting errors)
+      
       DO $$ 
       BEGIN 
         IF EXISTS (
@@ -696,6 +696,7 @@ const runMigrations = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT unique_student_course_date UNIQUE (student_id, course_id, session_date)
       );
+      
       DO $$ 
       BEGIN 
         IF EXISTS (
@@ -721,6 +722,7 @@ const runMigrations = async () => {
       );
       ALTER TABLE course_modules ADD COLUMN IF NOT EXISTS course_id VARCHAR(100);
       ALTER TABLE course_modules ADD COLUMN IF NOT EXISTS tutor_id INTEGER;
+      
       DO $$ 
       BEGIN 
         IF EXISTS (
@@ -744,6 +746,7 @@ const runMigrations = async () => {
       );
       ALTER TABLE live_sessions ADD COLUMN IF NOT EXISTS course_id VARCHAR(100);
       ALTER TABLE live_sessions ADD COLUMN IF NOT EXISTS tutor_id INTEGER;
+      
       DO $$ 
       BEGIN 
         IF EXISTS (
@@ -764,6 +767,7 @@ const runMigrations = async () => {
       );
       ALTER TABLE course_announcements ADD COLUMN IF NOT EXISTS course_id VARCHAR(100);
       ALTER TABLE course_announcements ADD COLUMN IF NOT EXISTS tutor_id INTEGER;
+      
       DO $$ 
       BEGIN 
         IF EXISTS (
