@@ -4,7 +4,8 @@
  * submissions, reviews, and bulk question imports.
  */
 
-const pool = require('../config/db')
+// const pool = require('../config/db')
+const { pool } = require('../config/db')
 
 /**
  * @desc    Get question banks with filters, search, and pagination

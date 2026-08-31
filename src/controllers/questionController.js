@@ -464,7 +464,8 @@
  * including options management, pagination, filtering, and transaction safety.
  */
 
-const pool = require('../config/db')
+// const pool = require('../config/db')
+const { pool } = require('../config/db')
 
 /**
  * @desc    Create a question and its associated options
