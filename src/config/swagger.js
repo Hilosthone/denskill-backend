@@ -245,18 +245,60 @@ const options = {
     ],
     tags: [
       { name: 'System', description: 'Liveness and readiness health checks' },
-      { name: 'Auth', description: 'User authentication and account management' },
-      { name: 'Dashboard', description: 'Student portal overview, courses, and assessments (Normal & Scholarship)' },
-      { name: 'Enrollments', description: 'Student registration and payment flows' },
-      { name: 'Scholarship Enrollment', description: 'Public scholarship applications and pre-admission tracking' },
-      { name: 'Scholarship Auth', description: 'Scholarship applicant authentication' },
-      { name: 'Admin Auth', description: 'System administrator authentication' },
-      { name: 'Admin', description: 'Platform management, oversight, scholarship cohorts, and application reviews' },
-      { name: 'Tutors', description: 'Instructor authentication, assessment, grading, attendance portal, and assigned cohort student tracking' },
-      { name: 'Scholarship Admin', description: 'Platform management, scholarship cohort creation, application reviews, and manual onboarding' },
-      { name: 'Question Banks', description: 'API endpoints for managing question banks' },
-      { name: 'Questions', description: 'API endpoints for managing individual questions within banks' },
-      { name: 'Leaderboard', description: 'Global student percentage-based CGPA ranking system' },
+      {
+        name: 'Auth',
+        description: 'User authentication and account management',
+      },
+      {
+        name: 'Dashboard',
+        description:
+          'Student portal overview, courses, and assessments (Normal & Scholarship)',
+      },
+      {
+        name: 'Enrollments',
+        description: 'Student registration and payment flows',
+      },
+      {
+        name: 'Scholarship Enrollment',
+        description:
+          'Public scholarship applications and pre-admission tracking',
+      },
+      {
+        name: 'Scholarship Auth',
+        description: 'Scholarship applicant authentication',
+      },
+      {
+        name: 'Admin Auth',
+        description: 'System administrator authentication',
+      },
+      {
+        name: 'Admin',
+        description:
+          'Platform management, oversight, scholarship cohorts, and application reviews',
+      },
+      {
+        name: 'Tutors',
+        description:
+          'Instructor authentication, assessment, grading, attendance portal, and assigned cohort student tracking',
+      },
+      {
+        name: 'Scholarship Admin',
+        description:
+          'Platform management, scholarship cohort creation, application reviews, and manual onboarding',
+      },
+      {
+        name: 'Question Banks',
+        description: 'API endpoints for managing question banks',
+      },
+      {
+        name: 'Questions',
+        description:
+          'API endpoints for managing individual questions within banks',
+      },
+      {
+        name: 'Leaderboard',
+        description: 'Global student percentage-based CGPA ranking system',
+      },
     ],
     components: {
       securitySchemes: {
@@ -269,10 +311,11 @@ const options = {
     },
   },
   // Using path.resolve() ensures absolute file matching regardless of where the Node process is spawned from.
-  // We point exclusively to the routes folder since your JSDoc annotations are neatly maintained there, 
+  // We point exclusively to the routes folder since your JSDoc annotations are neatly maintained there,
   // preventing duplicate parsing warnings or overhead from scanning controllers as well.
   apis: [
     path.resolve(__dirname, '../routes/**/*.js'),
+    path.join(__dirname, '../controllers/**/*.js'),
   ],
 }
 
