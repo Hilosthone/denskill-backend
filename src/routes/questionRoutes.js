@@ -28,7 +28,7 @@ router.use(protect)
  *     summary: Get all programming assessment questions with optional filters and pagination
  *     tags: [Questions]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: question_bank_id
@@ -66,7 +66,7 @@ router.use(protect)
  *     summary: Create a new programming assessment question (Restricted to Admins and Tutors)
  *     tags: [Questions]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -136,7 +136,7 @@ router
  *     summary: Get a single programming question by ID (Accessible by Admin, Tutors, and Students)
  *     tags: [Questions]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -153,7 +153,7 @@ router
  *     summary: Update a programming question and its options (Restricted to Admins and Tutors)
  *     tags: [Questions]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -202,7 +202,7 @@ router
  *     summary: Delete a programming question (Restricted to Admin and Creator Tutor)
  *     tags: [Questions]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -231,7 +231,7 @@ router
  *     summary: Update question status (e.g., ACTIVE, ARCHIVED) (Restricted to Admins and Tutors)
  *     tags: [Questions]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id

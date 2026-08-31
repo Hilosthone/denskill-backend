@@ -31,7 +31,7 @@ router.use(protect)
  *     summary: Retrieve a list of programming question banks (Accessible by Admin, Tutors, and Students)
  *     tags: [Question Banks]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: status
@@ -71,7 +71,7 @@ router.use(protect)
  *     summary: Create a new programming question bank (Restricted to Admins and Tutors)
  *     tags: [Question Banks]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -135,7 +135,7 @@ router
  *     summary: Validate bulk coding question import payload (Restricted to Admins and Tutors)
  *     tags: [Question Banks]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -169,7 +169,7 @@ router.post('/validate-import', authorize('ADMIN', 'TUTOR'), validateImport)
  *     summary: Get a single programming question bank by ID with its questions and code options (Accessible by Admin, Tutors, and Students)
  *     tags: [Question Banks]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -186,7 +186,7 @@ router.post('/validate-import', authorize('ADMIN', 'TUTOR'), validateImport)
  *     summary: Update a programming question bank (Restricted to Admins and Tutors)
  *     tags: [Question Banks]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -238,7 +238,7 @@ router.post('/validate-import', authorize('ADMIN', 'TUTOR'), validateImport)
  *     summary: Delete a programming question bank (Restricted to Admins and Tutors)
  *     tags: [Question Banks]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -267,7 +267,7 @@ router
  *     summary: Submit a programming question bank for review (Restricted to Tutors)
  *     tags: [Question Banks]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -294,7 +294,7 @@ router.patch('/:id/submit', authorize('TUTOR'), submitQuestionBank)
  *     summary: Review (Approve or Reject) a programming question bank (Restricted to Admins)
  *     tags: [Question Banks]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -336,7 +336,7 @@ router.patch('/:id/review', authorize('ADMIN'), reviewQuestionBank)
  *     summary: Bulk import programming questions into a question bank (Restricted to Admins and Tutors)
  *     tags: [Question Banks]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
