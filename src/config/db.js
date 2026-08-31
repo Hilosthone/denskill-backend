@@ -859,6 +859,7 @@ runMigrations()
 
 module.exports = {
   query: (text, params) => pool.query(text, params),
+  connect: () => pool.connect(),
   getClient: () => pool.connect(),
   pool,
 }
