@@ -1,12 +1,485 @@
-// src/controllers/questionController.js
+// // src/controllers/questionController.js
+// const pool = require('../config/db')
+
+// // @desc    Create a question and its options
+// // @route   POST /api/questions
+// // @access  Admin or Tutor
+// const createQuestion = async (req, res) => {
+//   const client = await pool.connect()
+//   try {
+//     await client.query('BEGIN')
+
+//     const {
+//       questionBankId,
+//       subjectId,
+//       courseId,
+//       questionText,
+//       questionType = 'MCQ',
+//       imageUrl,
+//       marks = 1,
+//       options,
+//     } = req.body
+
+//     if (
+//       !questionBankId ||
+//       !subjectId ||
+//       !questionText ||
+//       !options ||
+//       !Array.isArray(options) ||
+//       options.length < 2
+//     ) {
+//       return res.status(400).json({
+//         success: false,
+//         message:
+//           'Missing required fields or insufficient options (minimum 2 required).',
+//       })
+//     }
+
+//     // Ensure at least one option is marked as correct
+//     const hasCorrectOption = options.some(
+//       (opt) => opt.isCorrect === true || opt.is_correct === true,
+//     )
+//     if (!hasCorrectOption) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'At least one option must be marked as the correct answer.',
+//       })
+//     }
+
+//     // Verify question bank exists
+//     const bankCheck = await client.query(
+//       'SELECT * FROM question_banks WHERE id = $1',
+//       [questionBankId],
+//     )
+//     if (bankCheck.rows.length === 0) {
+//       await client.query('ROLLBACK')
+//       return res
+//         .status(404)
+//         .json({ success: false, message: 'Question bank not found.' })
+//     }
+
+//     // Insert Question
+//     const questionQuery = `
+//       INSERT INTO questions (question_bank_id, subject_id, course_id, question_text, question_type, image_url, marks, created_by, created_by_role)
+//       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+//       RETURNING *;
+//     `
+//     const questionValues = [
+//       questionBankId,
+//       subjectId,
+//       courseId || bankCheck.rows[0].course_id || null,
+//       questionText,
+//       questionType,
+//       imageUrl || null,
+//       marks,
+//       req.user.id,
+//       req.user.role || 'TUTOR',
+//     ]
+
+//     const questionResult = await client.query(questionQuery, questionValues)
+//     const newQuestion = questionResult.rows[0]
+
+//     // Insert Options
+//     const insertedOptions = []
+//     for (const opt of options) {
+//       const optionQuery = `
+//         INSERT INTO question_options (question_id, text, is_correct, explanation)
+//         VALUES ($1, $2, $3, $4)
+//         RETURNING *;
+//       `
+//       const optionValues = [
+//         newQuestion.id,
+//         opt.text,
+//         opt.isCorrect || opt.is_correct || false,
+//         opt.explanation || null,
+//       ]
+//       const optResult = await client.query(optionQuery, optionValues)
+//       insertedOptions.push(optResult.rows[0])
+//     }
+
+//     await client.query('COMMIT')
+
+//     res.status(201).json({
+//       success: true,
+//       message: 'Question created successfully',
+//       data: {
+//         ...newQuestion,
+//         options: insertedOptions,
+//       },
+//     })
+//   } catch (error) {
+//     await client.query('ROLLBACK')
+//     console.error('Error creating question:', error)
+//     res
+//       .status(500)
+//       .json({ success: false, message: 'Server error creating question' })
+//   } finally {
+//     client.release()
+//   }
+// }
+
+// // @desc    Get all questions with optional filters and pagination
+// // @route   GET /api/questions
+// // @access  Admin or Tutor
+// const getQuestions = async (req, res) => {
+//   try {
+//     const {
+//       question_bank_id,
+//       subject_id,
+//       course_id,
+//       page = 1,
+//       limit = 20,
+//     } = req.query
+//     const offset = (page - 1) * limit
+
+//     let query = `
+//       SELECT q.*,
+//              COALESCE(
+//                json_agg(
+//                  json_build_object(
+//                    'id', qo.id,
+//                    'text', qo.text,
+//                    'is_correct', qo.is_correct,
+//                    'explanation', qo.explanation
+//                  )
+//                ) FILTER (WHERE qo.id IS NOT NULL), '[]'
+//              ) AS options
+//       FROM questions q
+//       LEFT JOIN question_options qo ON q.id = qo.question_id
+//     `
+//     let countQuery = `SELECT COUNT(DISTINCT q.id) FROM questions q WHERE 1=1`
+//     const conditions = []
+//     const values = []
+
+//     if (question_bank_id) {
+//       values.push(question_bank_id)
+//       conditions.push(`q.question_bank_id = $${values.length}`)
+//     }
+//     if (subject_id) {
+//       values.push(subject_id)
+//       conditions.push(`q.subject_id = $${values.length}`)
+//     }
+//     if (course_id) {
+//       values.push(course_id)
+//       conditions.push(`q.course_id = $${values.length}`)
+//     }
+
+//     if (conditions.length > 0) {
+//       const whereClause = ` WHERE ` + conditions.join(' AND ')
+//       query += whereClause
+//       countQuery += ` AND ` + conditions.join(' AND ')
+//     }
+
+//     values.push(limit, offset)
+//     query += ` GROUP BY q.id ORDER BY q.created_at DESC LIMIT $${values.length - 1} OFFSET $${values.length};`
+
+//     const [result, countResult] = await Promise.all([
+//       pool.query(query, values),
+//       pool.query(countQuery, values.slice(0, values.length - 2)),
+//     ])
+
+//     const total = parseInt(countResult.rows[0].count, 10)
+
+//     res.status(200).json({
+//       success: true,
+//       data: result.rows,
+//       pagination: {
+//         page: parseInt(page, 10),
+//         limit: parseInt(limit, 10),
+//         total,
+//         totalPages: Math.ceil(total / limit),
+//       },
+//     })
+//   } catch (error) {
+//     console.error('Error fetching questions:', error)
+//     res
+//       .status(500)
+//       .json({ success: false, message: 'Server error fetching questions' })
+//   }
+// }
+
+// // @desc    Get a single question by ID with options
+// // @route   GET /api/questions/:id
+// // @access  Admin or Tutor
+// const getQuestionById = async (req, res) => {
+//   try {
+//     const { id } = req.params
+
+//     const query = `
+//       SELECT q.*,
+//              COALESCE(
+//                json_agg(
+//                  json_build_object(
+//                    'id', qo.id,
+//                    'text', qo.text,
+//                    'is_correct', qo.is_correct,
+//                    'explanation', qo.explanation
+//                  )
+//                ) FILTER (WHERE qo.id IS NOT NULL), '[]'
+//              ) AS options
+//       FROM questions q
+//       LEFT JOIN question_options qo ON q.id = qo.question_id
+//       WHERE q.id = $1
+//       GROUP BY q.id;
+//     `
+//     const result = await pool.query(query, [id])
+
+//     if (result.rows.length === 0) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: 'Question not found' })
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       data: result.rows[0],
+//     })
+//   } catch (error) {
+//     console.error('Error fetching question:', error)
+//     res
+//       .status(500)
+//       .json({ success: false, message: 'Server error fetching question' })
+//   }
+// }
+
+// // @desc    Update a question and optionally replace/update its options
+// // @route   PUT /api/questions/:id
+// // @access  Admin or Tutor
+// const updateQuestion = async (req, res) => {
+//   const client = await pool.connect()
+//   try {
+//     await client.query('BEGIN')
+//     const { id } = req.params
+//     const {
+//       subjectId,
+//       courseId,
+//       questionText,
+//       questionType,
+//       imageUrl,
+//       marks,
+//       options,
+//     } = req.body
+
+//     // Check if question exists
+//     const checkRes = await client.query(
+//       'SELECT * FROM questions WHERE id = $1',
+//       [id],
+//     )
+//     if (checkRes.rows.length === 0) {
+//       await client.query('ROLLBACK')
+//       return res
+//         .status(404)
+//         .json({ success: false, message: 'Question not found' })
+//     }
+
+//     // If new options are provided, validate them
+//     if (options && Array.isArray(options)) {
+//       if (options.length < 2) {
+//         await client.query('ROLLBACK')
+//         return res
+//           .status(400)
+//           .json({
+//             success: false,
+//             message: 'A question must have at least 2 options.',
+//           })
+//       }
+//       const hasCorrect = options.some(
+//         (o) => o.isCorrect === true || o.is_correct === true,
+//       )
+//       if (!hasCorrect) {
+//         await client.query('ROLLBACK')
+//         return res
+//           .status(400)
+//           .json({
+//             success: false,
+//             message: 'At least one updated option must be marked as correct.',
+//           })
+//       }
+//     }
+
+//     const updateQuery = `
+//       UPDATE questions
+//       SET subject_id = COALESCE($1, subject_id),
+//           course_id = COALESCE($2, course_id),
+//           question_text = COALESCE($3, question_text),
+//           question_type = COALESCE($4, question_type),
+//           image_url = COALESCE($5, image_url),
+//           marks = COALESCE($6, marks),
+//           updated_at = CURRENT_TIMESTAMP
+//       WHERE id = $7
+//       RETURNING *;
+//     `
+//     const updateValues = [
+//       subjectId || null,
+//       courseId || null,
+//       questionText || null,
+//       questionType || null,
+//       imageUrl || null,
+//       marks || null,
+//       id,
+//     ]
+
+//     const updatedQRes = await client.query(updateQuery, updateValues)
+//     const updatedQuestion = updatedQRes.rows[0]
+
+//     let updatedOptions = []
+//     if (options && Array.isArray(options)) {
+//       await client.query(
+//         'DELETE FROM question_options WHERE question_id = $1',
+//         [id],
+//       )
+
+//       for (const opt of options) {
+//         const optionQuery = `
+//           INSERT INTO question_options (question_id, text, is_correct, explanation)
+//           VALUES ($1, $2, $3, $4)
+//           RETURNING *;
+//         `
+//         const optionValues = [
+//           id,
+//           opt.text,
+//           opt.isCorrect || opt.is_correct || false,
+//           opt.explanation || null,
+//         ]
+//         const optResult = await client.query(optionQuery, optionValues)
+//         updatedOptions.push(optResult.rows[0])
+//       }
+//     } else {
+//       const existingOpts = await client.query(
+//         'SELECT * FROM question_options WHERE question_id = $1',
+//         [id],
+//       )
+//       updatedOptions = existingOpts.rows
+//     }
+
+//     await client.query('COMMIT')
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'Question updated successfully',
+//       data: {
+//         ...updatedQuestion,
+//         options: updatedOptions,
+//       },
+//     })
+//   } catch (error) {
+//     await client.query('ROLLBACK')
+//     console.error('Error updating question:', error)
+//     res
+//       .status(500)
+//       .json({ success: false, message: 'Server error updating question' })
+//   } finally {
+//     client.release()
+//   }
+// }
+
+// // @desc    Delete a question and its cascade options
+// // @route   DELETE /api/questions/:id
+// // @access  Admin or Tutor
+// const deleteQuestion = async (req, res) => {
+//   try {
+//     const { id } = req.params
+//     const result = await pool.query(
+//       'DELETE FROM questions WHERE id = $1 RETURNING *;',
+//       [id],
+//     )
+
+//     if (result.rows.length === 0) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: 'Question not found' })
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'Question deleted successfully',
+//     })
+//   } catch (error) {
+//     console.error('Error deleting question:', error)
+//     res
+//       .status(500)
+//       .json({ success: false, message: 'Server error deleting question' })
+//   }
+// }
+
+// // @desc    Update question status (e.g. ACTIVE, ARCHIVED)
+// // @route   PATCH /api/questions/:id/status
+// // @access  Admin or Tutor
+// const updateQuestionStatus = async (req, res) => {
+//   try {
+//     const { id } = req.params
+//     const { status } = req.body
+
+//     if (!status) {
+//       return res
+//         .status(400)
+//         .json({ success: false, message: 'Status is required' })
+//     }
+
+//     const result = await pool.query(
+//       `UPDATE questions SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *;`,
+//       [status, id],
+//     )
+
+//     if (result.rows.length === 0) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: 'Question not found' })
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'Question status updated successfully',
+//       data: result.rows[0],
+//     })
+//   } catch (error) {
+//     console.error('Error updating question status:', error)
+//     res
+//       .status(500)
+//       .json({
+//         success: false,
+//         message: 'Server error updating question status',
+//       })
+//   }
+// }
+
+// module.exports = {
+//   createQuestion,
+//   getQuestions,
+//   getQuestionById,
+//   updateQuestion,
+//   deleteQuestion,
+//   updateQuestionStatus,
+// }
+
+
+
+
+
+
+
+/**
+ * @file questionController.js
+ * @description Controller handling CRUD operations for Question Banks and Questions,
+ * including options management, pagination, filtering, and transaction safety.
+ */
+
 const pool = require('../config/db')
 
-// @desc    Create a question and its options
-// @route   POST /api/questions
-// @access  Admin or Tutor
+/**
+ * @desc    Create a question and its associated options
+ * @route   POST /api/questions
+ * @access  Admin or Tutor
+ * 
+ * TEACHING NOTE:
+ * We use a PostgreSQL client from the pool with explicit transaction control (BEGIN, COMMIT, ROLLBACK).
+ * This ensures atomicity: if inserting the question succeeds, but inserting options fails, 
+ * the entire operation rolls back so we don't leave orphaned questions without choices.
+ */
 const createQuestion = async (req, res) => {
   const client = await pool.connect()
   try {
+    // 1. Start a database transaction
     await client.query('BEGIN')
 
     const {
@@ -20,6 +493,7 @@ const createQuestion = async (req, res) => {
       options,
     } = req.body
 
+    // 2. Validate essential fields and options count (Minimum 2 choices for MCQs)
     if (
       !questionBankId ||
       !subjectId ||
@@ -28,25 +502,26 @@ const createQuestion = async (req, res) => {
       !Array.isArray(options) ||
       options.length < 2
     ) {
+      await client.query('ROLLBACK')
       return res.status(400).json({
         success: false,
-        message:
-          'Missing required fields or insufficient options (minimum 2 required).',
+        message: 'Missing required fields or insufficient options (minimum 2 required).',
       })
     }
 
-    // Ensure at least one option is marked as correct
+    // 3. Ensure at least one option is explicitly marked as correct
     const hasCorrectOption = options.some(
       (opt) => opt.isCorrect === true || opt.is_correct === true,
     )
     if (!hasCorrectOption) {
+      await client.query('ROLLBACK')
       return res.status(400).json({
         success: false,
         message: 'At least one option must be marked as the correct answer.',
       })
     }
 
-    // Verify question bank exists
+    // 4. Verify that the parent question bank actually exists
     const bankCheck = await client.query(
       'SELECT * FROM question_banks WHERE id = $1',
       [questionBankId],
@@ -58,7 +533,7 @@ const createQuestion = async (req, res) => {
         .json({ success: false, message: 'Question bank not found.' })
     }
 
-    // Insert Question
+    // 5. Insert the parent Question record
     const questionQuery = `
       INSERT INTO questions (question_bank_id, subject_id, course_id, question_text, question_type, image_url, marks, created_by, created_by_role)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -79,7 +554,7 @@ const createQuestion = async (req, res) => {
     const questionResult = await client.query(questionQuery, questionValues)
     const newQuestion = questionResult.rows[0]
 
-    // Insert Options
+    // 6. Iterate through choices/options and insert them linked to the new question ID
     const insertedOptions = []
     for (const opt of options) {
       const optionQuery = `
@@ -97,6 +572,7 @@ const createQuestion = async (req, res) => {
       insertedOptions.push(optResult.rows[0])
     }
 
+    // 7. Commit changes permanently if all insertions pass successfully
     await client.query('COMMIT')
 
     res.status(201).json({
@@ -108,19 +584,28 @@ const createQuestion = async (req, res) => {
       },
     })
   } catch (error) {
+    // Revert all changes made during this session if any server/database error happens
     await client.query('ROLLBACK')
     console.error('Error creating question:', error)
     res
       .status(500)
       .json({ success: false, message: 'Server error creating question' })
   } finally {
+    // Release the client back to the connection pool
     client.release()
   }
 }
 
-// @desc    Get all questions with optional filters and pagination
-// @route   GET /api/questions
-// @access  Admin or Tutor
+/**
+ * @desc    Get all questions with optional filters and pagination
+ * @route   GET /api/questions
+ * @access  Admin or Tutor
+ * 
+ * TEACHING NOTE:
+ * Fixed a previous fragility bug involving parameter index slicing. 
+ * We now cleanly isolate filter parameters from limit/offset pagination parameters 
+ * to ensure that total count queries and main data queries execute with correct SQL parameter indexes ($1, $2, etc.).
+ */
 const getQuestions = async (req, res) => {
   try {
     const {
@@ -130,8 +615,31 @@ const getQuestions = async (req, res) => {
       page = 1,
       limit = 20,
     } = req.query
-    const offset = (page - 1) * limit
 
+    const parsedPage = parseInt(page, 10)
+    const parsedLimit = parseInt(limit, 10)
+    const offset = (parsedPage - 1) * parsedLimit
+
+    const conditions = []
+    const filterValues = []
+
+    // Build dynamic SQL query filters safely
+    if (question_bank_id) {
+      filterValues.push(question_bank_id)
+      conditions.push(`q.question_bank_id = $${filterValues.length}`)
+    }
+    if (subject_id) {
+      filterValues.push(subject_id)
+      conditions.push(`q.subject_id = $${filterValues.length}`)
+    }
+    if (course_id) {
+      filterValues.push(course_id)
+      conditions.push(`q.course_id = $${filterValues.length}`)
+    }
+
+    const whereClause = conditions.length > 0 ? ` WHERE ` + conditions.join(' AND ') : ``
+
+    // Main query aggregates options into a clean JSON array structure using json_agg
     let query = `
       SELECT q.*, 
              COALESCE(
@@ -146,36 +654,21 @@ const getQuestions = async (req, res) => {
              ) AS options
       FROM questions q
       LEFT JOIN question_options qo ON q.id = qo.question_id
+      ${whereClause}
+      GROUP BY q.id 
+      ORDER BY q.created_at DESC 
+      LIMIT $${filterValues.length + 1} OFFSET $${filterValues.length + 2};
     `
-    let countQuery = `SELECT COUNT(DISTINCT q.id) FROM questions q WHERE 1=1`
-    const conditions = []
-    const values = []
 
-    if (question_bank_id) {
-      values.push(question_bank_id)
-      conditions.push(`q.question_bank_id = $${values.length}`)
-    }
-    if (subject_id) {
-      values.push(subject_id)
-      conditions.push(`q.subject_id = $${values.length}`)
-    }
-    if (course_id) {
-      values.push(course_id)
-      conditions.push(`q.course_id = $${values.length}`)
-    }
+    let countQuery = `SELECT COUNT(DISTINCT q.id) FROM questions q ${whereClause};`
 
-    if (conditions.length > 0) {
-      const whereClause = ` WHERE ` + conditions.join(' AND ')
-      query += whereClause
-      countQuery += ` AND ` + conditions.join(' AND ')
-    }
+    // Combine filter values with pagination limits for the main data execution
+    const mainQueryValues = [...filterValues, parsedLimit, offset]
 
-    values.push(limit, offset)
-    query += ` GROUP BY q.id ORDER BY q.created_at DESC LIMIT $${values.length - 1} OFFSET $${values.length};`
-
+    // Execute data retrieval and total count calculation concurrently for optimum performance
     const [result, countResult] = await Promise.all([
-      pool.query(query, values),
-      pool.query(countQuery, values.slice(0, values.length - 2)),
+      pool.query(query, mainQueryValues),
+      pool.query(countQuery, filterValues), // Count query only needs search filters, not pagination values
     ])
 
     const total = parseInt(countResult.rows[0].count, 10)
@@ -184,10 +677,10 @@ const getQuestions = async (req, res) => {
       success: true,
       data: result.rows,
       pagination: {
-        page: parseInt(page, 10),
-        limit: parseInt(limit, 10),
+        page: parsedPage,
+        limit: parsedLimit,
         total,
-        totalPages: Math.ceil(total / limit),
+        totalPages: Math.ceil(total / parsedLimit),
       },
     })
   } catch (error) {
@@ -198,9 +691,11 @@ const getQuestions = async (req, res) => {
   }
 }
 
-// @desc    Get a single question by ID with options
-// @route   GET /api/questions/:id
-// @access  Admin or Tutor
+/**
+ * @desc    Get a single question by ID along with options array
+ * @route   GET /api/questions/:id
+ * @access  Admin or Tutor
+ */
 const getQuestionById = async (req, res) => {
   try {
     const { id } = req.params
@@ -242,9 +737,15 @@ const getQuestionById = async (req, res) => {
   }
 }
 
-// @desc    Update a question and optionally replace/update its options
-// @route   PUT /api/questions/:id
-// @access  Admin or Tutor
+/**
+ * @desc    Update a question properties and optionally replace/update its options choices
+ * @route   PUT /api/questions/:id
+ * @access  Admin or Tutor
+ * 
+ * TEACHING NOTE:
+ * Uses COALESCE in SQL so that fields omitted in the request body retain their existing database value. 
+ * If a new array of options is passed, old options are wiped and recreated cleanly inside a transaction block.
+ */
 const updateQuestion = async (req, res) => {
   const client = await pool.connect()
   try {
@@ -260,7 +761,7 @@ const updateQuestion = async (req, res) => {
       options,
     } = req.body
 
-    // Check if question exists
+    // 1. Verify existence of the targeted question
     const checkRes = await client.query(
       'SELECT * FROM questions WHERE id = $1',
       [id],
@@ -272,7 +773,7 @@ const updateQuestion = async (req, res) => {
         .json({ success: false, message: 'Question not found' })
     }
 
-    // If new options are provided, validate them
+    // 2. Validate options if updated array is provided
     if (options && Array.isArray(options)) {
       if (options.length < 2) {
         await client.query('ROLLBACK')
@@ -297,6 +798,7 @@ const updateQuestion = async (req, res) => {
       }
     }
 
+    // 3. Perform conditional update on the question table
     const updateQuery = `
       UPDATE questions 
       SET subject_id = COALESCE($1, subject_id),
@@ -322,6 +824,7 @@ const updateQuestion = async (req, res) => {
     const updatedQRes = await client.query(updateQuery, updateValues)
     const updatedQuestion = updatedQRes.rows[0]
 
+    // 4. Handle option modifications: Delete old and insert new set if requested
     let updatedOptions = []
     if (options && Array.isArray(options)) {
       await client.query(
@@ -373,9 +876,11 @@ const updateQuestion = async (req, res) => {
   }
 }
 
-// @desc    Delete a question and its cascade options
-// @route   DELETE /api/questions/:id
-// @access  Admin or Tutor
+/**
+ * @desc    Delete a question (associated options delete automatically via database cascade constraints)
+ * @route   DELETE /api/questions/:id
+ * @access  Admin or Tutor
+ */
 const deleteQuestion = async (req, res) => {
   try {
     const { id } = req.params
@@ -402,9 +907,11 @@ const deleteQuestion = async (req, res) => {
   }
 }
 
-// @desc    Update question status (e.g. ACTIVE, ARCHIVED)
-// @route   PATCH /api/questions/:id/status
-// @access  Admin or Tutor
+/**
+ * @desc    Update question status (e.g. ACTIVE, ARCHIVED, DRAFT)
+ * @route   PATCH /api/questions/:id/status
+ * @access  Admin or Tutor
+ */
 const updateQuestionStatus = async (req, res) => {
   try {
     const { id } = req.params

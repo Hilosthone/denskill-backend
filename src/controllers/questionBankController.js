@@ -1,49 +1,60 @@
-// src/controllers/questionBankController.js
+/**
+ * @file questionBankController.js
+ * @description Controller managing question bank lifecycles, configuration settings,
+ * submissions, reviews, and bulk question imports.
+ */
+
 const pool = require('../config/db')
 
-// @desc    Get question banks (Filtered by role)
-// @route   GET /api/question-banks
-// @access  Admin or Tutor
+/**
+ * @desc    Get question banks with filters, search, and pagination
+ * @route   GET /api/question-banks
+ * @access  Admin or Tutor
+ */
 const getQuestionBanks = async (req, res) => {
   try {
     const { status, courseId, search, page = 1, limit = 20 } = req.query
-    const offset = (page - 1) * limit
+    const parsedPage = parseInt(page, 10)
+    const parsedLimit = parseInt(limit, 10)
+    const offset = (parsedPage - 1) * parsedLimit
 
     let query = `SELECT * FROM question_banks WHERE 1=1`
     let countQuery = `SELECT COUNT(*) FROM question_banks WHERE 1=1`
-    const params = []
 
-    // If user is a Tutor (check req.user.role or similar from your auth middleware), limit to their banks or authorized courses
+    const filterParams = []
+
+    // Restrict tutors to viewing only their own question banks
     if (req.user.role === 'Instructor' || req.user.role === 'TUTOR') {
-      params.push(req.user.id)
-      query += ` AND created_by = $${params.length}`
-      countQuery += ` AND created_by = $${params.length}`
+      filterParams.push(req.user.id)
+      query += ` AND created_by = $${filterParams.length}`
+      countQuery += ` AND created_by = $${filterParams.length}`
     }
 
     if (status) {
-      params.push(status)
-      query += ` AND status = $${params.length}`
-      countQuery += ` AND status = $${params.length}`
+      filterParams.push(status)
+      query += ` AND status = $${filterParams.length}`
+      countQuery += ` AND status = $${filterParams.length}`
     }
 
     if (courseId) {
-      params.push(courseId)
-      query += ` AND course_id = $${params.length}`
-      countQuery += ` AND course_id = $${params.length}`
+      filterParams.push(courseId)
+      query += ` AND course_id = $${filterParams.length}`
+      countQuery += ` AND course_id = $${filterParams.length}`
     }
 
     if (search) {
-      params.push(`%${search}%`)
-      query += ` AND title ILIKE $${params.length}`
-      countQuery += ` AND title ILIKE $${params.length}`
+      filterParams.push(`%${search}%`)
+      query += ` AND title ILIKE $${filterParams.length}`
+      countQuery += ` AND title ILIKE $${filterParams.length}`
     }
 
-    params.push(limit, offset)
-    query += ` ORDER BY created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`
+    // Append pagination parameters cleanly without index confusion
+    const mainQueryValues = [...filterParams, parsedLimit, offset]
+    query += ` ORDER BY created_at DESC LIMIT $${filterParams.length + 1} OFFSET $${filterParams.length + 2}`
 
     const [banksResult, countResult] = await Promise.all([
-      pool.query(query, params),
-      pool.query(countQuery, params.slice(0, params.length - 2)),
+      pool.query(query, mainQueryValues),
+      pool.query(countQuery, filterParams), // Count query only needs filter parameters
     ])
 
     const total = parseInt(countResult.rows[0].count, 10)
@@ -52,10 +63,10 @@ const getQuestionBanks = async (req, res) => {
       success: true,
       data: banksResult.rows,
       pagination: {
-        page: parseInt(page, 10),
-        limit: parseInt(limit, 10),
+        page: parsedPage,
+        limit: parsedLimit,
         total,
-        totalPages: Math.ceil(total / limit),
+        totalPages: Math.ceil(total / parsedLimit),
       },
     })
   } catch (error) {
@@ -66,9 +77,11 @@ const getQuestionBanks = async (req, res) => {
   }
 }
 
-// @desc    Create an empty question bank with configuration fields (duration, expiresAt, startTime, maxAttempts)
-// @route   POST /api/question-banks
-// @access  Admin or Tutor
+/**
+ * @desc    Create an empty question bank with configuration fields
+ * @route   POST /api/question-banks
+ * @access  Admin or Tutor
+ */
 const createQuestionBank = async (req, res) => {
   try {
     const {
@@ -107,12 +120,12 @@ const createQuestionBank = async (req, res) => {
     `
     const values = [
       title,
-      description || null,
-      courseId || null,
+      description !== undefined ? description : null,
+      courseId !== undefined ? courseId : null,
       subjects || [],
       durationMinutes !== undefined ? durationMinutes : 30,
-      expiresAt || null,
-      startTime || null,
+      expiresAt !== undefined ? expiresAt : null,
+      startTime !== undefined ? startTime : null,
       maxAttempts !== undefined ? maxAttempts : 1,
       req.user.id,
       req.user.role || 'TUTOR',
@@ -133,9 +146,11 @@ const createQuestionBank = async (req, res) => {
   }
 }
 
-// @desc    Get a single question bank by ID with its questions and options
-// @route   GET /api/question-banks/:id
-// @access  Admin or Tutor
+/**
+ * @desc    Get a single question bank by ID with its questions and options
+ * @route   GET /api/question-banks/:id
+ * @access  Admin or Tutor
+ */
 const getQuestionBankById = async (req, res) => {
   try {
     const { id } = req.params
@@ -149,7 +164,6 @@ const getQuestionBankById = async (req, res) => {
         .json({ success: false, message: 'Question bank not found' })
     }
 
-    // Fetch associated questions with options
     const questionsQuery = `
       SELECT q.*, 
              COALESCE(
@@ -179,18 +193,18 @@ const getQuestionBankById = async (req, res) => {
     })
   } catch (error) {
     console.error('Error fetching question bank details:', error)
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: 'Server error fetching question bank details',
-      })
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching question bank details',
+    })
   }
 }
 
-// @desc    Update a question bank including configuration fields
-// @route   PUT /api/question-banks/:id
-// @access  Admin or Tutor
+/**
+ * @desc    Update a question bank configuration fields safely
+ * @route   PUT /api/question-banks/:id
+ * @access  Admin or Tutor
+ */
 const updateQuestionBank = async (req, res) => {
   try {
     const { id } = req.params
@@ -219,11 +233,12 @@ const updateQuestionBank = async (req, res) => {
       WHERE id = $9
       RETURNING *;
     `
+    // Use strict undefined checks so empty strings/zeros don't accidentally evaluate to null
     const values = [
-      title || null,
-      description || null,
-      courseId || null,
-      subjects || null,
+      title !== undefined ? title : null,
+      description !== undefined ? description : null,
+      courseId !== undefined ? courseId : null,
+      subjects !== undefined ? subjects : null,
       durationMinutes !== undefined ? durationMinutes : null,
       expiresAt !== undefined ? expiresAt : null,
       startTime !== undefined ? startTime : null,
@@ -252,9 +267,11 @@ const updateQuestionBank = async (req, res) => {
   }
 }
 
-// @desc    Delete a question bank
-// @route   DELETE /api/question-banks/:id
-// @access  Admin or Tutor
+/**
+ * @desc    Delete a question bank
+ * @route   DELETE /api/question-banks/:id
+ * @access  Admin or Tutor
+ */
 const deleteQuestionBank = async (req, res) => {
   try {
     const { id } = req.params
@@ -281,14 +298,15 @@ const deleteQuestionBank = async (req, res) => {
   }
 }
 
-// @desc    Submit question bank for admin review
-// @route   PATCH /api/question-banks/:id/submit
-// @access  Tutor
+/**
+ * @desc    Submit question bank for admin review
+ * @route   PATCH /api/question-banks/:id/submit
+ * @access  Tutor
+ */
 const submitQuestionBank = async (req, res) => {
   try {
     const { id } = req.params
 
-    // Validate if bank has at least one question with valid options & correct answer
     const questionsCheck = await pool.query(
       `
       SELECT q.id, COUNT(o.id) as option_count, SUM(CASE WHEN o.is_correct THEN 1 ELSE 0 END) as correct_count
@@ -354,21 +372,21 @@ const submitQuestionBank = async (req, res) => {
   }
 }
 
-// @desc    Review (Approve or Reject) question bank
-// @route   PATCH /api/question-banks/:id/review
-// @access  Admin
+/**
+ * @desc    Review (Approve or Reject) question bank
+ * @route   PATCH /api/question-banks/:id/review
+ * @access  Admin
+ */
 const reviewQuestionBank = async (req, res) => {
   try {
     const { id } = req.params
-    const { status, reviewComment } = req.body // status: 'APPROVED' or 'REJECTED'
+    const { status, reviewComment } = req.body
 
     if (!['APPROVED', 'REJECTED', 'ACTIVE'].includes(status)) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: 'Invalid status provided for review.',
-        })
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status provided for review.',
+      })
     }
 
     const query = `
@@ -400,31 +418,34 @@ const reviewQuestionBank = async (req, res) => {
   }
 }
 
-// @desc    Validate question import file/payload
-// @route   POST /api/question-banks/validate-import
-// @access  Admin or Tutor
+/**
+ * @desc    Validate question import file/payload
+ * @route   POST /api/question-banks/validate-import
+ * @access  Admin or Tutor
+ */
 const validateImport = async (req, res) => {
   try {
     const { questions } = req.body
 
     if (!questions || !Array.isArray(questions)) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: 'Invalid payload. Questions array required.',
-        })
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payload. Questions array required.',
+      })
     }
 
     let validCount = 0
     let errors = []
 
     questions.forEach((q, index) => {
-      if (!q.questionText || !q.options || q.options.length < 2) {
-        errors.push({
-          index,
-          message: 'Missing question text or fewer than 2 options.',
-        })
+      if (!q.questionText && !q.question_text) {
+        errors.push({ index, message: 'Missing question text.' })
+      } else if (
+        !q.options ||
+        !Array.isArray(q.options) ||
+        q.options.length < 2
+      ) {
+        errors.push({ index, message: 'Fewer than 2 options provided.' })
       } else {
         const hasCorrect = q.options.some(
           (o) => o.isCorrect === true || o.is_correct === true,
@@ -455,9 +476,11 @@ const validateImport = async (req, res) => {
   }
 }
 
-// @desc    Bulk import questions into a question bank
-// @route   POST /api/question-banks/:id/import
-// @access  Admin or Tutor
+/**
+ * @desc    Bulk import questions into a question bank inside a single transaction block
+ * @route   POST /api/question-banks/:id/import
+ * @access  Admin or Tutor
+ */
 const importQuestions = async (req, res) => {
   const client = await pool.connect()
   try {
@@ -491,7 +514,10 @@ const importQuestions = async (req, res) => {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;`,
         [
           id,
-          q.subjectId || q.subject_id || 'GENERAL',
+          q.subjectId ||
+            q.subject_id ||
+            bankCheck.rows[0].subjects?.[0] ||
+            null,
           q.courseId || q.course_id || bankCheck.rows[0].course_id,
           q.questionText || q.question_text,
           q.questionType || q.question_type || 'MCQ',

@@ -618,7 +618,7 @@ const runMigrations = async () => {
       '✅ Database migration checked: scholarship tables & user ID columns verified.',
     )
 
-    // 7. Automatically ensure instructors, assessments, student_submissions, attendance, modules, sessions & announcements tables verified
+    // 7. Automatically ensure instructors table is created BEFORE dependent tables like question_banks
     await pool.query(`
       CREATE TABLE IF NOT EXISTS instructors (
         id SERIAL PRIMARY KEY,
@@ -636,7 +636,11 @@ const runMigrations = async () => {
       ALTER TABLE instructors ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
       ALTER TABLE instructors ADD COLUMN IF NOT EXISTS avatar_url TEXT;
       ALTER TABLE instructors ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active';
+    `)
+    console.log('✅ Database migration checked: instructors table verified.')
 
+    // 8. Automatically ensure assessments, student_submissions, attendance, modules, sessions & announcements tables verified
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS assessments (
         id SERIAL PRIMARY KEY,
         course_id VARCHAR(100),
@@ -794,7 +798,7 @@ const runMigrations = async () => {
       '✅ Database migration checked: announcements & additional tables verified.',
     )
 
-    // 8. Automatically ensure question_banks, questions, and question_options tables exist with timer columns
+    // 9. Automatically ensure question_banks, questions, and question_options tables exist with resilient foreign keys
     await pool.query(`
       CREATE TABLE IF NOT EXISTS question_banks (
         id SERIAL PRIMARY KEY,
