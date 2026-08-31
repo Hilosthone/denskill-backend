@@ -5,6 +5,7 @@
  */
 
 const pool = require('../config/db')
+const client = await pool.getClient()
 
 /**
  * @desc    Get question banks with filters, search, and pagination

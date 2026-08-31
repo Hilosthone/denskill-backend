@@ -465,6 +465,7 @@
  */
 
 const pool = require('../config/db')
+const client = await pool.getClient()
 
 /**
  * @desc    Create a question and its associated options
