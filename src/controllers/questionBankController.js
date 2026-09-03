@@ -1,13 +1,16 @@
 // /**
 //  * @file questionBankController.js
-//  * @description Controller managing question bank lifecycles, configuration settings,
-//  * submissions, reviews, and bulk question imports.
+//  * @description Controller managing question bank lifecycles, configuration settings (duration, 
+//  * expiration, start time, max attempts), role-based permissions, reviews, and bulk question imports 
+//  * enforcing 2 to 5 options per question.
 //  */
 
 // const { pool } = require('../config/db')
 
 // /**
 //  * @desc    Get question banks with filters, search, and pagination
+//  * @note    Tutors are restricted to querying only their own created question banks,
+//  *          while Admins have global access across all records.
 //  * @route   GET /api/question-banks
 //  * @access  Admin or Tutor
 //  */
@@ -78,7 +81,7 @@
 // }
 
 // /**
-//  * @desc    Create an empty question bank with configuration fields
+//  * @desc    Create a new question bank with configuration parameters (duration, timing, attempts)
 //  * @route   POST /api/question-banks
 //  * @access  Admin or Tutor
 //  */
@@ -123,10 +126,10 @@
 //       description !== undefined ? description : null,
 //       courseId !== undefined ? courseId : null,
 //       subjects || [],
-//       durationMinutes !== undefined ? durationMinutes : 30,
+//       durationMinutes !== undefined ? durationMinutes : 30, // Default 30 mins
 //       expiresAt !== undefined ? expiresAt : null,
 //       startTime !== undefined ? startTime : null,
-//       maxAttempts !== undefined ? maxAttempts : 1,
+//       maxAttempts !== undefined ? maxAttempts : 1, // Default 1 attempt max
 //       req.user.id,
 //       req.user.role || 'TUTOR',
 //     ]
@@ -147,7 +150,7 @@
 // }
 
 // /**
-//  * @desc    Get a single question bank by ID with its questions and options
+//  * @desc    Get a single question bank by ID with its nested questions and options
 //  * @route   GET /api/question-banks/:id
 //  * @access  Admin or Tutor
 //  */
@@ -164,6 +167,7 @@
 //         .json({ success: false, message: 'Question bank not found' })
 //     }
 
+//     // Aggregate options array cleanly using Postgres json_agg
 //     const questionsQuery = `
 //       SELECT q.*, 
 //              COALESCE(
@@ -233,7 +237,6 @@
 //       WHERE id = $9
 //       RETURNING *;
 //     `
-//     // Use strict undefined checks so empty strings/zeros don't accidentally evaluate to null
 //     const values = [
 //       title !== undefined ? title : null,
 //       description !== undefined ? description : null,
@@ -268,7 +271,7 @@
 // }
 
 // /**
-//  * @desc    Delete a question bank
+//  * @desc    Delete a question bank and its cascading relations
 //  * @route   DELETE /api/question-banks/:id
 //  * @access  Admin or Tutor
 //  */
@@ -299,7 +302,7 @@
 // }
 
 // /**
-//  * @desc    Submit question bank for admin review
+//  * @desc    Submit question bank for admin review (validates option bounds min 2, max 5)
 //  * @route   PATCH /api/question-banks/:id/submit
 //  * @access  Tutor
 //  */
@@ -327,13 +330,14 @@
 //     }
 
 //     for (const q of questionsCheck.rows) {
-//       if (q.option_count < 2) {
+//       const optCount = parseInt(q.option_count, 10)
+//       if (optCount < 2 || optCount > 5) {
 //         return res.status(400).json({
 //           success: false,
-//           message: `Question ID ${q.id} must have at least 2 options.`,
+//           message: `Question ID ${q.id} has ${optCount} options. Each question must have between 2 and 5 options.`,
 //         })
 //       }
-//       if (q.correct_count < 1) {
+//       if (parseInt(q.correct_count, 10) < 1) {
 //         return res.status(400).json({
 //           success: false,
 //           message: `Question ID ${q.id} must have at least one correct option selected.`,
@@ -373,7 +377,7 @@
 // }
 
 // /**
-//  * @desc    Review (Approve or Reject) question bank
+//  * @desc    Review (Approve, Reject, or Activate) question bank
 //  * @route   PATCH /api/question-banks/:id/review
 //  * @access  Admin
 //  */
@@ -382,7 +386,7 @@
 //     const { id } = req.params
 //     const { status, reviewComment } = req.body
 
-//     if (!['APPROVED', 'REJECTED', 'ACTIVE'].includes(status)) {
+//     if (!['APPROVED', 'REJECTED', 'ACTIVE', 'DRAFT'].includes(status)) {
 //       return res.status(400).json({
 //         success: false,
 //         message: 'Invalid status provided for review.',
@@ -419,7 +423,7 @@
 // }
 
 // /**
-//  * @desc    Validate question import file/payload
+//  * @desc    Validate question import payload enforcing 2 to 5 options rule
 //  * @route   POST /api/question-banks/validate-import
 //  * @access  Admin or Tutor
 //  */
@@ -438,16 +442,15 @@
 //     let errors = []
 
 //     questions.forEach((q, index) => {
-//       if (!q.questionText && !q.question_text) {
+//       const qText = q.questionText || q.question_text
+//       const options = q.options
+
+//       if (!qText) {
 //         errors.push({ index, message: 'Missing question text.' })
-//       } else if (
-//         !q.options ||
-//         !Array.isArray(q.options) ||
-//         q.options.length < 2
-//       ) {
-//         errors.push({ index, message: 'Fewer than 2 options provided.' })
+//       } else if (!options || !Array.isArray(options) || options.length < 2 || options.length > 5) {
+//         errors.push({ index, message: `Question must have between 2 and 5 options (found ${options?.length || 0}).` })
 //       } else {
-//         const hasCorrect = q.options.some(
+//         const hasCorrect = options.some(
 //           (o) => o.isCorrect === true || o.is_correct === true,
 //         )
 //         if (!hasCorrect) {
@@ -477,7 +480,7 @@
 // }
 
 // /**
-//  * @desc    Bulk import questions into a question bank inside a single transaction block
+//  * @desc    Bulk import questions into a question bank within a transaction block (enforces 2 to 5 options rule)
 //  * @route   POST /api/question-banks/:id/import
 //  * @access  Admin or Tutor
 //  */
@@ -508,7 +511,19 @@
 
 //     const importedQuestions = []
 
-//     for (const q of questions) {
+//     for (let i = 0; i < questions.length; i++) {
+//       const q = questions[i]
+//       const options = q.options
+
+//       // Strict enforcement inside the transaction
+//       if (!options || !Array.isArray(options) || options.length < 2 || options.length > 5) {
+//         await client.query('ROLLBACK')
+//         return res.status(400).json({
+//           success: false,
+//           message: `Import failed at question index ${i}: Must contain between 2 and 5 options.`,
+//         })
+//       }
+
 //       const qRes = await client.query(
 //         `INSERT INTO questions (question_bank_id, subject_id, course_id, question_text, question_type, image_url, marks, created_by, created_by_role)
 //          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;`,
@@ -530,7 +545,7 @@
 //       const newQ = qRes.rows[0]
 //       const insertedOptions = []
 
-//       for (const opt of q.options) {
+//       for (const opt of options) {
 //         const optRes = await client.query(
 //           `INSERT INTO question_options (question_id, text, is_correct, explanation)
 //            VALUES ($1, $2, $3, $4) RETURNING *;`,
@@ -577,12 +592,11 @@
 // }
 
 
-
 /**
  * @file questionBankController.js
  * @description Controller managing question bank lifecycles, configuration settings (duration, 
  * expiration, start time, max attempts), role-based permissions, reviews, and bulk question imports 
- * enforcing 2 to 5 options per question.
+ * enforcing 2 to 5 options per question and robust foreign key/not-null validation.
  */
 
 const { pool } = require('../config/db')
@@ -1060,7 +1074,7 @@ const validateImport = async (req, res) => {
 }
 
 /**
- * @desc    Bulk import questions into a question bank within a transaction block (enforces 2 to 5 options rule)
+ * @desc    Bulk import questions into a question bank within a transaction block (enforces 2 to 5 options rule & safeguards against missing subjects)
  * @route   POST /api/question-banks/:id/import
  * @access  Admin or Tutor
  */
@@ -1095,7 +1109,7 @@ const importQuestions = async (req, res) => {
       const q = questions[i]
       const options = q.options
 
-      // Strict enforcement inside the transaction
+      // Strict enforcement inside the transaction (2 to 5 options rule)
       if (!options || !Array.isArray(options) || options.length < 2 || options.length > 5) {
         await client.query('ROLLBACK')
         return res.status(400).json({
@@ -1104,15 +1118,26 @@ const importQuestions = async (req, res) => {
         })
       }
 
+      // Explicitly resolve the subject ID to prevent database 'not-null constraint' crashes
+      const resolvedSubjectId =
+        q.subjectId ||
+        q.subject_id ||
+        bankCheck.rows[0].subjects?.[0]
+
+      if (!resolvedSubjectId) {
+        await client.query('ROLLBACK')
+        return res.status(400).json({
+          success: false,
+          message: `Import failed at question index ${i}: Missing subject ID. Every question must be linked to a valid subject.`,
+        })
+      }
+
       const qRes = await client.query(
         `INSERT INTO questions (question_bank_id, subject_id, course_id, question_text, question_type, image_url, marks, created_by, created_by_role)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;`,
         [
           id,
-          q.subjectId ||
-            q.subject_id ||
-            bankCheck.rows[0].subjects?.[0] ||
-            null,
+          resolvedSubjectId,
           q.courseId || q.course_id || bankCheck.rows[0].course_id,
           q.questionText || q.question_text,
           q.questionType || q.question_type || 'MCQ',
