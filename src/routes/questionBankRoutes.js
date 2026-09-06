@@ -243,48 +243,6 @@ router.patch('/:id/submit', authorize('TUTOR'), submitQuestionBank)
  */
 router.patch('/:id/review', authorize('ADMIN'), reviewQuestionBank)
 
-// /**
-//  * @swagger
-//  * /api/question-banks/{id}/import:
-//  *   post:
-//  *     summary: Bulk import programming questions into a question bank (Restricted to Admins and Tutors)
-//  *     tags: [Question Banks]
-//  *     security:
-//  *       - bearerAuth: []
-//  *     parameters:
-//  *       - in: path
-//  *         name: id
-//  *         required: true
-//  *         schema:
-//  *           type: integer
-//  *         description: Question bank ID
-//  *     requestBody:
-//  *       required: true
-//  *       content:
-//  *         application/json:
-//  *           schema:
-//  *             type: object
-//  *             required:
-//  *               - questions
-//  *             properties:
-//  *               questions:
-//  *                 type: array
-//  *                 items:
-//  *                   type: object
-//  *     responses:
-//  *       201:
-//  *         description: Questions successfully imported
-//  *       400:
-//  *         description: No questions provided
-//  *       403:
-//  *         description: Forbidden - Requires Admin or Tutor role
-//  *       404:
-//  *         description: Question bank not found
-//  *       500:
-//  *         description: Server error during import
-//  */
-// router.post('/:id/import', authorize('ADMIN', 'TUTOR'), importQuestions)
-
 
 /**
  * @swagger

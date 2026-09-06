@@ -217,7 +217,7 @@
 //       '✅ Database migration checked: scholarship tables & user ID columns verified.',
 //     )
 
-//     // 7. Automatically ensure instructors, assessments, student_submissions, attendance, modules, sessions & announcements tables verified
+//     // 7. Automatically ensure instructors table is created BEFORE dependent tables like question_banks
 //     await pool.query(`
 //       CREATE TABLE IF NOT EXISTS instructors (
 //         id SERIAL PRIMARY KEY,
@@ -235,7 +235,11 @@
 //       ALTER TABLE instructors ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
 //       ALTER TABLE instructors ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 //       ALTER TABLE instructors ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active';
+//     `)
+//     console.log('✅ Database migration checked: instructors table verified.')
 
+//     // 8. Automatically ensure assessments, student_submissions, attendance, modules, sessions & announcements tables verified
+//     await pool.query(`
 //       CREATE TABLE IF NOT EXISTS assessments (
 //         id SERIAL PRIMARY KEY,
 //         course_id VARCHAR(100),
@@ -257,11 +261,11 @@
 //       ALTER TABLE assessments ADD COLUMN IF NOT EXISTS total_marks INTEGER DEFAULT 100;
 //       ALTER TABLE assessments ADD COLUMN IF NOT EXISTS weight NUMERIC DEFAULT 0;
 //       ALTER TABLE assessments ADD COLUMN IF NOT EXISTS due_date TIMESTAMP;
-//       -- Safely convert course_id to VARCHAR if it was previously created as an INTEGER (Wrapped in DO block to prevent syntax/type casting errors)
-//       DO $$
-//       BEGIN
+      
+//       DO $$ 
+//       BEGIN 
 //         IF EXISTS (
-//           SELECT 1 FROM information_schema.columns
+//           SELECT 1 FROM information_schema.columns 
 //           WHERE table_name = 'assessments' AND column_name = 'course_id' AND data_type = 'integer'
 //         ) THEN
 //           ALTER TABLE assessments ALTER COLUMN course_id TYPE VARCHAR(100) USING course_id::VARCHAR;
@@ -295,10 +299,11 @@
 //         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 //         CONSTRAINT unique_student_course_date UNIQUE (student_id, course_id, session_date)
 //       );
-//       DO $$
-//       BEGIN
+      
+//       DO $$ 
+//       BEGIN 
 //         IF EXISTS (
-//           SELECT 1 FROM information_schema.columns
+//           SELECT 1 FROM information_schema.columns 
 //           WHERE table_name = 'attendance_logs' AND column_name = 'course_id' AND data_type = 'integer'
 //         ) THEN
 //           ALTER TABLE attendance_logs ALTER COLUMN course_id TYPE VARCHAR(100) USING course_id::VARCHAR;
@@ -320,10 +325,11 @@
 //       );
 //       ALTER TABLE course_modules ADD COLUMN IF NOT EXISTS course_id VARCHAR(100);
 //       ALTER TABLE course_modules ADD COLUMN IF NOT EXISTS tutor_id INTEGER;
-//       DO $$
-//       BEGIN
+      
+//       DO $$ 
+//       BEGIN 
 //         IF EXISTS (
-//           SELECT 1 FROM information_schema.columns
+//           SELECT 1 FROM information_schema.columns 
 //           WHERE table_name = 'course_modules' AND column_name = 'course_id' AND data_type = 'integer'
 //         ) THEN
 //           ALTER TABLE course_modules ALTER COLUMN course_id TYPE VARCHAR(100) USING course_id::VARCHAR;
@@ -343,10 +349,11 @@
 //       );
 //       ALTER TABLE live_sessions ADD COLUMN IF NOT EXISTS course_id VARCHAR(100);
 //       ALTER TABLE live_sessions ADD COLUMN IF NOT EXISTS tutor_id INTEGER;
-//       DO $$
-//       BEGIN
+      
+//       DO $$ 
+//       BEGIN 
 //         IF EXISTS (
-//           SELECT 1 FROM information_schema.columns
+//           SELECT 1 FROM information_schema.columns 
 //           WHERE table_name = 'live_sessions' AND column_name = 'course_id' AND data_type = 'integer'
 //         ) THEN
 //           ALTER TABLE live_sessions ALTER COLUMN course_id TYPE VARCHAR(100) USING course_id::VARCHAR;
@@ -363,10 +370,11 @@
 //       );
 //       ALTER TABLE course_announcements ADD COLUMN IF NOT EXISTS course_id VARCHAR(100);
 //       ALTER TABLE course_announcements ADD COLUMN IF NOT EXISTS tutor_id INTEGER;
-//       DO $$
-//       BEGIN
+      
+//       DO $$ 
+//       BEGIN 
 //         IF EXISTS (
-//           SELECT 1 FROM information_schema.columns
+//           SELECT 1 FROM information_schema.columns 
 //           WHERE table_name = 'course_announcements' AND column_name = 'course_id' AND data_type = 'integer'
 //         ) THEN
 //           ALTER TABLE course_announcements ALTER COLUMN course_id TYPE VARCHAR(100) USING course_id::VARCHAR;
@@ -385,6 +393,61 @@
 //       ALTER TABLE announcements ADD COLUMN IF NOT EXISTS tag VARCHAR(100) DEFAULT 'Bulletin';
 //       ALTER TABLE announcements ADD COLUMN IF NOT EXISTS date VARCHAR(100);
 //     `)
+//     console.log(
+//       '✅ Database migration checked: announcements & additional tables verified.',
+//     )
+
+//     // 9. Automatically ensure question_banks, questions, and question_options tables exist with resilient foreign keys
+//     await pool.query(`
+//       CREATE TABLE IF NOT EXISTS question_banks (
+//         id SERIAL PRIMARY KEY,
+//         title VARCHAR(255) NOT NULL,
+//         description TEXT,
+//         course_id VARCHAR(100),
+//         subjects TEXT[],
+//         duration_minutes INTEGER DEFAULT 30,
+//         expires_at TIMESTAMP WITH TIME ZONE,
+//         start_time TIMESTAMP WITH TIME ZONE,
+//         max_attempts INTEGER DEFAULT 1,
+//         created_by INTEGER REFERENCES instructors(id) ON DELETE SET NULL,
+//         created_by_role VARCHAR(50) DEFAULT 'TUTOR',
+//         status VARCHAR(50) DEFAULT 'DRAFT',
+//         review_comment TEXT,
+//         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+//         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+//       );
+
+//       ALTER TABLE question_banks ADD COLUMN IF NOT EXISTS duration_minutes INTEGER DEFAULT 30;
+//       ALTER TABLE question_banks ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE;
+//       ALTER TABLE question_banks ADD COLUMN IF NOT EXISTS start_time TIMESTAMP WITH TIME ZONE;
+//       ALTER TABLE question_banks ADD COLUMN IF NOT EXISTS max_attempts INTEGER DEFAULT 1;
+
+//       CREATE TABLE IF NOT EXISTS questions (
+//         id SERIAL PRIMARY KEY,
+//         question_bank_id INTEGER REFERENCES question_banks(id) ON DELETE CASCADE,
+//         subject_id VARCHAR(100) NOT NULL,
+//         course_id VARCHAR(100),
+//         question_text TEXT NOT NULL,
+//         question_type VARCHAR(50) DEFAULT 'MCQ',
+//         image_url TEXT,
+//         marks INTEGER DEFAULT 1,
+//         created_by INTEGER REFERENCES instructors(id) ON DELETE SET NULL,
+//         created_by_role VARCHAR(50) DEFAULT 'TUTOR',
+//         status VARCHAR(50) DEFAULT 'ACTIVE',
+//         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+//         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+//       );
+
+//       CREATE TABLE IF NOT EXISTS question_options (
+//         id SERIAL PRIMARY KEY,
+//         question_id INTEGER REFERENCES questions(id) ON DELETE CASCADE,
+//         text TEXT NOT NULL,
+//         is_correct BOOLEAN DEFAULT FALSE,
+//         explanation TEXT
+//       );
+//     `)
+//     console.log('✅ Database migration checked: question_banks, questions & question_options tables verified.')
+
 //   } catch (err) {
 //     console.error('❌ Migration execution error:', err.message)
 //   }
@@ -395,8 +458,13 @@
 
 // module.exports = {
 //   query: (text, params) => pool.query(text, params),
+//   connect: () => pool.connect(),
 //   getClient: () => pool.connect(),
+//   query: (...args) => pool.query(...args),
+//   ...pool,
+//   pool,
 // }
+
 
 
 // src/config/db.js
@@ -442,6 +510,7 @@ const runMigrations = async () => {
         email VARCHAR(255) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
         role VARCHAR(50) DEFAULT 'student',
+        exclude_from_leaderboard BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `)
@@ -455,7 +524,7 @@ const runMigrations = async () => {
     )
     console.log('✅ Database migration checked: status column verified.')
 
-    // 2. Automatically ensure first_name, middle_name, last_name, country, and phone columns exist on users table
+    // 2. Automatically ensure first_name, middle_name, last_name, country, phone, role, and leaderboard exclusion columns exist on users table
     await pool.query(`
       ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(255);
       ALTER TABLE users ADD COLUMN IF NOT EXISTS middle_name VARCHAR(255);
@@ -463,24 +532,27 @@ const runMigrations = async () => {
       ALTER TABLE users ADD COLUMN IF NOT EXISTS country VARCHAR(100);
       ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
       ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'student';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS exclude_from_leaderboard BOOLEAN DEFAULT FALSE;
     `)
     console.log(
-      '✅ Database migration checked: user profile name, country, phone & role columns verified.',
+      '✅ Database migration checked: user profile name, country, phone, role & leaderboard exclusion columns verified.',
     )
 
-    // 3. Automatically ensure courses table exists and has tutor_id column
+    // 3. Automatically ensure courses table exists and has tutor_id and leaderboard freeze columns
     await pool.query(`
       CREATE TABLE IF NOT EXISTS courses (
         id SERIAL PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
         description TEXT,
         tutor_id INTEGER,
+        is_leaderboard_frozen BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       ALTER TABLE courses ADD COLUMN IF NOT EXISTS tutor_id INTEGER;
+      ALTER TABLE courses ADD COLUMN IF NOT EXISTS is_leaderboard_frozen BOOLEAN DEFAULT FALSE;
     `)
     console.log(
-      '✅ Database migration checked: courses table and tutor relationship verified.',
+      '✅ Database migration checked: courses table, tutor relationship & leaderboard freeze status verified.',
     )
 
     // 4. Automatically ensure enrollments table exists and make key columns optional to prevent onboarding crashes
@@ -861,7 +933,6 @@ module.exports = {
   query: (text, params) => pool.query(text, params),
   connect: () => pool.connect(),
   getClient: () => pool.connect(),
-  query: (...args) => pool.query(...args),
   ...pool,
   pool,
 }
