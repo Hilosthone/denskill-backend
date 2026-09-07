@@ -1,9 +1,621 @@
+// //src/controllers/questionBankController.js
+// /**
+//  * @file questionBankController.js
+//  * @description Controller managing question bank lifecycles, configuration settings (duration, 
+//  * expiration, start time, max attempts), role-based permissions, reviews, and bulk question imports 
+//  * enforcing 2 to 5 options per question and robust foreign key/not-null validation with bulletproof fallbacks.
+//  */
+
+// const { pool } = require('../config/db')
+
+// /**
+//  * @desc    Get question banks with filters, search, and pagination
+//  * @note    Tutors are restricted to querying only their own created question banks,
+//  *          while Admins have global access across all records.
+//  * @route   GET /api/question-banks
+//  * @access  Admin or Tutor
+//  */
+// const getQuestionBanks = async (req, res) => {
+//   try {
+//     const { status, courseId, search, page = 1, limit = 20 } = req.query
+//     const parsedPage = parseInt(page, 10)
+//     const parsedLimit = parseInt(limit, 10)
+//     const offset = (parsedPage - 1) * parsedLimit
+
+//     let query = `SELECT * FROM question_banks WHERE 1=1`
+//     let countQuery = `SELECT COUNT(*) FROM question_banks WHERE 1=1`
+
+//     const filterParams = []
+
+//     // Restrict tutors to viewing only their own question banks
+//     if (req.user.role === 'Instructor' || req.user.role === 'TUTOR') {
+//       filterParams.push(req.user.id)
+//       query += ` AND created_by = $${filterParams.length}`
+//       countQuery += ` AND created_by = $${filterParams.length}`
+//     }
+
+//     if (status) {
+//       filterParams.push(status)
+//       query += ` AND status = $${filterParams.length}`
+//       countQuery += ` AND status = $${filterParams.length}`
+//     }
+
+//     if (courseId) {
+//       filterParams.push(courseId)
+//       query += ` AND course_id = $${filterParams.length}`
+//       countQuery += ` AND course_id = $${filterParams.length}`
+//     }
+
+//     if (search) {
+//       filterParams.push(`%${search}%`)
+//       query += ` AND title ILIKE $${filterParams.length}`
+//       countQuery += ` AND title ILIKE $${filterParams.length}`
+//     }
+
+//     // Append pagination parameters cleanly without index confusion
+//     const mainQueryValues = [...filterParams, parsedLimit, offset]
+//     query += ` ORDER BY created_at DESC LIMIT $${filterParams.length + 1} OFFSET $${filterParams.length + 2}`
+
+//     const [banksResult, countResult] = await Promise.all([
+//       pool.query(query, mainQueryValues),
+//       pool.query(countQuery, filterParams), // Count query only needs filter parameters
+//     ])
+
+//     const total = parseInt(countResult.rows[0].count, 10)
+
+//     res.status(200).json({
+//       success: true,
+//       data: banksResult.rows,
+//       pagination: {
+//         page: parsedPage,
+//         limit: parsedLimit,
+//         total,
+//         totalPages: Math.ceil(total / parsedLimit),
+//       },
+//     })
+//   } catch (error) {
+//     console.error('Error fetching question banks:', error)
+//     res
+//       .status(500)
+//       .json({ success: false, message: 'Server error fetching question banks' })
+//   }
+// }
+
+// /**
+//  * @desc    Create a new question bank with configuration parameters (duration, timing, attempts) and automatic default subjects
+//  * @route   POST /api/question-banks
+//  * @access  Admin or Tutor
+//  */
+// const createQuestionBank = async (req, res) => {
+//   try {
+//     const {
+//       title,
+//       description,
+//       courseId,
+//       subjects,
+//       durationMinutes,
+//       expiresAt,
+//       startTime,
+//       maxAttempts,
+//     } = req.body
+
+//     if (!title) {
+//       return res
+//         .status(400)
+//         .json({ success: false, message: 'Question bank title is required' })
+//     }
+
+//     // Permanent fix: Ensure subjects array is never empty so database constraints are satisfied automatically
+//     const defaultSubjects = subjects && Array.isArray(subjects) && subjects.length > 0
+//       ? subjects
+//       : ['General']
+
+//     const query = `
+//       INSERT INTO question_banks (
+//         title, 
+//         description, 
+//         course_id, 
+//         subjects, 
+//         duration_minutes, 
+//         expires_at, 
+//         start_time, 
+//         max_attempts, 
+//         created_by, 
+//         created_by_role, 
+//         status
+//       )
+//       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'DRAFT')
+//       RETURNING *;
+//     `
+//     const values = [
+//       title,
+//       description !== undefined ? description : null,
+//       courseId !== undefined ? courseId : null,
+//       defaultSubjects,
+//       durationMinutes !== undefined ? durationMinutes : 30, // Default 30 mins
+//       expiresAt !== undefined ? expiresAt : null,
+//       startTime !== undefined ? startTime : null,
+//       maxAttempts !== undefined ? maxAttempts : 1, // Default 1 attempt max
+//       req.user.id,
+//       req.user.role || 'TUTOR',
+//     ]
+
+//     const newBank = await pool.query(query, values)
+
+//     res.status(201).json({
+//       success: true,
+//       message: 'Question bank created successfully',
+//       data: newBank.rows[0],
+//     })
+//   } catch (error) {
+//     console.error('Error creating question bank:', error)
+//     res
+//       .status(500)
+//       .json({ success: false, message: 'Server error creating question bank' })
+//   }
+// }
+
+// /**
+//  * @desc    Get a single question bank by ID with its nested questions and options
+//  * @route   GET /api/question-banks/:id
+//  * @access  Admin or Tutor
+//  */
+// const getQuestionBankById = async (req, res) => {
+//   try {
+//     const { id } = req.params
+
+//     const bankQuery = `SELECT * FROM question_banks WHERE id = $1`
+//     const bankResult = await pool.query(bankQuery, [id])
+
+//     if (bankResult.rows.length === 0) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: 'Question bank not found' })
+//     }
+
+//     // Aggregate options array cleanly using Postgres json_agg
+//     const questionsQuery = `
+//       SELECT q.*, 
+//              COALESCE(
+//                json_agg(
+//                  json_build_object(
+//                    'id', qo.id, 
+//                    'text', qo.text, 
+//                    'is_correct', qo.is_correct, 
+//                    'explanation', qo.explanation
+//                  )
+//                ) FILTER (WHERE qo.id IS NOT NULL), '[]'
+//              ) AS options
+//       FROM questions q
+//       LEFT JOIN question_options qo ON q.id = qo.question_id
+//       WHERE q.question_bank_id = $1
+//       GROUP BY q.id
+//       ORDER BY q.created_at ASC;
+//     `
+//     const questionsResult = await pool.query(questionsQuery, [id])
+
+//     res.status(200).json({
+//       success: true,
+//       data: {
+//         ...bankResult.rows[0],
+//         questions: questionsResult.rows,
+//       },
+//     })
+//   } catch (error) {
+//     console.error('Error fetching question bank details:', error)
+//     res.status(500).json({
+//       success: false,
+//       message: 'Server error fetching question bank details',
+//     })
+//   }
+// }
+
+// /**
+//  * @desc    Update a question bank configuration fields safely
+//  * @route   PUT /api/question-banks/:id
+//  * @access  Admin or Tutor
+//  */
+// const updateQuestionBank = async (req, res) => {
+//   try {
+//     const { id } = req.params
+//     const {
+//       title,
+//       description,
+//       courseId,
+//       subjects,
+//       durationMinutes,
+//       expiresAt,
+//       startTime,
+//       maxAttempts,
+//     } = req.body
+
+//     const query = `
+//       UPDATE question_banks 
+//       SET title = COALESCE($1, title),
+//           description = COALESCE($2, description),
+//           course_id = COALESCE($3, course_id),
+//           subjects = COALESCE($4, subjects),
+//           duration_minutes = COALESCE($5, duration_minutes),
+//           expires_at = COALESCE($6, expires_at),
+//           start_time = COALESCE($7, start_time),
+//           max_attempts = COALESCE($8, max_attempts),
+//           updated_at = CURRENT_TIMESTAMP
+//       WHERE id = $9
+//       RETURNING *;
+//     `
+//     const values = [
+//       title !== undefined ? title : null,
+//       description !== undefined ? description : null,
+//       courseId !== undefined ? courseId : null,
+//       subjects !== undefined ? subjects : null,
+//       durationMinutes !== undefined ? durationMinutes : null,
+//       expiresAt !== undefined ? expiresAt : null,
+//       startTime !== undefined ? startTime : null,
+//       maxAttempts !== undefined ? maxAttempts : null,
+//       id,
+//     ]
+
+//     const result = await pool.query(query, values)
+
+//     if (result.rows.length === 0) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: 'Question bank not found' })
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'Question bank updated successfully',
+//       data: result.rows[0],
+//     })
+//   } catch (error) {
+//     console.error('Error updating question bank:', error)
+//     res
+//       .status(500)
+//       .json({ success: false, message: 'Server error updating question bank' })
+//   }
+// }
+
+// /**
+//  * @desc    Delete a question bank and its cascading relations
+//  * @route   DELETE /api/question-banks/:id
+//  * @access  Admin or Tutor
+//  */
+// const deleteQuestionBank = async (req, res) => {
+//   try {
+//     const { id } = req.params
+//     const result = await pool.query(
+//       'DELETE FROM question_banks WHERE id = $1 RETURNING *;',
+//       [id],
+//     )
+
+//     if (result.rows.length === 0) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: 'Question bank not found' })
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'Question bank deleted successfully',
+//     })
+//   } catch (error) {
+//     console.error('Error deleting question bank:', error)
+//     res
+//       .status(500)
+//       .json({ success: false, message: 'Server error deleting question bank' })
+//   }
+// }
+
+// /**
+//  * @desc    Submit question bank for admin review (validates option bounds min 2, max 5)
+//  * @route   PATCH /api/question-banks/:id/submit
+//  * @access  Tutor
+//  */
+// const submitQuestionBank = async (req, res) => {
+//   try {
+//     const { id } = req.params
+
+//     const questionsCheck = await pool.query(
+//       `
+//       SELECT q.id, COUNT(o.id) as option_count, SUM(CASE WHEN o.is_correct THEN 1 ELSE 0 END) as correct_count
+//       FROM questions q
+//       LEFT JOIN question_options o ON q.id = o.question_id
+//       WHERE q.question_bank_id = $1
+//       GROUP BY q.id
+//     `,
+//       [id],
+//     )
+
+//     if (questionsCheck.rows.length === 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message:
+//           'Question bank must contain at least one question before submission.',
+//       })
+//     }
+
+//     for (const q of questionsCheck.rows) {
+//       const optCount = parseInt(q.option_count, 10)
+//       if (optCount < 2 || optCount > 5) {
+//         return res.status(400).json({
+//           success: false,
+//           message: `Question ID ${q.id} has ${optCount} options. Each question must have between 2 and 5 options.`,
+//         })
+//       }
+//       if (parseInt(q.correct_count, 10) < 1) {
+//         return res.status(400).json({
+//           success: false,
+//           message: `Question ID ${q.id} must have at least one correct option selected.`,
+//         })
+//       }
+//     }
+
+//     const updateResult = await pool.query(
+//       `
+//       UPDATE question_banks 
+//       SET status = 'PENDING_REVIEW', updated_at = CURRENT_TIMESTAMP
+//       WHERE id = $1 AND created_by = $2
+//       RETURNING *;
+//     `,
+//       [id, req.user.id],
+//     )
+
+//     if (updateResult.rows.length === 0) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Question bank not found or unauthorized',
+//       })
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'Question bank submitted for review successfully.',
+//       data: updateResult.rows[0],
+//     })
+//   } catch (error) {
+//     console.error('Error submitting question bank:', error)
+//     res.status(500).json({
+//       success: false,
+//       message: 'Server error submitting question bank',
+//     })
+//   }
+// }
+
+// /**
+//  * @desc    Review (Approve, Reject, or Activate) question bank
+//  * @route   PATCH /api/question-banks/:id/review
+//  * @access  Admin
+//  */
+// const reviewQuestionBank = async (req, res) => {
+//   try {
+//     const { id } = req.params
+//     const { status, reviewComment } = req.body
+
+//     if (!['APPROVED', 'REJECTED', 'ACTIVE', 'DRAFT'].includes(status)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Invalid status provided for review.',
+//       })
+//     }
+
+//     const query = `
+//       UPDATE question_banks 
+//       SET status = $1, 
+//           review_comment = $2, 
+//           updated_at = CURRENT_TIMESTAMP
+//       WHERE id = $3
+//       RETURNING *;
+//     `
+//     const result = await pool.query(query, [status, reviewComment || null, id])
+
+//     if (result.rows.length === 0) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: 'Question bank not found' })
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: `Question bank status updated to ${status}`,
+//       data: result.rows[0],
+//     })
+//   } catch (error) {
+//     console.error('Error reviewing question bank:', error)
+//     res
+//       .status(500)
+//       .json({ success: false, message: 'Server error reviewing question bank' })
+//   }
+// }
+
+// /**
+//  * @desc    Validate question import payload enforcing 2 to 5 options rule
+//  * @route   POST /api/question-banks/validate-import
+//  * @access  Admin or Tutor
+//  */
+// const validateImport = async (req, res) => {
+//   try {
+//     const { questions } = req.body
+
+//     if (!questions || !Array.isArray(questions)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Invalid payload. Questions array required.',
+//       })
+//     }
+
+//     let validCount = 0
+//     let errors = []
+
+//     questions.forEach((q, index) => {
+//       const qText = q.questionText || q.question_text
+//       const options = q.options
+
+//       if (!qText) {
+//         errors.push({ index, message: 'Missing question text.' })
+//       } else if (!options || !Array.isArray(options) || options.length < 2 || options.length > 5) {
+//         errors.push({ index, message: `Question must have between 2 and 5 options (found ${options?.length || 0}).` })
+//       } else {
+//         const hasCorrect = options.some(
+//           (o) => o.isCorrect === true || o.is_correct === true,
+//         )
+//         if (!hasCorrect) {
+//           errors.push({
+//             index,
+//             message: 'At least one option must be marked correct.',
+//           })
+//         } else {
+//           validCount++
+//         }
+//       }
+//     })
+
+//     res.status(200).json({
+//       success: true,
+//       total: questions.length,
+//       valid: validCount,
+//       invalid: errors.length,
+//       errors,
+//     })
+//   } catch (error) {
+//     console.error('Error validating import:', error)
+//     res
+//       .status(500)
+//       .json({ success: false, message: 'Server error validating import' })
+//   }
+// }
+
+// /**
+//  * @desc    Bulk sync (overwrite) questions into a question bank within a transaction block 
+//  *          with permanent auto-subject fallback. Clears existing questions first so the 
+//  *          frontend can safely send the full updated array.
+//  * @route   POST /api/question-banks/:id/import
+//  * @access  Admin or Tutor
+//  */
+// const importQuestions = async (req, res) => {
+//   const client = await pool.connect()
+//   try {
+//     await client.query('BEGIN')
+//     const { id } = req.params
+//     const { questions } = req.body
+
+//     const bankCheck = await client.query(
+//       'SELECT * FROM question_banks WHERE id = $1',
+//       [id],
+//     )
+//     if (bankCheck.rows.length === 0) {
+//       await client.query('ROLLBACK')
+//       return res
+//         .status(404)
+//         .json({ success: false, message: 'Question bank not found' })
+//     }
+
+//     if (!questions || !Array.isArray(questions)) {
+//       await client.query('ROLLBACK')
+//       return res
+//         .status(400)
+//         .json({ success: false, message: 'Invalid payload format. Questions array required.' })
+//     }
+
+//     // 1. Clear out old questions first for a clean overwrite/sync.
+//     // (Assumes option foreign key has ON DELETE CASCADE configured in your database schema).
+//     await client.query('DELETE FROM questions WHERE question_bank_id = $1', [id])
+
+//     const importedQuestions = []
+//     const bankRecord = bankCheck.rows[0]
+
+//     for (let i = 0; i < questions.length; i++) {
+//       const q = questions[i]
+//       const options = q.options
+
+//       // Strict enforcement inside the transaction (2 to 5 options rule)
+//       if (!options || !Array.isArray(options) || options.length < 2 || options.length > 5) {
+//         await client.query('ROLLBACK')
+//         return res.status(400).json({
+//           success: false,
+//           message: `Import failed at question index ${i}: Must contain between 2 and 5 options.`,
+//         })
+//       }
+
+//       // Permanent bulletproof subject resolution fallback hierarchy
+//       const resolvedSubjectId =
+//         q.subjectId ||
+//         q.subject_id ||
+//         bankRecord.subjects?.[0] ||
+//         'General'
+
+//       const qRes = await client.query(
+//         `INSERT INTO questions (question_bank_id, subject_id, course_id, question_text, question_type, image_url, marks, created_by, created_by_role)
+//          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;`,
+//         [
+//           id,
+//           resolvedSubjectId,
+//           q.courseId || q.course_id || bankRecord.course_id || null,
+//           q.questionText || q.question_text,
+//           q.questionType || q.question_type || 'MCQ',
+//           q.imageUrl || q.image_url || null,
+//           q.marks || 1,
+//           req.user.id,
+//           req.user.role || 'TUTOR',
+//         ],
+//       )
+//       const newQ = qRes.rows[0]
+//       const insertedOptions = []
+
+//       for (const opt of options) {
+//         const optRes = await client.query(
+//           `INSERT INTO question_options (question_id, text, is_correct, explanation)
+//            VALUES ($1, $2, $3, $4) RETURNING *;`,
+//           [
+//             newQ.id,
+//             opt.text,
+//             opt.isCorrect || opt.is_correct || false,
+//             opt.explanation || null,
+//           ],
+//         )
+//         insertedOptions.push(optRes.rows[0])
+//       }
+
+//       importedQuestions.push({ ...newQ, options: insertedOptions })
+//     }
+
+//     await client.query('COMMIT')
+//     res.status(201).json({
+//       success: true,
+//       message: `Successfully synced ${importedQuestions.length} questions for the question bank.`,
+//       data: importedQuestions,
+//     })
+//   } catch (error) {
+//     await client.query('ROLLBACK')
+//     console.error('Error syncing questions:', error)
+//     res
+//       .status(500)
+//       .json({ success: false, message: 'Server error during question sync' })
+//   } finally {
+//     client.release()
+//   }
+// }
+
+// module.exports = {
+//   getQuestionBanks,
+//   createQuestionBank,
+//   getQuestionBankById,
+//   updateQuestionBank,
+//   deleteQuestionBank,
+//   submitQuestionBank,
+//   reviewQuestionBank,
+//   validateImport,
+//   importQuestions,
+// }
+
+
 //src/controllers/questionBankController.js
 /**
  * @file questionBankController.js
  * @description Controller managing question bank lifecycles, configuration settings (duration, 
- * expiration, start time, max attempts), role-based permissions, reviews, and bulk question imports 
- * enforcing 2 to 5 options per question and robust foreign key/not-null validation with bulletproof fallbacks.
+ * expiration, start time, max attempts), role-based permissions, reviews, bulk question imports 
+ * (with difficulty, tags, and duplicate prevention), soft deletes/archival, question reordering, 
+ * and robust foreign key/not-null validation with bulletproof fallbacks.
  */
 
 const { pool } = require('../config/db')
@@ -17,7 +629,7 @@ const { pool } = require('../config/db')
  */
 const getQuestionBanks = async (req, res) => {
   try {
-    const { status, courseId, search, page = 1, limit = 20 } = req.query
+    const { status, courseId, search, includeArchived, page = 1, limit = 20 } = req.query
     const parsedPage = parseInt(page, 10)
     const parsedLimit = parseInt(limit, 10)
     const offset = (parsedPage - 1) * parsedLimit
@@ -26,6 +638,12 @@ const getQuestionBanks = async (req, res) => {
     let countQuery = `SELECT COUNT(*) FROM question_banks WHERE 1=1`
 
     const filterParams = []
+
+    // By default, hide archived/deleted question banks unless explicitly requested
+    if (includeArchived !== 'true') {
+      query += ` AND status != 'ARCHIVED'`
+      countQuery += ` AND status != 'ARCHIVED'`
+    }
 
     // Restrict tutors to viewing only their own question banks
     if (req.user.role === 'Instructor' || req.user.role === 'TUTOR') {
@@ -173,7 +791,7 @@ const getQuestionBankById = async (req, res) => {
         .json({ success: false, message: 'Question bank not found' })
     }
 
-    // Aggregate options array cleanly using Postgres json_agg
+    // Aggregate options array cleanly using Postgres json_agg, sorted by order_index
     const questionsQuery = `
       SELECT q.*, 
              COALESCE(
@@ -190,7 +808,7 @@ const getQuestionBankById = async (req, res) => {
       LEFT JOIN question_options qo ON q.id = qo.question_id
       WHERE q.question_bank_id = $1
       GROUP BY q.id
-      ORDER BY q.created_at ASC;
+      ORDER BY q.order_index ASC, q.created_at ASC;
     `
     const questionsResult = await pool.query(questionsQuery, [id])
 
@@ -277,15 +895,39 @@ const updateQuestionBank = async (req, res) => {
 }
 
 /**
- * @desc    Delete a question bank and its cascading relations
+ * @desc    Soft delete (Archive) a question bank to protect historical student exam records and active quiz attempts
  * @route   DELETE /api/question-banks/:id
  * @access  Admin or Tutor
  */
 const deleteQuestionBank = async (req, res) => {
   try {
     const { id } = req.params
+    const { hardDelete } = req.query
+
+    // Optional hard delete support if explicitly requested by an admin, otherwise perform soft delete (archival)
+    if (hardDelete === 'true' && req.user.role === 'Admin') {
+      const result = await pool.query(
+        'DELETE FROM question_banks WHERE id = $1 RETURNING *;',
+        [id],
+      )
+
+      if (result.rows.length === 0) {
+        return res
+          .status(404)
+          .json({ success: false, message: 'Question bank not found' })
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Question bank permanently deleted.',
+      })
+    }
+
+    // Soft delete / archive implementation preserving foreign key integrity for past exam logs
     const result = await pool.query(
-      'DELETE FROM question_banks WHERE id = $1 RETURNING *;',
+      `UPDATE question_banks 
+       SET status = 'ARCHIVED', updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $1 RETURNING *;`,
       [id],
     )
 
@@ -297,10 +939,11 @@ const deleteQuestionBank = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Question bank deleted successfully',
+      message: 'Question bank archived successfully (soft-deleted).',
+      data: result.rows[0],
     })
   } catch (error) {
-    console.error('Error deleting question bank:', error)
+    console.error('Error deleting/archiving question bank:', error)
     res
       .status(500)
       .json({ success: false, message: 'Server error deleting question bank' })
@@ -392,7 +1035,7 @@ const reviewQuestionBank = async (req, res) => {
     const { id } = req.params
     const { status, reviewComment } = req.body
 
-    if (!['APPROVED', 'REJECTED', 'ACTIVE', 'DRAFT'].includes(status)) {
+    if (!['APPROVED', 'REJECTED', 'ACTIVE', 'DRAFT', 'ARCHIVED'].includes(status)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid status provided for review.',
@@ -429,7 +1072,7 @@ const reviewQuestionBank = async (req, res) => {
 }
 
 /**
- * @desc    Validate question import payload enforcing 2 to 5 options rule
+ * @desc    Validate question import payload enforcing 2 to 5 options rule, difficulty bounds, and structure
  * @route   POST /api/question-banks/validate-import
  * @access  Admin or Tutor
  */
@@ -450,9 +1093,12 @@ const validateImport = async (req, res) => {
     questions.forEach((q, index) => {
       const qText = q.questionText || q.question_text
       const options = q.options
+      const difficulty = q.difficulty || q.difficulty_level
 
       if (!qText) {
         errors.push({ index, message: 'Missing question text.' })
+      } else if (difficulty && !['EASY', 'MEDIUM', 'HARD'].includes(difficulty.toUpperCase())) {
+        errors.push({ index, message: 'Invalid difficulty. Must be EASY, MEDIUM, or HARD.' })
       } else if (!options || !Array.isArray(options) || options.length < 2 || options.length > 5) {
         errors.push({ index, message: `Question must have between 2 and 5 options (found ${options?.length || 0}).` })
       } else {
@@ -487,8 +1133,8 @@ const validateImport = async (req, res) => {
 
 /**
  * @desc    Bulk sync (overwrite) questions into a question bank within a transaction block 
- *          with permanent auto-subject fallback. Clears existing questions first so the 
- *          frontend can safely send the full updated array.
+ *          with support for difficulty, tags, explicit sorting order_index, duplicate checking, 
+ *          and permanent auto-subject fallback.
  * @route   POST /api/question-banks/:id/import
  * @access  Admin or Tutor
  */
@@ -497,7 +1143,7 @@ const importQuestions = async (req, res) => {
   try {
     await client.query('BEGIN')
     const { id } = req.params
-    const { questions } = req.body
+    const { questions, preventDuplicates } = req.body
 
     const bankCheck = await client.query(
       'SELECT * FROM question_banks WHERE id = $1',
@@ -523,10 +1169,12 @@ const importQuestions = async (req, res) => {
 
     const importedQuestions = []
     const bankRecord = bankCheck.rows[0]
+    const seenQuestionTexts = new Set()
 
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i]
       const options = q.options
+      const qText = q.questionText || q.question_text
 
       // Strict enforcement inside the transaction (2 to 5 options rule)
       if (!options || !Array.isArray(options) || options.length < 2 || options.length > 5) {
@@ -537,6 +1185,19 @@ const importQuestions = async (req, res) => {
         })
       }
 
+      // Optional duplicate question verification (prevents duplicate text entries in same payload or bank)
+      if (preventDuplicates === true && qText) {
+        const normalizedText = qText.trim().toLowerCase()
+        if (seenQuestionTexts.has(normalizedText)) {
+          await client.query('ROLLBACK')
+          return res.status(400).json({
+            success: false,
+            message: `Duplicate question detected at index ${i}: "${qText}" already exists in this import batch.`,
+          })
+        }
+        seenQuestionTexts.add(normalizedText)
+      }
+
       // Permanent bulletproof subject resolution fallback hierarchy
       const resolvedSubjectId =
         q.subjectId ||
@@ -544,17 +1205,33 @@ const importQuestions = async (req, res) => {
         bankRecord.subjects?.[0] ||
         'General'
 
+      // Difficulty & metadata validation/normalization
+      const rawDifficulty = q.difficulty || q.difficulty_level || 'MEDIUM'
+      const difficulty = ['EASY', 'MEDIUM', 'HARD'].includes(rawDifficulty.toUpperCase())
+        ? rawDifficulty.toUpperCase()
+        : 'MEDIUM'
+
+      const tags = q.tags && Array.isArray(q.tags) ? q.tags : []
+      const orderIndex = q.orderIndex !== undefined ? q.orderIndex : q.order_index !== undefined ? q.order_index : i
+
       const qRes = await client.query(
-        `INSERT INTO questions (question_bank_id, subject_id, course_id, question_text, question_type, image_url, marks, created_by, created_by_role)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;`,
+        `INSERT INTO questions (
+           question_bank_id, subject_id, course_id, question_text, 
+           question_type, image_url, marks, difficulty, tags, order_index, 
+           created_by, created_by_role
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *;`,
         [
           id,
           resolvedSubjectId,
           q.courseId || q.course_id || bankRecord.course_id || null,
-          q.questionText || q.question_text,
+          qText,
           q.questionType || q.question_type || 'MCQ',
           q.imageUrl || q.image_url || null,
           q.marks || 1,
+          difficulty,
+          tags,
+          orderIndex,
           req.user.id,
           req.user.role || 'TUTOR',
         ],
@@ -596,6 +1273,53 @@ const importQuestions = async (req, res) => {
   }
 }
 
+/**
+ * @desc    Update question ordering / sequence positions explicitly
+ * @route   PATCH /api/question-banks/:id/reorder
+ * @access  Admin or Tutor
+ */
+const reorderQuestions = async (req, res) => {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const { id } = req.params
+    const { questions } = req.body // Expected array of { id, orderIndex }
+
+    if (!questions || !Array.isArray(questions)) {
+      await client.query('ROLLBACK')
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payload. An array of question sorting objects is required.',
+      })
+    }
+
+    for (const item of questions) {
+      if (!item.id || item.orderIndex === undefined) {
+        continue
+      }
+      await client.query(
+        `UPDATE questions 
+         SET order_index = $1, updated_at = CURRENT_TIMESTAMP 
+         WHERE id = $2 AND question_bank_id = $3;`,
+        [item.orderIndex, item.id, id],
+      )
+    }
+
+    await client.query('COMMIT')
+    res.status(200).json({
+      success: true,
+      message: 'Question sequencing updated successfully.',
+    })
+  } catch (error) {
+    await client.query('ROLLBACK')
+    console.error('Error reordering questions:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Server error updating question sorting order.',
+    })
+  }
+}
+
 module.exports = {
   getQuestionBanks,
   createQuestionBank,
@@ -606,4 +1330,5 @@ module.exports = {
   reviewQuestionBank,
   validateImport,
   importQuestions,
+  reorderQuestions,
 }
