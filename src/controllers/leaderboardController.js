@@ -24,7 +24,17 @@
 //   return result.rows.length > 0 ? result.rows[0].id : courseIdentifier
 // }
 
-// // 1. Get global or course-specific leaderboard with search and pagination
+// // Check if a course leaderboard is frozen
+// const checkCourseFreezeStatus = async (client, resolvedCourseId) => {
+//   if (!resolvedCourseId) return false
+//   const result = await client.query(
+//     'SELECT is_leaderboard_frozen FROM courses WHERE id = $1',
+//     [resolvedCourseId]
+//   )
+//   return result.rows.length > 0 ? !!result.rows[0].is_leaderboard_frozen : false
+// }
+
+// // 1. Get global or course-specific leaderboard
 // const getLeaderboard = async (req, res) => {
 //   try {
 //     const { limit = 20, page = 1, courseId, search } = req.query
@@ -33,6 +43,9 @@
 
 //     const resolvedCourseId = await resolveCourseId(pool, courseId)
 //     const courseName = normalizeCourseName(courseId)
+
+//     // Optional: If course leaderboard is frozen, you can optionally notify or fetch accordingly
+//     const isFrozen = await checkCourseFreezeStatus(pool, resolvedCourseId)
 
 //     let queryText = `
 //       SELECT 
@@ -50,6 +63,7 @@
 //       JOIN student_submissions sub ON u.id = sub.student_id
 //       JOIN assessments a ON sub.assessment_id = a.id
 //       WHERE LOWER(u.role) = 'student'
+//         AND (u.exclude_from_leaderboard IS NOT TRUE)
 //     `
 
 //     const queryParams = []
@@ -78,15 +92,14 @@
 //     const rankedData = result.rows.map((row, index) => ({
 //       rank: offsetVal + index + 1,
 //       studentId: row.student_id,
-//       name:
-//         `${row.first_name || ''} ${row.last_name || ''}`.trim() ||
-//         'Anonymous Student',
+//       name: `${row.first_name || ''} ${row.last_name || ''}`.trim() || 'Anonymous Student',
 //       quizzesTaken: parseInt(row.total_quizzes_taken),
 //       percentageScore: parseFloat(row.percentage_score),
 //     }))
 
 //     return res.status(200).json({
 //       success: true,
+//       isLeaderboardFrozen: isFrozen,
 //       count: rankedData.length,
 //       data: rankedData,
 //     })
@@ -96,7 +109,7 @@
 //   }
 // }
 
-// // 2. Get the authenticated student's own rank and score profile
+// // 2. Get the authenticated student's own rank
 // const getMyRank = async (req, res) => {
 //   try {
 //     if (!req.user || !req.user.id) {
@@ -121,6 +134,7 @@
 //       JOIN student_submissions sub ON u.id = sub.student_id
 //       JOIN assessments a ON sub.assessment_id = a.id
 //       WHERE LOWER(u.role) = 'student'
+//         AND (u.exclude_from_leaderboard IS NOT TRUE)
 //     `
 
 //     const queryParams = [studentId]
@@ -159,7 +173,7 @@
 //   }
 // }
 
-// // 3. Get Top Performers (Podium - Top 3) for dashboard widgets
+// // 3. Get Top Performers (Podium)
 // const getTopPerformers = async (req, res) => {
 //   try {
 //     const { courseId } = req.query
@@ -179,6 +193,7 @@
 //       JOIN student_submissions sub ON u.id = sub.student_id
 //       JOIN assessments a ON sub.assessment_id = a.id
 //       WHERE LOWER(u.role) = 'student'
+//         AND (u.exclude_from_leaderboard IS NOT TRUE)
 //     `
 
 //     const queryParams = []
@@ -215,7 +230,127 @@
 //   }
 // }
 
-// module.exports = { getLeaderboard, getMyRank, getTopPerformers }
+// // 4. ADMIN/TUTOR: Toggle student exclusion status (exclude/disqualify from leaderboard)
+// const toggleStudentExclusion = async (req, res) => {
+//   try {
+//     const { studentId } = req.params
+//     const { exclude } = req.body // Boolean (true/false)
+
+//     const userCheck = await pool.query('SELECT id, role, exclude_from_leaderboard FROM users WHERE id = $1', [studentId])
+//     if (userCheck.rows.length === 0) {
+//       return res.status(404).json({ success: false, message: 'User not found' })
+//     }
+
+//     const newExcludeStatus = exclude !== undefined ? exclude : !userCheck.rows[0].exclude_from_leaderboard
+
+//     const updateResult = await pool.query(
+//       'UPDATE users SET exclude_from_leaderboard = $1 WHERE id = $2 RETURNING id, first_name, last_name, exclude_from_leaderboard',
+//       [newExcludeStatus, studentId]
+//     )
+
+//     return res.status(200).json({
+//       success: true,
+//       message: `Student successfully ${newExcludeStatus ? 'excluded from' : 'restored to'} the leaderboard.`,
+//       data: updateResult.rows[0],
+//     })
+//   } catch (error) {
+//     console.error('Error toggling student exclusion:', error.message)
+//     return res.status(500).json({ success: false, error: 'Internal server error' })
+//   }
+// }
+
+// // 5. ADMIN/TUTOR: Toggle course leaderboard freeze state
+// const toggleCourseFreeze = async (req, res) => {
+//   try {
+//     const { courseId } = req.params
+//     const resolvedCourseId = await resolveCourseId(pool, courseId)
+
+//     const courseCheck = await pool.query('SELECT id, title, is_leaderboard_frozen FROM courses WHERE id::text = $1', [resolvedCourseId])
+//     if (courseCheck.rows.length === 0) {
+//       return res.status(404).json({ success: false, message: 'Course not found' })
+//     }
+
+//     const currentFreeze = courseCheck.rows[0].is_leaderboard_frozen || false
+//     const newFreezeStatus = !currentFreeze
+
+//     const updateResult = await pool.query(
+//       'UPDATE courses SET is_leaderboard_frozen = $1 WHERE id::text = $2 RETURNING id, title, is_leaderboard_frozen',
+//       [newFreezeStatus, resolvedCourseId]
+//     )
+
+//     return res.status(200).json({
+//       success: true,
+//       message: `Course leaderboard successfully ${newFreezeStatus ? 'frozen' : 'unfrozen'}.`,
+//       data: updateResult.rows[0],
+//     })
+//   } catch (error) {
+//     console.error('Error toggling course freeze:', error.message)
+//     return res.status(500).json({ success: false, error: 'Internal server error' })
+//   }
+// }
+
+// // 6. ADMIN/TUTOR: Manually override or edit a student's quiz submission score
+// const overrideStudentScore = async (req, res) => {
+//   try {
+//     const { submissionId } = req.params
+//     const { newScore } = req.body
+
+//     if (newScore === undefined || isNaN(newScore)) {
+//       return res.status(400).json({ success: false, message: 'A valid numeric score is required' })
+//     }
+
+//     const subCheck = await pool.query('SELECT * FROM student_submissions WHERE id = $1', [submissionId])
+//     if (subCheck.rows.length === 0) {
+//       return res.status(404).json({ success: false, message: 'Student submission record not found' })
+//     }
+
+//     const updateResult = await pool.query(
+//       'UPDATE student_submissions SET score = $1 WHERE id = $2 RETURNING *',
+//       [Number(newScore), submissionId]
+//     )
+
+//     return res.status(200).json({
+//       success: true,
+//       message: 'Student submission score successfully updated. Leaderboard rankings will automatically reflect this change.',
+//       data: updateResult.rows[0],
+//     })
+//   } catch (error) {
+//     console.error('Error overriding student score:', error.message)
+//     return res.status(500).json({ success: false, error: 'Internal server error' })
+//   }
+// }
+
+// // 7. ADMIN/TUTOR: Delete a student's quiz submission (removes score from leaderboard calculation)
+// const deleteStudentSubmission = async (req, res) => {
+//   try {
+//     const { submissionId } = req.params
+
+//     const subCheck = await pool.query('SELECT * FROM student_submissions WHERE id = $1', [submissionId])
+//     if (subCheck.rows.length === 0) {
+//       return res.status(404).json({ success: false, message: 'Student submission record not found' })
+//     }
+
+//     await pool.query('DELETE FROM student_submissions WHERE id = $1', [submissionId])
+
+//     return res.status(200).json({
+//       success: true,
+//       message: 'Student submission deleted successfully.',
+//     })
+//   } catch (error) {
+//     console.error('Error deleting submission:', error.message)
+//     return res.status(500).json({ success: false, error: 'Internal server error' })
+//   }
+// }
+
+// module.exports = {
+//   getLeaderboard,
+//   getMyRank,
+//   getTopPerformers,
+//   toggleStudentExclusion,
+//   toggleCourseFreeze,
+//   overrideStudentScore,
+//   deleteStudentSubmission,
+// }
 
 
 // src/controllers/leaderboardController.js
@@ -263,8 +398,6 @@ const getLeaderboard = async (req, res) => {
 
     const resolvedCourseId = await resolveCourseId(pool, courseId)
     const courseName = normalizeCourseName(courseId)
-
-    // Optional: If course leaderboard is frozen, you can optionally notify or fetch accordingly
     const isFrozen = await checkCourseFreezeStatus(pool, resolvedCourseId)
 
     let queryText = `
@@ -290,12 +423,13 @@ const getLeaderboard = async (req, res) => {
 
     if (courseId) {
       queryParams.push(resolvedCourseId, courseId, courseName)
-      queryText += ` AND (a.course_id = $${queryParams.length - 2} OR a.course_id::text = $${queryParams.length - 1} OR LOWER(a.course_id::text) = LOWER($${queryParams.length - 1}) OR LOWER(a.course_id::text) = LOWER($${queryParams.length}))`
+      queryText += ` AND (a.course_id = $1 OR a.course_id::text = $2 OR LOWER(a.course_id::text) = LOWER($2) OR LOWER(a.course_id::text) = LOWER($3))`
     }
 
     if (search) {
       queryParams.push(`%${search.toLowerCase()}%`)
-      queryText += ` AND (LOWER(u.first_name) LIKE $${queryParams.length} OR LOWER(u.last_name) LIKE $${queryParams.length} OR LOWER(CONCAT(u.first_name, ' ', u.last_name)) LIKE $${queryParams.length})`
+      const paramIdx = queryParams.length
+      queryText += ` AND (LOWER(u.first_name) LIKE $${paramIdx} OR LOWER(u.last_name) LIKE $${paramIdx} OR LOWER(CONCAT(u.first_name, ' ', u.last_name)) LIKE $${paramIdx})`
     }
 
     queryText += `
@@ -361,6 +495,7 @@ const getMyRank = async (req, res) => {
 
     if (courseId) {
       queryParams.push(resolvedCourseId, courseId, courseName)
+      // $1 is studentId, so course parameters start at $2, $3, $4
       rankingSubQuery += ` AND (a.course_id = $2 OR a.course_id::text = $3 OR LOWER(a.course_id::text) = LOWER($3) OR LOWER(a.course_id::text) = LOWER($4))`
     }
 
@@ -450,11 +585,11 @@ const getTopPerformers = async (req, res) => {
   }
 }
 
-// 4. ADMIN/TUTOR: Toggle student exclusion status (exclude/disqualify from leaderboard)
+// 4. ADMIN/TUTOR: Toggle student exclusion status
 const toggleStudentExclusion = async (req, res) => {
   try {
     const { studentId } = req.params
-    const { exclude } = req.body // Boolean (true/false)
+    const { exclude } = req.body
 
     const userCheck = await pool.query('SELECT id, role, exclude_from_leaderboard FROM users WHERE id = $1', [studentId])
     if (userCheck.rows.length === 0) {
@@ -485,17 +620,18 @@ const toggleCourseFreeze = async (req, res) => {
     const { courseId } = req.params
     const resolvedCourseId = await resolveCourseId(pool, courseId)
 
-    const courseCheck = await pool.query('SELECT id, title, is_leaderboard_frozen FROM courses WHERE id::text = $1', [resolvedCourseId])
+    const courseCheck = await pool.query('SELECT id, title, is_leaderboard_frozen FROM courses WHERE id = $1 OR id::text = $1', [resolvedCourseId])
     if (courseCheck.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Course not found' })
     }
 
     const currentFreeze = courseCheck.rows[0].is_leaderboard_frozen || false
     const newFreezeStatus = !currentFreeze
+    const actualCourseId = courseCheck.rows[0].id
 
     const updateResult = await pool.query(
-      'UPDATE courses SET is_leaderboard_frozen = $1 WHERE id::text = $2 RETURNING id, title, is_leaderboard_frozen',
-      [newFreezeStatus, resolvedCourseId]
+      'UPDATE courses SET is_leaderboard_frozen = $1 WHERE id = $2 RETURNING id, title, is_leaderboard_frozen',
+      [newFreezeStatus, actualCourseId]
     )
 
     return res.status(200).json({
@@ -540,7 +676,7 @@ const overrideStudentScore = async (req, res) => {
   }
 }
 
-// 7. ADMIN/TUTOR: Delete a student's quiz submission (removes score from leaderboard calculation)
+// 7. ADMIN/TUTOR: Delete a student's quiz submission
 const deleteStudentSubmission = async (req, res) => {
   try {
     const { submissionId } = req.params
