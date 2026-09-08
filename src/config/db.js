@@ -811,6 +811,9 @@ const runMigrations = async () => {
         priority VARCHAR(50) DEFAULT 'normal',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      
+      -- Ensure priority column exists if announcements table was created previously without it
+      ALTER TABLE announcements ADD COLUMN IF NOT EXISTS priority VARCHAR(50) DEFAULT 'normal';
     `)
     console.log(
       '✅ Database migration checked: announcements & additional tables verified.',
@@ -835,6 +838,8 @@ const runMigrations = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      
+      ALTER TABLE question_banks ADD COLUMN IF NOT EXISTS course_id VARCHAR(100);
 
       CREATE TABLE IF NOT EXISTS questions (
         id SERIAL PRIMARY KEY,
@@ -865,7 +870,7 @@ const runMigrations = async () => {
     `)
     console.log('✅ Database migration checked: question_banks, questions, question_options tables verified.')
 
-    // 10. Automatically ensure assessment_submissions table exists
+    // 10. Automatically ensure assessment_submissions table exists and has matching columns
     await pool.query(`
       CREATE TABLE IF NOT EXISTS assessment_submissions (
         id SERIAL PRIMARY KEY,
@@ -879,6 +884,11 @@ const runMigrations = async () => {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
+
+      -- Ensure columns referenced in questionController queries exist safely
+      ALTER TABLE assessment_submissions ADD COLUMN IF NOT EXISTS student_id INTEGER;
+      ALTER TABLE assessment_submissions ADD COLUMN IF NOT EXISTS user_id INTEGER;
+      ALTER TABLE assessment_submissions ADD COLUMN IF NOT EXISTS course_id VARCHAR(100);
     `)
     console.log('✅ Database migration checked: assessment_submissions table verified.')
 
