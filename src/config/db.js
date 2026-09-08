@@ -541,21 +541,23 @@ const runMigrations = async () => {
       '✅ Database migration checked: user profile name, country, phone, role & leaderboard exclusion columns verified.',
     )
 
-    // 3. Automatically ensure courses table exists and has tutor_id and leaderboard freeze columns
+    // 3. Automatically ensure courses table exists and has tutor_id, category, and leaderboard freeze columns
     await pool.query(`
       CREATE TABLE IF NOT EXISTS courses (
         id SERIAL PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
         description TEXT,
+        category VARCHAR(100),
         tutor_id INTEGER,
         is_leaderboard_frozen BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       ALTER TABLE courses ADD COLUMN IF NOT EXISTS tutor_id INTEGER;
+      ALTER TABLE courses ADD COLUMN IF NOT EXISTS category VARCHAR(100);
       ALTER TABLE courses ADD COLUMN IF NOT EXISTS is_leaderboard_frozen BOOLEAN DEFAULT FALSE;
     `)
     console.log(
-      '✅ Database migration checked: courses table, tutor relationship & leaderboard freeze status verified.',
+      '✅ Database migration checked: courses table, category, tutor relationship & leaderboard freeze status verified.',
     )
 
     // 4. Automatically ensure enrollments table exists and make key columns optional to prevent onboarding crashes
@@ -657,8 +659,6 @@ const runMigrations = async () => {
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
-      ALTER TABLE scholarship_applications ADD COLUMN IF NOT EXISTS referred_by VARCHAR(255);
-
       CREATE TABLE IF NOT EXISTS scholarship_awards (
           id SERIAL PRIMARY KEY,
           application_id INT REFERENCES scholarship_applications(id) ON DELETE CASCADE,
@@ -730,13 +730,6 @@ const runMigrations = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-      ALTER TABLE assessments ADD COLUMN IF NOT EXISTS description TEXT;
-      ALTER TABLE assessments ADD COLUMN IF NOT EXISTS course_id VARCHAR(100);
-      ALTER TABLE assessments ADD COLUMN IF NOT EXISTS tutor_id INTEGER;
-      ALTER TABLE assessments ADD COLUMN IF NOT EXISTS type VARCHAR(50) DEFAULT 'assignment';
-      ALTER TABLE assessments ADD COLUMN IF NOT EXISTS total_marks INTEGER DEFAULT 100;
-      ALTER TABLE assessments ADD COLUMN IF NOT EXISTS weight NUMERIC DEFAULT 0;
-      ALTER TABLE assessments ADD COLUMN IF NOT EXISTS due_date TIMESTAMP;
       
       DO $$ 
       BEGIN 
@@ -761,9 +754,6 @@ const runMigrations = async () => {
         graded_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-      ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS graded_by INTEGER;
-      ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS submission_url TEXT;
-      ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS submission_text TEXT;
 
       CREATE TABLE IF NOT EXISTS attendance_logs (
         id SERIAL PRIMARY KEY,
@@ -775,16 +765,6 @@ const runMigrations = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT unique_student_course_date UNIQUE (student_id, course_id, session_date)
       );
-      
-      DO $$ 
-      BEGIN 
-        IF EXISTS (
-          SELECT 1 FROM information_schema.columns 
-          WHERE table_name = 'attendance_logs' AND column_name = 'course_id' AND data_type = 'integer'
-        ) THEN
-          ALTER TABLE attendance_logs ALTER COLUMN course_id TYPE VARCHAR(100) USING course_id::VARCHAR;
-        END IF;
-      END $$;
 
       CREATE TABLE IF NOT EXISTS course_modules (
         id SERIAL PRIMARY KEY,
@@ -799,18 +779,6 @@ const runMigrations = async () => {
         created_by INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-      ALTER TABLE course_modules ADD COLUMN IF NOT EXISTS course_id VARCHAR(100);
-      ALTER TABLE course_modules ADD COLUMN IF NOT EXISTS tutor_id INTEGER;
-      
-      DO $$ 
-      BEGIN 
-        IF EXISTS (
-          SELECT 1 FROM information_schema.columns 
-          WHERE table_name = 'course_modules' AND column_name = 'course_id' AND data_type = 'integer'
-        ) THEN
-          ALTER TABLE course_modules ALTER COLUMN course_id TYPE VARCHAR(100) USING course_id::VARCHAR;
-        END IF;
-      END $$;
 
       CREATE TABLE IF NOT EXISTS live_sessions (
         id SERIAL PRIMARY KEY,
@@ -823,18 +791,6 @@ const runMigrations = async () => {
         tutor_id INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-      ALTER TABLE live_sessions ADD COLUMN IF NOT EXISTS course_id VARCHAR(100);
-      ALTER TABLE live_sessions ADD COLUMN IF NOT EXISTS tutor_id INTEGER;
-      
-      DO $$ 
-      BEGIN 
-        IF EXISTS (
-          SELECT 1 FROM information_schema.columns 
-          WHERE table_name = 'live_sessions' AND column_name = 'course_id' AND data_type = 'integer'
-        ) THEN
-          ALTER TABLE live_sessions ALTER COLUMN course_id TYPE VARCHAR(100) USING course_id::VARCHAR;
-        END IF;
-      END $$;
 
       CREATE TABLE IF NOT EXISTS course_announcements (
         id SERIAL PRIMARY KEY,
@@ -844,18 +800,6 @@ const runMigrations = async () => {
         tutor_id INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-      ALTER TABLE course_announcements ADD COLUMN IF NOT EXISTS course_id VARCHAR(100);
-      ALTER TABLE course_announcements ADD COLUMN IF NOT EXISTS tutor_id INTEGER;
-      
-      DO $$ 
-      BEGIN 
-        IF EXISTS (
-          SELECT 1 FROM information_schema.columns 
-          WHERE table_name = 'course_announcements' AND column_name = 'course_id' AND data_type = 'integer'
-        ) THEN
-          ALTER TABLE course_announcements ALTER COLUMN course_id TYPE VARCHAR(100) USING course_id::VARCHAR;
-        END IF;
-      END $$;
 
       CREATE TABLE IF NOT EXISTS announcements (
         id SERIAL PRIMARY KEY,
@@ -863,17 +807,16 @@ const runMigrations = async () => {
         date VARCHAR(100),
         content TEXT NOT NULL,
         tag VARCHAR(100) DEFAULT 'Bulletin',
+        target VARCHAR(100) DEFAULT 'all',
+        priority VARCHAR(50) DEFAULT 'normal',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-      ALTER TABLE announcements ADD COLUMN IF NOT EXISTS content TEXT;
-      ALTER TABLE announcements ADD COLUMN IF NOT EXISTS tag VARCHAR(100) DEFAULT 'Bulletin';
-      ALTER TABLE announcements ADD COLUMN IF NOT EXISTS date VARCHAR(100);
     `)
     console.log(
       '✅ Database migration checked: announcements & additional tables verified.',
     )
 
-    // 9. Automatically ensure question_banks, questions, and question_options tables exist with resilient foreign keys & new columns (difficulty, tags, order_index, review_comment)
+    // 9. Automatically ensure question_banks, questions, and question_options tables exist
     await pool.query(`
       CREATE TABLE IF NOT EXISTS question_banks (
         id SERIAL PRIMARY KEY,
@@ -892,12 +835,6 @@ const runMigrations = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-
-      ALTER TABLE question_banks ADD COLUMN IF NOT EXISTS duration_minutes INTEGER DEFAULT 30;
-      ALTER TABLE question_banks ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE;
-      ALTER TABLE question_banks ADD COLUMN IF NOT EXISTS start_time TIMESTAMP WITH TIME ZONE;
-      ALTER TABLE question_banks ADD COLUMN IF NOT EXISTS max_attempts INTEGER DEFAULT 1;
-      ALTER TABLE question_banks ADD COLUMN IF NOT EXISTS review_comment TEXT;
 
       CREATE TABLE IF NOT EXISTS questions (
         id SERIAL PRIMARY KEY,
@@ -918,10 +855,6 @@ const runMigrations = async () => {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
-      ALTER TABLE questions ADD COLUMN IF NOT EXISTS difficulty VARCHAR(20) DEFAULT 'MEDIUM';
-      ALTER TABLE questions ADD COLUMN IF NOT EXISTS tags TEXT[];
-      ALTER TABLE questions ADD COLUMN IF NOT EXISTS order_index INTEGER DEFAULT 0;
-
       CREATE TABLE IF NOT EXISTS question_options (
         id SERIAL PRIMARY KEY,
         question_id INTEGER REFERENCES questions(id) ON DELETE CASCADE,
@@ -930,20 +863,9 @@ const runMigrations = async () => {
         explanation TEXT
       );
     `)
-    console.log('✅ Database migration checked: question_banks, questions, question_options tables & advanced metadata columns verified.')
+    console.log('✅ Database migration checked: question_banks, questions, question_options tables verified.')
 
-    // 10. Automatically ensure leaderboard and course freeze columns exist
-    await pool.query(`
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS exclude_from_leaderboard BOOLEAN DEFAULT FALSE;
-      ALTER TABLE courses ADD COLUMN IF NOT EXISTS is_leaderboard_frozen BOOLEAN DEFAULT FALSE;
-    `)
-    console.log('✅ Database migration checked: leaderboard exclusion & course freeze properties verified.')
-
-  } catch (err) {
-    console.error('❌ Migration execution error:', err.message)
-  }
-
-    // 11. Automatically ensure assessment_submissions table and target column on announcements exist
+    // 10. Automatically ensure assessment_submissions table exists
     await pool.query(`
       CREATE TABLE IF NOT EXISTS assessment_submissions (
         id SERIAL PRIMARY KEY,
@@ -957,10 +879,12 @@ const runMigrations = async () => {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
-
-      ALTER TABLE announcements ADD COLUMN IF NOT EXISTS target VARCHAR(100) DEFAULT 'all';
     `)
-    console.log('✅ Database migration checked: assessment_submissions table & announcements target column verified.')
+    console.log('✅ Database migration checked: assessment_submissions table verified.')
+
+  } catch (err) {
+    console.error('❌ Migration execution error:', err.message)
+  }
 }
 
 // Execute migrations on startup

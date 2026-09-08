@@ -31,7 +31,7 @@
 //   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
 
 //   await db.query(
-//     `INSERT INTO refresh_tokens (user_id, token, expires_at)
+//     `INSERT INTO refresh_tokens (user_id, token, expires_at) 
 //      VALUES ($1, $2, $3)`,
 //     [admin.id, refreshToken, expiresAt],
 //   )
@@ -40,8 +40,8 @@
 // }
 
 // // @desc   Admin login (Credentials loaded from environment variables)
-// // @route   POST /api/admin/auth/login
-// // @access  Public
+// // @route  POST /api/admin/auth/login
+// // @access Public
 // const adminLogin = async (req, res) => {
 //   try {
 //     const { email, password } = req.body
@@ -61,8 +61,27 @@
 //         .json({ success: false, message: 'Invalid admin credentials' })
 //     }
 
+//     // 1. Check if the system admin already exists in the 'instructors' table
+//     let adminResult = await db.query('SELECT * FROM instructors WHERE email = $1', [ADMIN_EMAIL])
+//     let adminId
+
+//     if (adminResult.rows.length === 0) {
+//       // 2. Auto-seed the system admin into the database to generate a real primary key ID.
+//       // This ensures any action referencing 'req.user.id' won't fail foreign key constraints.
+//       const hashedPassword = await bcrypt.hash(ADMIN_PASS, 10)
+//       const newAdminInsert = await db.query(
+//         `INSERT INTO instructors (name, email, specialty, role, password) 
+//          VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+//         ['System Admin', ADMIN_EMAIL, 'System Administration', 'admin', hashedPassword]
+//       )
+//       adminId = newAdminInsert.rows[0].id
+//     } else {
+//       // Admin exists, fetch their real DB ID
+//       adminId = adminResult.rows[0].id
+//     }
+
 //     const adminUser = {
-//       id: 0, // System Admin ID marker
+//       id: adminId, // We now pass the real database ID here
 //       email: ADMIN_EMAIL,
 //       role: 'admin',
 //     }
@@ -76,6 +95,7 @@
 //       accessToken,
 //       refreshToken,
 //       admin: {
+//         id: adminId,
 //         name: 'System Admin',
 //         email: ADMIN_EMAIL,
 //         role: 'admin',
@@ -108,24 +128,24 @@
     
 //     // Updated query to include total_amount and calculated outstanding balance for recent activity
 //     const recentEnrollments = await db.query(
-//       `SELECT
-//          e.id,
-//          u.first_name,
-//          u.middle_name,
-//          u.last_name,
-//          e.course,
-//          e.total_amount,
-//          e.amount_paid,
-//          e.payment_status,
+//       `SELECT 
+//          e.id, 
+//          u.first_name, 
+//          u.middle_name, 
+//          u.last_name, 
+//          e.course, 
+//          e.total_amount, 
+//          e.amount_paid, 
+//          e.payment_status, 
 //          COALESCE(e.total_amount, 0) - COALESCE(e.amount_paid, 0) AS outstanding_balance,
-//          e.created_at
-//        FROM enrollments e
-//        JOIN users u ON e.user_id = u.id
-//        ORDER BY e.created_at DESC
+//          e.created_at 
+//        FROM enrollments e 
+//        JOIN users u ON e.user_id = u.id 
+//        ORDER BY e.created_at DESC 
 //        LIMIT 5`,
 //     )
 
-//     const totalRev = parseFloat(revenueResult.rows[0].total_revenue || 0) +
+//     const totalRev = parseFloat(revenueResult.rows[0].total_revenue || 0) + 
 //                      parseFloat(scholarshipRevenue.rows[0].total_scholarship_revenue || 0)
 
 //     res.status(200).json({
@@ -148,22 +168,22 @@
 //   try {
 //     const { studentType, cohortId } = req.query
 //     let query = `
-//       SELECT
-//         u.id,
+//       SELECT 
+//         u.id, 
 //         u.first_name,
 //         u.middle_name,
 //         u.last_name,
 //         u.country,
 //         u.password,
 //         TRIM(CONCAT(u.first_name, ' ', COALESCE(u.middle_name, ''), ' ', u.last_name)) AS name,
-//         u.email,
-//         u.phone,
-//         u.student_type,
-//         u.scholarship_status,
-//         u.cohort_id,
-//         sc.name as cohort_name,
-//         sc.code as cohort_code,
-//         u.is_verified,
+//         u.email, 
+//         u.phone, 
+//         u.student_type, 
+//         u.scholarship_status, 
+//         u.cohort_id, 
+//         sc.name as cohort_name, 
+//         sc.code as cohort_code, 
+//         u.is_verified, 
 //         u.created_at,
 //         e.id as enrollment_id,
 //         e.course,
@@ -208,17 +228,17 @@
 // // 3. POST /api/admin/enrollments/manual-onboard (Manual Student Onboarding with Accurate Pricing & Scholarship Support)
 // const manualOnboardStudent = async (req, res) => {
 //   try {
-//     const {
-//       firstName,
-//       middleName,
-//       lastName,
-//       country,
-//       phone,
-//       email,
-//       course,
-//       amountPaid,
-//       password,
-//       referredBy,
+//     const { 
+//       firstName, 
+//       middleName, 
+//       lastName, 
+//       country, 
+//       phone, 
+//       email, 
+//       course, 
+//       amountPaid, 
+//       password, 
+//       referredBy, 
 //       reason,
 //       studentType = 'REGULAR' // Accepts 'REGULAR' or 'SCHOLARSHIP'
 //     } = req.body
@@ -271,7 +291,7 @@
 //       await db.query('UPDATE users SET student_type = $1 WHERE id = $2', [studentType, userId])
 //     } else {
 //       const userResult = await db.query(
-//         `INSERT INTO users (first_name, middle_name, last_name, country, phone, email, password, role, student_type, is_verified)
+//         `INSERT INTO users (first_name, middle_name, last_name, country, phone, email, password, role, student_type, is_verified) 
 //          VALUES ($1, $2, $3, $4, $5, $6, $7, 'student', $8, true) RETURNING id`,
 //         [firstName, middleName || null, lastName, country || 'Nigeria', phone || null, email, hashedPassword, studentType]
 //       )
@@ -279,19 +299,19 @@
 //     }
 
 //     const enrollmentResult = await db.query(
-//       `INSERT INTO enrollments (user_id, first_name, middle_name, last_name, country, phone, email, course, reason, referred_by, total_amount, amount_paid, payment_status, reference)
+//       `INSERT INTO enrollments (user_id, first_name, middle_name, last_name, country, phone, email, course, reason, referred_by, total_amount, amount_paid, payment_status, reference) 
 //        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
 //       [
-//         userId,
-//         firstName,
-//         middleName || null,
-//         lastName,
-//         country || 'Nigeria',
-//         phone || null,
-//         email,
-//         course,
-//         reason || null,
-//         referredBy || null,
+//         userId, 
+//         firstName, 
+//         middleName || null, 
+//         lastName, 
+//         country || 'Nigeria', 
+//         phone || null, 
+//         email, 
+//         course, 
+//         reason || null, 
+//         referredBy || null, 
 //         totalAmount,        // Now stores the real course total (e.g. 80000) instead of amount paid
 //         paidNum,            // Stores what they actually paid (e.g. 20000)
 //         paymentStatus,      // Correctly saved as 'PARTIAL' instead of forcing 'COMPLETED'
@@ -315,8 +335,8 @@
 // const getAllPayments = async (req, res) => {
 //   try {
 //     const result = await db.query(
-//       `SELECT e.id, u.first_name, u.middle_name, u.last_name, u.email, e.course, e.total_amount, e.amount_paid,
-//               e.payment_status, e.reference, e.created_at
+//       `SELECT e.id, u.first_name, u.middle_name, u.last_name, u.email, e.course, e.total_amount, e.amount_paid, 
+//               e.payment_status, e.reference, e.created_at 
 //        FROM enrollments e JOIN users u ON e.user_id = u.id ORDER BY e.created_at DESC`,
 //     )
 //     res.status(200).json({ status: 'success', payments: result.rows })
@@ -365,7 +385,7 @@
 //     }
 
 //     const result = await db.query(
-//       `INSERT INTO announcements (title, message, target, priority)
+//       `INSERT INTO announcements (title, message, target, priority) 
 //        VALUES ($1, $2, $3, $4) RETURNING id, title, message AS content, target, priority, created_at`,
 //       [title, announcementText, target || 'all', priority || 'normal'],
 //     )
@@ -390,8 +410,8 @@
 //     const announcementText = content || message
 
 //     const result = await db.query(
-//       `UPDATE announcements
-//        SET title = COALESCE(NULLIF($1, ''), title),
+//       `UPDATE announcements 
+//        SET title = COALESCE(NULLIF($1, ''), title), 
 //            message = COALESCE(NULLIF($2, ''), message),
 //            target = COALESCE(NULLIF($3, ''), target),
 //            priority = COALESCE(NULLIF($4, ''), priority)
@@ -478,7 +498,7 @@
 //       status: 'success',
 //       message: 'Instructor/Tutor created successfully with login credentials.',
 //       instructor: result.rows[0],
-//       assignedPassword: rawPassword
+//       assignedPassword: rawPassword 
 //     })
 //   } catch (err) {
 //     console.error('Create Instructor Error:', err.message)
@@ -495,10 +515,10 @@
 
 //     let queryParams = [name, email, specialty, role, id]
 //     let updateQuery = `
-//       UPDATE instructors
-//       SET name = COALESCE($1, name),
-//           email = COALESCE($2, email),
-//           specialty = COALESCE($3, specialty),
+//       UPDATE instructors 
+//       SET name = COALESCE($1, name), 
+//           email = COALESCE($2, email), 
+//           specialty = COALESCE($3, specialty), 
 //           role = COALESCE($4, role)
 //     `
 
@@ -600,7 +620,7 @@
 // const getReports = async (req, res) => {
 //   try {
 //     const statsQuery = `
-//       SELECT
+//       SELECT 
 //         (SELECT COUNT(*) FROM assessments) as total_assessments,
 //         (SELECT COUNT(*) FROM student_submissions) as total_submissions,
 //         (SELECT COUNT(*) FROM student_submissions WHERE status = 'graded') as total_graded,
@@ -609,7 +629,7 @@
 //     const statsResult = await db.query(statsQuery)
 
 //     const studentPerformanceQuery = `
-//       SELECT
+//       SELECT 
 //         u.id as student_id,
 //         u.first_name,
 //         u.middle_name,
@@ -690,10 +710,12 @@
 //   try {
 //     const { gradeId } = req.params
 //     const { new_score, feedback } = req.body
+    
+//     // Now that admin has a real ID from the new adminLogin, req.user.id is always safe
 //     const adminId = req.user ? req.user.id : 0
 
 //     const query = `
-//       UPDATE student_submissions
+//       UPDATE student_submissions 
 //       SET score = $1, feedback = CONCAT(COALESCE(feedback, ''), ' | [Admin Override ID: ', $2, '] - ', $3), graded_at = CURRENT_TIMESTAMP, status = 'graded'
 //       WHERE id = $4
 //       RETURNING *;
@@ -722,7 +744,7 @@
 //     const courseName = normalizeCourseName(courseId)
 
 //     const query = `
-//       SELECT
+//       SELECT 
 //         u.id as student_id,
 //         u.first_name,
 //         u.middle_name,
@@ -817,8 +839,8 @@
 //   getAllCourses,
 //   getAdminAnnouncements,
 //   createAnnouncement,
-//   updateAnnouncement,
-//   deleteAnnouncement,
+//   updateAnnouncement, 
+//   deleteAnnouncement, 
 //   getInstructors,
 //   createInstructor,
 //   updateInstructor,
@@ -832,9 +854,6 @@
 //   getAttendanceOverview,
 //   sendDirectEmailToUsers,
 // }
-
-
-
 
 
 
@@ -907,7 +926,6 @@ const adminLogin = async (req, res) => {
 
     if (adminResult.rows.length === 0) {
       // 2. Auto-seed the system admin into the database to generate a real primary key ID.
-      // This ensures any action referencing 'req.user.id' won't fail foreign key constraints.
       const hashedPassword = await bcrypt.hash(ADMIN_PASS, 10)
       const newAdminInsert = await db.query(
         `INSERT INTO instructors (name, email, specialty, role, password) 
@@ -916,12 +934,11 @@ const adminLogin = async (req, res) => {
       )
       adminId = newAdminInsert.rows[0].id
     } else {
-      // Admin exists, fetch their real DB ID
       adminId = adminResult.rows[0].id
     }
 
     const adminUser = {
-      id: adminId, // We now pass the real database ID here
+      id: adminId,
       email: ADMIN_EMAIL,
       role: 'admin',
     }
@@ -966,7 +983,6 @@ const getAdminOverview = async (req, res) => {
       'SELECT COUNT(DISTINCT course) FROM enrollments',
     )
     
-    // Updated query to include total_amount and calculated outstanding balance for recent activity
     const recentEnrollments = await db.query(
       `SELECT 
          e.id, 
@@ -1003,7 +1019,7 @@ const getAdminOverview = async (req, res) => {
   }
 }
 
-// 2. GET /api/admin/students (Unified Students Tab - Regular & Scholarship with Outstanding Balance Calculation)
+// 2. GET /api/admin/students
 const getAllStudents = async (req, res) => {
   try {
     const { studentType, cohortId } = req.query
@@ -1065,7 +1081,7 @@ const getAllStudents = async (req, res) => {
   }
 }
 
-// 3. POST /api/admin/enrollments/manual-onboard (Manual Student Onboarding with Accurate Pricing & Scholarship Support)
+// 3. POST /api/admin/enrollments/manual-onboard
 const manualOnboardStudent = async (req, res) => {
   try {
     const { 
@@ -1080,14 +1096,13 @@ const manualOnboardStudent = async (req, res) => {
       password, 
       referredBy, 
       reason,
-      studentType = 'REGULAR' // Accepts 'REGULAR' or 'SCHOLARSHIP'
+      studentType = 'REGULAR' 
     } = req.body
 
     if (!firstName || !lastName || !email || !course) {
       return res.status(400).json({ success: false, message: 'First name, last name, email, and course are required.' })
     }
 
-    // 1. Define standard course prices matching your frontend PROGRAMMES list
     const coursePrices = {
       'Frontend Development': 80000,
       'Backend Development': 80000,
@@ -1100,23 +1115,20 @@ const manualOnboardStudent = async (req, res) => {
       'Product Management': 80000,
       'Web3 and Blockchain Development': 200000,
       'AI / Machine Learning': 200000,
-      'Graphics Design': 0, // Free
+      'Graphics Design': 0,
     }
 
     const standardPrice = coursePrices[course] ?? 80000
-
-    // 2. Compute true total amount (Scholarship students pay 20% of the price)
     const totalAmount = studentType === 'SCHOLARSHIP' ? standardPrice * 0.20 : standardPrice
     const paidNum = Number(amountPaid) || 0
 
-    // 3. Determine correct payment status dynamically
     let paymentStatus = 'PENDING'
     if (paidNum >= totalAmount && totalAmount > 0) {
       paymentStatus = 'COMPLETED'
     } else if (paidNum > 0) {
-      paymentStatus = 'PARTIAL' // Correctly flags installments like 20k out of 80k as partial
+      paymentStatus = 'PARTIAL'
     } else if (totalAmount === 0) {
-      paymentStatus = 'COMPLETED' // For free courses like Graphics Design
+      paymentStatus = 'COMPLETED'
     }
 
     const existingUser = await db.query('SELECT id FROM users WHERE email = $1', [email])
@@ -1127,7 +1139,6 @@ const manualOnboardStudent = async (req, res) => {
 
     if (existingUser.rows.length > 0) {
       userId = existingUser.rows[0].id
-      // Optional: Update user type if they were onboarded differently before
       await db.query('UPDATE users SET student_type = $1 WHERE id = $2', [studentType, userId])
     } else {
       const userResult = await db.query(
@@ -1152,9 +1163,9 @@ const manualOnboardStudent = async (req, res) => {
         course, 
         reason || null, 
         referredBy || null, 
-        totalAmount,        // Now stores the real course total (e.g. 80000) instead of amount paid
-        paidNum,            // Stores what they actually paid (e.g. 20000)
-        paymentStatus,      // Correctly saved as 'PARTIAL' instead of forcing 'COMPLETED'
+        totalAmount, 
+        paidNum, 
+        paymentStatus, 
         `MANUAL-${Date.now()}`
       ]
     )
@@ -1171,7 +1182,7 @@ const manualOnboardStudent = async (req, res) => {
   }
 }
 
-// 4. GET /api/admin/payments (Payments Tab)
+// 4. GET /api/admin/payments
 const getAllPayments = async (req, res) => {
   try {
     const result = await db.query(
@@ -1186,7 +1197,7 @@ const getAllPayments = async (req, res) => {
   }
 }
 
-// 5. GET /api/admin/courses (Courses Tab)
+// 5. GET /api/admin/courses
 const getAllCourses = async (req, res) => {
   try {
     const result = await db.query(
@@ -1199,8 +1210,7 @@ const getAllCourses = async (req, res) => {
   }
 }
 
-// 6. @desc    Get all announcements for admin view
-// @route   GET /api/admin/announcements
+// 6. Announcements
 const getAdminAnnouncements = async (req, res) => {
   try {
     const result = await db.query(
@@ -1213,8 +1223,6 @@ const getAdminAnnouncements = async (req, res) => {
   }
 }
 
-// @desc    Create and broadcast an announcement
-// @route   POST /api/admin/announcements
 const createAnnouncement = async (req, res) => {
   try {
     const { title, content, message, target, priority } = req.body
@@ -1241,8 +1249,6 @@ const createAnnouncement = async (req, res) => {
   }
 }
 
-// @desc    Update an announcement
-// @route   PUT /api/admin/announcements/:id
 const updateAnnouncement = async (req, res) => {
   try {
     const { id } = req.params
@@ -1274,8 +1280,6 @@ const updateAnnouncement = async (req, res) => {
   }
 }
 
-// @desc    Delete an announcement
-// @route   DELETE /api/admin/announcements/:id
 const deleteAnnouncement = async (req, res) => {
   try {
     const { id } = req.params
@@ -1299,12 +1303,9 @@ const deleteAnnouncement = async (req, res) => {
 }
 
 // ==========================================
-// 7. INSTRUCTORS / TUTORS MANAGEMENT BLOCK
-// Grouped completely together: Fetch, Create, Update, Delete & Course Assignment
+// 7. TUTORS MANAGEMENT BLOCK
 // ==========================================
 
-// @desc   Fetch all registered instructors/tutors
-// @route  GET /api/admin/instructors
 const getInstructors = async (req, res) => {
   try {
     const result = await db.query(
@@ -1312,13 +1313,11 @@ const getInstructors = async (req, res) => {
     )
     res.status(200).json({ status: 'success', instructors: result.rows })
   } catch (err) {
-    console.error('Get Instructors Error:', err.message)
-    res.status(500).json({ error: 'Server error while fetching instructors.' })
+    console.error('Get Tutors Error:', err.message)
+    res.status(500).json({ error: 'Server error while fetching tutors.' })
   }
 }
 
-// @desc   Create a new instructor/tutor with optional credential generation
-// @route  POST /api/admin/instructors
 const createInstructor = async (req, res) => {
   try {
     const { name, email, specialty, role, password } = req.body
@@ -1336,18 +1335,16 @@ const createInstructor = async (req, res) => {
 
     res.status(201).json({
       status: 'success',
-      message: 'Instructor/Tutor created successfully with login credentials.',
+      message: 'Tutor created successfully with login credentials.',
       instructor: result.rows[0],
       assignedPassword: rawPassword 
     })
   } catch (err) {
-    console.error('Create Instructor Error:', err.message)
-    res.status(500).json({ error: 'Server error while creating instructor.' })
+    console.error('Create Tutor Error:', err.message)
+    res.status(500).json({ error: 'Server error while creating tutor.' })
   }
 }
 
-// @desc   Update existing instructor/tutor details
-// @route  PUT /api/admin/instructors/:id
 const updateInstructor = async (req, res) => {
   try {
     const { id } = req.params
@@ -1373,22 +1370,20 @@ const updateInstructor = async (req, res) => {
     const result = await db.query(updateQuery, queryParams)
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Instructor not found.' })
+      return res.status(404).json({ error: 'Tutor not found.' })
     }
 
     res.status(200).json({
       status: 'success',
-      message: 'Instructor updated successfully.',
+      message: 'Tutor updated successfully.',
       instructor: result.rows[0],
     })
   } catch (err) {
-    console.error('Update Instructor Error:', err.message)
-    res.status(500).json({ error: 'Server error while updating instructor.' })
+    console.error('Update Tutor Error:', err.message)
+    res.status(500).json({ error: 'Server error while updating tutor.' })
   }
 }
 
-// @desc   Delete an instructor/tutor record
-// @route  DELETE /api/admin/instructors/:id
 const deleteInstructor = async (req, res) => {
   try {
     const { id } = req.params
@@ -1398,25 +1393,22 @@ const deleteInstructor = async (req, res) => {
     )
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Instructor not found.' })
+      return res.status(404).json({ error: 'Tutor not found.' })
     }
 
     res.status(200).json({
       status: 'success',
-      message: 'Instructor deleted successfully.',
+      message: 'Tutor deleted successfully.',
     })
   } catch (err) {
-    console.error('Delete Instructor Error:', err.message)
-    res.status(500).json({ error: 'Server error while deleting instructor.' })
+    console.error('Delete Tutor Error:', err.message)
+    res.status(500).json({ error: 'Server error while deleting tutor.' })
   }
 }
 
-// @desc   Assign a tutor/instructor to a course (handles both tutorId and instructorId parameters seamlessly)
-// @route  PUT /api/admin/courses/:courseId/assign-tutor
 const assignTutorToCourse = async (req, res) => {
   try {
     const { courseId } = req.params
-    // Support both tutorId or instructorId payload names seamlessly
     const tutorId = req.body.tutorId || req.body.instructorId
     const courseName = normalizeCourseName(courseId)
 
@@ -1425,6 +1417,8 @@ const assignTutorToCourse = async (req, res) => {
     }
 
     let courseResult
+    
+    // 1. If courseId is a numeric ID, attempt direct update
     if (!isNaN(courseId)) {
       courseResult = await db.query(
         'UPDATE courses SET tutor_id = $1 WHERE id = $2 RETURNING *',
@@ -1432,9 +1426,10 @@ const assignTutorToCourse = async (req, res) => {
       )
     }
 
+    // 2. FIXED: Fallback to matching column `title` instead of non-existent column `name`
     if (!courseResult || courseResult.rows.length === 0) {
       courseResult = await db.query(
-        'UPDATE courses SET tutor_id = $1 WHERE LOWER(name) = LOWER($2) OR LOWER(name) = LOWER($3) RETURNING *',
+        'UPDATE courses SET tutor_id = $1 WHERE id::text = $2 OR LOWER(title) = LOWER($2) OR LOWER(title) = LOWER($3) RETURNING *',
         [tutorId, courseId, courseName],
       )
     }
@@ -1503,7 +1498,6 @@ const getSettings = async (req, res) => {
   })
 }
 
-// Account Management Actions
 const toggleFreezeStudent = async (req, res) => {
   try {
     const { id } = req.params
@@ -1545,13 +1539,10 @@ const deleteStudentAccount = async (req, res) => {
   }
 }
 
-// Grading & Attendance Supervisory Methods
 const executeGradeOverride = async (req, res) => {
   try {
     const { gradeId } = req.params
     const { new_score, feedback } = req.body
-    
-    // Now that admin has a real ID from the new adminLogin, req.user.id is always safe
     const adminId = req.user ? req.user.id : 0
 
     const query = `
@@ -1598,7 +1589,7 @@ const getAttendanceOverview = async (req, res) => {
         ) as attendance_percentage
       FROM users u
       JOIN attendance_logs a ON u.id = a.student_id
-      WHERE LOWER(a.course_id) = LOWER($1) OR LOWER(a.course_id) = LOWER($2)
+      WHERE LOWER(a.course_id::text) = LOWER($1) OR LOWER(a.course_id::text) = LOWER($2)
       GROUP BY u.id, u.first_name, u.middle_name, u.last_name, u.email
       ORDER BY attendance_percentage ASC;
     `
@@ -1617,12 +1608,10 @@ const getAttendanceOverview = async (req, res) => {
   }
 }
 
-// Admin Direct Email Dispatch Method
 const sendDirectEmailToUsers = async (req, res) => {
   try {
     const { emails, subject, message, html, attachments, cc, bcc } = req.body
 
-    // Validation checks (must have recipients, subject, and either plain text or HTML content)
     if (!emails || !subject || (!message && !html)) {
       return res.status(400).json({
         success: false,
@@ -1630,23 +1619,20 @@ const sendDirectEmailToUsers = async (req, res) => {
       })
     }
 
-    // Normalize emails safely into an array, filtering out empty values or trailing commas
     const recipientList = Array.isArray(emails)
       ? emails.filter(Boolean)
       : emails.split(',').map((email) => email.trim()).filter(Boolean)
 
-    // Payload configuration for the email service
     const emailPayload = {
       to: recipientList,
       subject,
-      text: message,       // Plain text fallback
-      html: html || message, // Renders full HTML links, formatting, images if provided
-      attachments: attachments || [], // Array of attachment objects (filename, content/path)
+      text: message,       
+      html: html || message, 
+      attachments: attachments || [], 
       cc: cc || undefined,
       bcc: bcc || undefined,
     }
 
-    // Call the service
     const result = await emailService.sendCustomAdminEmail(emailPayload)
 
     if (!result.success) {

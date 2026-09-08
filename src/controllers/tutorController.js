@@ -26,10 +26,10 @@
 //   // Attempt to look up the course by matching title, slug transformation, or ID text
 //   const normalizedName = normalizeCourseName(courseIdentifier)
 //   const query = `
-//     SELECT id FROM courses
-//     WHERE id::text = $1
-//        OR LOWER(title) = LOWER($1)
-//        OR LOWER(title) = LOWER($2)
+//     SELECT id FROM courses 
+//     WHERE id::text = $1 
+//        OR LOWER(title) = LOWER($1) 
+//        OR LOWER(title) = LOWER($2) 
 //        OR LOWER(REPLACE(title, ' ', '-')) = LOWER($1)
 //     LIMIT 1;
 //   `
@@ -59,10 +59,9 @@
 //     }
 
 //     const tutor = result.rows[0]
-//     const DEFAULT_PASS = 'admin@denskill123'
-//     const isMatch =
-//       password === DEFAULT_PASS ||
-//       (tutor.password && (await bcrypt.compare(password, tutor.password)))
+    
+//     // Safely verify password using bcrypt
+//     const isMatch = tutor.password ? await bcrypt.compare(password, tutor.password) : false
 
 //     if (!isMatch) {
 //       return res
@@ -102,8 +101,8 @@
 //     const tutorId = req.user.id
 
 //     const query = `
-//       SELECT id, title, description, category, tutor_id
-//       FROM courses
+//       SELECT id, title, description, category, tutor_id 
+//       FROM courses 
 //       WHERE tutor_id = $1
 //     `
 //     const result = await pool.query(query, [tutorId])
@@ -149,7 +148,7 @@
 //       type || 'assignment',
 //       total_marks || 100,
 //       weight || 0,
-//       tutorId,
+//       tutorId, 
 //       due_date || null,
 //     ]
 
@@ -253,8 +252,11 @@
 // exports.getSubmissionsByAssessment = async (req, res) => {
 //   try {
 //     const { assessmentId } = req.params
+//     // Fixed: Use concatenated user names matching the database schema
 //     const query = `
-//       SELECT s.*, u.name, u.email
+//       SELECT s.*, 
+//              TRIM(CONCAT(u.first_name, ' ', COALESCE(u.middle_name, ''), ' ', u.last_name)) AS name, 
+//              u.email
 //       FROM student_submissions s
 //       JOIN users u ON s.student_id = u.id
 //       WHERE s.assessment_id = $1
@@ -326,7 +328,6 @@
 //       RETURNING *;
 //     `
 
-//     // Optimized using Promise.all to avoid blocking sequential queries
 //     const logPromises = attendance_records.map(async (record) => {
 //       const values = [
 //         resolvedCourseId,
@@ -470,8 +471,11 @@
 //     const courseName = normalizeCourseName(courseId)
 //     const resolvedId = await resolveCourseId(pool, courseId)
 
+//     // Fixed: Use concatenated user names matching the database schema
 //     const query = `
-//       SELECT DISTINCT u.id, u.name, u.email, e.payment_status, e.created_at as enrollment_date,
+//       SELECT DISTINCT u.id, 
+//              TRIM(CONCAT(u.first_name, ' ', COALESCE(u.middle_name, ''), ' ', u.last_name)) AS name, 
+//              u.email, e.payment_status, e.created_at as enrollment_date,
 //              (SELECT COUNT(*) FROM student_submissions s JOIN assessments a ON s.assessment_id = a.id WHERE s.student_id = u.id AND (a.course_id = $1 OR a.course_id::text = $2)) as submissions_count
 //       FROM enrollments e
 //       JOIN users u ON e.user_id = u.id
@@ -564,8 +568,11 @@
 //     `
 //     const statsResult = await pool.query(statsQuery, [resolvedId, courseId, courseName])
 
+//     // Fixed: Use concatenated user names matching the database schema
 //     const atRiskQuery = `
-//       SELECT u.id, u.name, u.email
+//       SELECT u.id, 
+//              TRIM(CONCAT(u.first_name, ' ', COALESCE(u.middle_name, ''), ' ', u.last_name)) AS name, 
+//              u.email
 //       FROM users u
 //       JOIN enrollments e ON u.id = e.user_id
 //       WHERE (e.course_id = $1 OR e.course_id::text = $2 OR LOWER(e.course) = LOWER($2) OR LOWER(e.course) = LOWER($3))
@@ -600,10 +607,13 @@
 //     const resolvedId = await resolveCourseId(pool, cohortId)
 //     const cohortName = normalizeCourseName(cohortId)
 
+//     // Fixed: Use concatenated user names matching the database schema
 //     let query = `
-//       SELECT DISTINCT u.id, u.name, u.email, u.phone,
-//              COALESCE(u.scholarship_status, 'none') as scholarship_status,
-//              COALESCE(u.student_type, 'regular') as student_type
+//       SELECT DISTINCT u.id, 
+//              TRIM(CONCAT(u.first_name, ' ', COALESCE(u.middle_name, ''), ' ', u.last_name)) AS name, 
+//              u.email, u.phone, 
+//              COALESCE(u.scholarship_status, 'none') as scholarship_status, 
+//              COALESCE(u.student_type, 'regular') as student_type 
 //       FROM users u
 //       JOIN enrollments e ON u.id = e.user_id
 //     `
@@ -623,8 +633,8 @@
 // }
 
 
-
 // src/controllers/tutorController.js
+
 const pool = require('../config/db')
 const jwt = require('jsonwebtoken')
 const bcrypt = require('bcryptjs')
@@ -878,7 +888,7 @@ exports.deleteAssessment = async (req, res) => {
 exports.getSubmissionsByAssessment = async (req, res) => {
   try {
     const { assessmentId } = req.params
-    // Fixed: Use concatenated user names matching the database schema
+    // Use concatenated user names matching the database schema
     const query = `
       SELECT s.*, 
              TRIM(CONCAT(u.first_name, ' ', COALESCE(u.middle_name, ''), ' ', u.last_name)) AS name, 
@@ -1097,7 +1107,7 @@ exports.getCourseRoster = async (req, res) => {
     const courseName = normalizeCourseName(courseId)
     const resolvedId = await resolveCourseId(pool, courseId)
 
-    // Fixed: Use concatenated user names matching the database schema
+    // Use concatenated user names matching the database schema
     const query = `
       SELECT DISTINCT u.id, 
              TRIM(CONCAT(u.first_name, ' ', COALESCE(u.middle_name, ''), ' ', u.last_name)) AS name, 
@@ -1194,7 +1204,7 @@ exports.getClassAnalytics = async (req, res) => {
     `
     const statsResult = await pool.query(statsQuery, [resolvedId, courseId, courseName])
 
-    // Fixed: Use concatenated user names matching the database schema
+    // Use concatenated user names matching the database schema
     const atRiskQuery = `
       SELECT u.id, 
              TRIM(CONCAT(u.first_name, ' ', COALESCE(u.middle_name, ''), ' ', u.last_name)) AS name, 
@@ -1233,7 +1243,7 @@ exports.getAssignedCohortStudents = async (req, res) => {
     const resolvedId = await resolveCourseId(pool, cohortId)
     const cohortName = normalizeCourseName(cohortId)
 
-    // Fixed: Use concatenated user names matching the database schema
+    // Use concatenated user names matching the database schema
     let query = `
       SELECT DISTINCT u.id, 
              TRIM(CONCAT(u.first_name, ' ', COALESCE(u.middle_name, ''), ' ', u.last_name)) AS name, 
