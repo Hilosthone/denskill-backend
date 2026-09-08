@@ -41,6 +41,7 @@
 //         email VARCHAR(255) UNIQUE NOT NULL,
 //         password VARCHAR(255) NOT NULL,
 //         role VARCHAR(50) DEFAULT 'student',
+//         exclude_from_leaderboard BOOLEAN DEFAULT FALSE,
 //         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 //       );
 //     `)
@@ -54,7 +55,7 @@
 //     )
 //     console.log('✅ Database migration checked: status column verified.')
 
-//     // 2. Automatically ensure first_name, middle_name, last_name, country, and phone columns exist on users table
+//     // 2. Automatically ensure first_name, middle_name, last_name, country, phone, role, and leaderboard exclusion columns exist on users table
 //     await pool.query(`
 //       ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(255);
 //       ALTER TABLE users ADD COLUMN IF NOT EXISTS middle_name VARCHAR(255);
@@ -62,24 +63,27 @@
 //       ALTER TABLE users ADD COLUMN IF NOT EXISTS country VARCHAR(100);
 //       ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
 //       ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'student';
+//       ALTER TABLE users ADD COLUMN IF NOT EXISTS exclude_from_leaderboard BOOLEAN DEFAULT FALSE;
 //     `)
 //     console.log(
-//       '✅ Database migration checked: user profile name, country, phone & role columns verified.',
+//       '✅ Database migration checked: user profile name, country, phone, role & leaderboard exclusion columns verified.',
 //     )
 
-//     // 3. Automatically ensure courses table exists and has tutor_id column
+//     // 3. Automatically ensure courses table exists and has tutor_id and leaderboard freeze columns
 //     await pool.query(`
 //       CREATE TABLE IF NOT EXISTS courses (
 //         id SERIAL PRIMARY KEY,
 //         title VARCHAR(255) NOT NULL,
 //         description TEXT,
 //         tutor_id INTEGER,
+//         is_leaderboard_frozen BOOLEAN DEFAULT FALSE,
 //         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 //       );
 //       ALTER TABLE courses ADD COLUMN IF NOT EXISTS tutor_id INTEGER;
+//       ALTER TABLE courses ADD COLUMN IF NOT EXISTS is_leaderboard_frozen BOOLEAN DEFAULT FALSE;
 //     `)
 //     console.log(
-//       '✅ Database migration checked: courses table and tutor relationship verified.',
+//       '✅ Database migration checked: courses table, tutor relationship & leaderboard freeze status verified.',
 //     )
 
 //     // 4. Automatically ensure enrollments table exists and make key columns optional to prevent onboarding crashes
@@ -460,7 +464,6 @@
 //   query: (text, params) => pool.query(text, params),
 //   connect: () => pool.connect(),
 //   getClient: () => pool.connect(),
-//   query: (...args) => pool.query(...args),
 //   ...pool,
 //   pool,
 // }
@@ -870,7 +873,7 @@ const runMigrations = async () => {
       '✅ Database migration checked: announcements & additional tables verified.',
     )
 
-    // 9. Automatically ensure question_banks, questions, and question_options tables exist with resilient foreign keys
+    // 9. Automatically ensure question_banks, questions, and question_options tables exist with resilient foreign keys & new columns (difficulty, tags, order_index, review_comment)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS question_banks (
         id SERIAL PRIMARY KEY,
@@ -894,6 +897,7 @@ const runMigrations = async () => {
       ALTER TABLE question_banks ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE;
       ALTER TABLE question_banks ADD COLUMN IF NOT EXISTS start_time TIMESTAMP WITH TIME ZONE;
       ALTER TABLE question_banks ADD COLUMN IF NOT EXISTS max_attempts INTEGER DEFAULT 1;
+      ALTER TABLE question_banks ADD COLUMN IF NOT EXISTS review_comment TEXT;
 
       CREATE TABLE IF NOT EXISTS questions (
         id SERIAL PRIMARY KEY,
@@ -904,12 +908,19 @@ const runMigrations = async () => {
         question_type VARCHAR(50) DEFAULT 'MCQ',
         image_url TEXT,
         marks INTEGER DEFAULT 1,
+        difficulty VARCHAR(20) DEFAULT 'MEDIUM',
+        tags TEXT[],
+        order_index INTEGER DEFAULT 0,
         created_by INTEGER REFERENCES instructors(id) ON DELETE SET NULL,
         created_by_role VARCHAR(50) DEFAULT 'TUTOR',
         status VARCHAR(50) DEFAULT 'ACTIVE',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      ALTER TABLE questions ADD COLUMN IF NOT EXISTS difficulty VARCHAR(20) DEFAULT 'MEDIUM';
+      ALTER TABLE questions ADD COLUMN IF NOT EXISTS tags TEXT[];
+      ALTER TABLE questions ADD COLUMN IF NOT EXISTS order_index INTEGER DEFAULT 0;
 
       CREATE TABLE IF NOT EXISTS question_options (
         id SERIAL PRIMARY KEY,
@@ -919,7 +930,14 @@ const runMigrations = async () => {
         explanation TEXT
       );
     `)
-    console.log('✅ Database migration checked: question_banks, questions & question_options tables verified.')
+    console.log('✅ Database migration checked: question_banks, questions, question_options tables & advanced metadata columns verified.')
+
+    // 10. Automatically ensure leaderboard and course freeze columns exist
+    await pool.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS exclude_from_leaderboard BOOLEAN DEFAULT FALSE;
+      ALTER TABLE courses ADD COLUMN IF NOT EXISTS is_leaderboard_frozen BOOLEAN DEFAULT FALSE;
+    `)
+    console.log('✅ Database migration checked: leaderboard exclusion & course freeze properties verified.')
 
   } catch (err) {
     console.error('❌ Migration execution error:', err.message)
