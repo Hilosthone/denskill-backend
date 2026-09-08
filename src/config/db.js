@@ -942,6 +942,25 @@ const runMigrations = async () => {
   } catch (err) {
     console.error('❌ Migration execution error:', err.message)
   }
+
+    // 11. Automatically ensure assessment_submissions table and target column on announcements exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS assessment_submissions (
+        id SERIAL PRIMARY KEY,
+        assessment_id INTEGER REFERENCES question_banks(id) ON DELETE CASCADE,
+        student_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        score NUMERIC DEFAULT 0,
+        total_marks NUMERIC DEFAULT 0,
+        status VARCHAR(50) DEFAULT 'SUBMITTED',
+        answers JSONB,
+        submitted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      ALTER TABLE announcements ADD COLUMN IF NOT EXISTS target VARCHAR(100) DEFAULT 'all';
+    `)
+    console.log('✅ Database migration checked: assessment_submissions table & announcements target column verified.')
 }
 
 // Execute migrations on startup
