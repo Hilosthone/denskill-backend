@@ -1,10 +1,11 @@
+// //src/controllers/questionController.js
 // /**
 //  * @file questionController.js
 //  * @description Controller handling CRUD operations for Question Banks and Questions,
-//  * including options management, pagination, filtering, and transaction safety.
+//  * including options management, pagination, filtering, transaction safety, and 
+//  * robust dynamic updates that correctly handle explicit null values.
 //  */
 
-// // const pool = require('../config/db')
 // const { pool } = require('../config/db')
 
 // /**
@@ -285,8 +286,9 @@
 //  * @access  Admin or Tutor
 //  * 
 //  * TEACHING NOTE:
-//  * Uses COALESCE in SQL so that fields omitted in the request body retain their existing database value. 
-//  * If a new array of options is passed, old options are wiped and recreated cleanly inside a transaction block.
+//  * Refactored from static COALESCE statements to a dynamic query builder. 
+//  * This ensures that if a client explicitly sends `null` to clear a nullable field (like `imageUrl` or `courseId`), 
+//  * the database actually updates the field to `null` instead of ignoring it and preserving the old value.
 //  */
 // const updateQuestion = async (req, res) => {
 //   const client = await pool.connect()
@@ -340,31 +342,50 @@
 //       }
 //     }
 
-//     // 3. Perform conditional update on the question table
-//     const updateQuery = `
-//       UPDATE questions 
-//       SET subject_id = COALESCE($1, subject_id),
-//           course_id = COALESCE($2, course_id),
-//           question_text = COALESCE($3, question_text),
-//           question_type = COALESCE($4, question_type),
-//           image_url = COALESCE($5, image_url),
-//           marks = COALESCE($6, marks),
-//           updated_at = CURRENT_TIMESTAMP
-//       WHERE id = $7
-//       RETURNING *;
-//     `
-//     const updateValues = [
-//       subjectId !== undefined ? subjectId : null,
-//       courseId !== undefined ? courseId : null,
-//       questionText !== undefined ? questionText : null,
-//       questionType !== undefined ? questionType : null,
-//       imageUrl !== undefined ? imageUrl : null,
-//       marks !== undefined ? marks : null,
-//       id,
-//     ]
+//     // 3. Dynamically build the update query to support explicit nullification of fields
+//     const fields = []
+//     const updateValues = []
+//     let paramIndex = 1
 
-//     const updatedQRes = await client.query(updateQuery, updateValues)
-//     const updatedQuestion = updatedQRes.rows[0]
+//     if (subjectId !== undefined) {
+//       fields.push(`subject_id = $${paramIndex++}`)
+//       updateValues.push(subjectId)
+//     }
+//     if (courseId !== undefined) {
+//       fields.push(`course_id = $${paramIndex++}`)
+//       updateValues.push(courseId)
+//     }
+//     if (questionText !== undefined) {
+//       fields.push(`question_text = $${paramIndex++}`)
+//       updateValues.push(questionText)
+//     }
+//     if (questionType !== undefined) {
+//       fields.push(`question_type = $${paramIndex++}`)
+//       updateValues.push(questionType)
+//     }
+//     if (imageUrl !== undefined) {
+//       fields.push(`image_url = $${paramIndex++}`)
+//       updateValues.push(imageUrl)
+//     }
+//     if (marks !== undefined) {
+//       fields.push(`marks = $${paramIndex++}`)
+//       updateValues.push(marks)
+//     }
+
+//     fields.push(`updated_at = CURRENT_TIMESTAMP`)
+
+//     let updatedQuestion = checkRes.rows[0]
+//     if (fields.length > 1) {
+//       updateValues.push(id)
+//       const updateQuery = `
+//         UPDATE questions 
+//         SET ${fields.join(', ')}
+//         WHERE id = $${paramIndex}
+//         RETURNING *;
+//       `
+//       const updatedQRes = await client.query(updateQuery, updateValues)
+//       updatedQuestion = updatedQRes.rows[0]
+//     }
 
 //     // 4. Handle option modifications: Delete old and insert new set if requested
 //     let updatedOptions = []
@@ -492,6 +513,168 @@
 //   }
 // }
 
+// /**
+//  * @desc    Get authenticated student's quiz/assessment history and attempt breakdowns
+//  * @route   GET /api/questions/history/me
+//  * @access  Student
+//  */
+// const getMyAssessmentHistory = async (req, res) => {
+//   try {
+//     const studentId = req.user.id
+//     const { page = 1, limit = 20 } = req.query
+//     const parsedPage = parseInt(page, 10)
+//     const parsedLimit = parseInt(limit, 10)
+//     const offset = (parsedPage - 1) * parsedLimit
+
+//     // Query student assessment submissions / quiz attempts history
+//     const query = `
+//       SELECT s.*, 
+//              c.title AS course_title,
+//              a.title AS assessment_title
+//       FROM assessment_submissions s
+//       LEFT JOIN courses c ON s.course_id = c.id
+//       LEFT JOIN assessments a ON s.assessment_id = a.id
+//       WHERE s.user_id = $1
+//       ORDER BY s.submitted_at DESC
+//       LIMIT $2 OFFSET $3;
+//     `
+//     const countQuery = `SELECT COUNT(*) FROM assessment_submissions WHERE user_id = $1;`
+
+//     const [result, countResult] = await Promise.all([
+//       pool.query(query, [studentId, parsedLimit, offset]),
+//       pool.query(countQuery, [studentId]),
+//     ])
+
+//     const total = parseInt(countResult.rows[0].count, 10)
+
+//     res.status(200).json({
+//       success: true,
+//       data: result.rows,
+//       pagination: {
+//         page: parsedPage,
+//         limit: parsedLimit,
+//         total,
+//         totalPages: Math.ceil(total / parsedLimit),
+//       },
+//     })
+//   } catch (error) {
+//     console.error('Error fetching student assessment history:', error)
+//     res.status(500).json({ success: false, message: 'Server error fetching student history' })
+//   }
+// }
+
+// /**
+//  * @desc    Get detailed review for a specific assessment attempt (what was correct, missed, time used)
+//  * @route   GET /api/questions/history/submissions/:submissionId
+//  * @access  Student (own) or Admin/Tutor (any)
+//  */
+// const getSubmissionDetailReview = async (req, res) => {
+//   try {
+//     const { submissionId } = req.params
+//     const userId = req.user.id
+//     const userRole = (req.user.role || '').toUpperCase()
+
+//     const subResult = await pool.query(
+//       `SELECT s.*, u.name AS student_name, u.email AS student_email 
+//        FROM assessment_submissions s
+//        LEFT JOIN users u ON s.user_id = u.id
+//        WHERE s.id = $1;`,
+//       [submissionId]
+//     )
+
+//     if (subResult.rows.length === 0) {
+//       return res.status(404).json({ success: false, message: 'Assessment submission not found' })
+//     }
+
+//     const submission = subResult.rows[0]
+
+//     // Restrict student from viewing other students' submissions
+//     if (userRole === 'STUDENT' && Number(submission.user_id) !== Number(userId)) {
+//       return res.status(403).json({ success: false, message: 'Access denied to this submission record' })
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       data: submission,
+//     })
+//   } catch (error) {
+//     console.error('Error fetching submission review details:', error)
+//     res.status(500).json({ success: false, message: 'Server error fetching submission details' })
+//   }
+// }
+
+// /**
+//  * @desc    Get all students' assessment/quiz performances, timing metrics, and analytics for admins & tutors
+//  * @route   GET /api/questions/admin/history/all
+//  * @access  Admin or Tutor
+//  */
+// const getAllStudentsAssessmentHistory = async (req, res) => {
+//   try {
+//     const { course_id, assessment_id, student_id, page = 1, limit = 20 } = req.query
+//     const parsedPage = parseInt(page, 10)
+//     const parsedLimit = parseInt(limit, 10)
+//     const offset = (parsedPage - 1) * parsedLimit
+
+//     const conditions = []
+//     const filterValues = []
+
+//     if (course_id) {
+//       filterValues.push(course_id)
+//       conditions.push(`s.course_id = $${filterValues.length}`)
+//     }
+//     if (assessment_id) {
+//       filterValues.push(assessment_id)
+//       conditions.push(`s.assessment_id = $${filterValues.length}`)
+//     }
+//     if (student_id) {
+//       filterValues.push(student_id)
+//       conditions.push(`s.user_id = $${filterValues.length}`)
+//     }
+
+//     const whereClause = conditions.length > 0 ? ` WHERE ` + conditions.join(' AND ') : ``
+
+//     const query = `
+//       SELECT s.*, 
+//              u.name AS student_name, 
+//              u.email AS student_email,
+//              c.title AS course_title,
+//              a.title AS assessment_title
+//       FROM assessment_submissions s
+//       LEFT JOIN users u ON s.user_id = u.id
+//       LEFT JOIN courses c ON s.course_id = c.id
+//       LEFT JOIN assessments a ON s.assessment_id = a.id
+//       ${whereClause}
+//       ORDER BY s.submitted_at DESC
+//       LIMIT $${filterValues.length + 1} OFFSET $${filterValues.length + 2};
+//     `
+
+//     const countQuery = `SELECT COUNT(*) FROM assessment_submissions s ${whereClause};`
+
+//     const mainQueryValues = [...filterValues, parsedLimit, offset]
+
+//     const [result, countResult] = await Promise.all([
+//       pool.query(query, mainQueryValues),
+//       pool.query(countQuery, filterValues),
+//     ])
+
+//     const total = parseInt(countResult.rows[0].count, 10)
+
+//     res.status(200).json({
+//       success: true,
+//       data: result.rows,
+//       pagination: {
+//         page: parsedPage,
+//         limit: parsedLimit,
+//         total,
+//         totalPages: Math.ceil(total / parsedLimit),
+//       },
+//     })
+//   } catch (error) {
+//     console.error('Error fetching global assessment history:', error)
+//     res.status(500).json({ success: false, message: 'Server error fetching cohort performance metrics' })
+//   }
+// }
+
 // module.exports = {
 //   createQuestion,
 //   getQuestions,
@@ -499,7 +682,13 @@
 //   updateQuestion,
 //   deleteQuestion,
 //   updateQuestionStatus,
+//   getMyAssessmentHistory,
+//   getSubmissionDetailReview,
+//   getAllStudentsAssessmentHistory,
 // }
+
+
+
 
 
 //src/controllers/questionController.js
@@ -1036,7 +1225,7 @@ const getMyAssessmentHistory = async (req, res) => {
              c.title AS course_title,
              a.title AS assessment_title
       FROM assessment_submissions s
-      LEFT JOIN courses c ON s.course_id = c.id
+      LEFT JOIN courses c ON s.course_id::text = c.id::text
       LEFT JOIN assessments a ON s.assessment_id = a.id
       WHERE s.user_id = $1
       ORDER BY s.submitted_at DESC
@@ -1145,7 +1334,7 @@ const getAllStudentsAssessmentHistory = async (req, res) => {
              a.title AS assessment_title
       FROM assessment_submissions s
       LEFT JOIN users u ON s.user_id = u.id
-      LEFT JOIN courses c ON s.course_id = c.id
+      LEFT JOIN courses c ON s.course_id::text = c.id::text
       LEFT JOIN assessments a ON s.assessment_id = a.id
       ${whereClause}
       ORDER BY s.submitted_at DESC
