@@ -864,6 +864,13 @@ const runMigrations = async () => {
     `)
     console.log('✅ Database migration checked: assessment_submissions table verified.')
 
+    // 11. Automatically ensure leaderboard course mapping and columns exist on enrollments
+    await pool.query(`
+      ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS course_name VARCHAR(255);
+      CREATE INDEX IF NOT EXISTS idx_enrollments_user_course ON enrollments (user_id, course_id);
+    `)
+    console.log('✅ Database migration checked: leaderboard enrollment mappings verified.')
+
   } catch (err) {
     console.error('❌ Migration execution error:', err.message)
   }
