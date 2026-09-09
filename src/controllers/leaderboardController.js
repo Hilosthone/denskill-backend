@@ -43,8 +43,6 @@
 
 //     const resolvedCourseId = await resolveCourseId(pool, courseId)
 //     const courseName = normalizeCourseName(courseId)
-
-//     // Optional: If course leaderboard is frozen, you can optionally notify or fetch accordingly
 //     const isFrozen = await checkCourseFreezeStatus(pool, resolvedCourseId)
 
 //     let queryText = `
@@ -70,12 +68,13 @@
 
 //     if (courseId) {
 //       queryParams.push(resolvedCourseId, courseId, courseName)
-//       queryText += ` AND (a.course_id = $${queryParams.length - 2} OR a.course_id::text = $${queryParams.length - 1} OR LOWER(a.course_id::text) = LOWER($${queryParams.length - 1}) OR LOWER(a.course_id::text) = LOWER($${queryParams.length}))`
+//       queryText += ` AND (a.course_id = $1 OR a.course_id::text = $2 OR LOWER(a.course_id::text) = LOWER($2) OR LOWER(a.course_id::text) = LOWER($3))`
 //     }
 
 //     if (search) {
 //       queryParams.push(`%${search.toLowerCase()}%`)
-//       queryText += ` AND (LOWER(u.first_name) LIKE $${queryParams.length} OR LOWER(u.last_name) LIKE $${queryParams.length} OR LOWER(CONCAT(u.first_name, ' ', u.last_name)) LIKE $${queryParams.length})`
+//       const paramIdx = queryParams.length
+//       queryText += ` AND (LOWER(u.first_name) LIKE $${paramIdx} OR LOWER(u.last_name) LIKE $${paramIdx} OR LOWER(CONCAT(u.first_name, ' ', u.last_name)) LIKE $${paramIdx})`
 //     }
 
 //     queryText += `
@@ -141,6 +140,7 @@
 
 //     if (courseId) {
 //       queryParams.push(resolvedCourseId, courseId, courseName)
+//       // $1 is studentId, so course parameters start at $2, $3, $4
 //       rankingSubQuery += ` AND (a.course_id = $2 OR a.course_id::text = $3 OR LOWER(a.course_id::text) = LOWER($3) OR LOWER(a.course_id::text) = LOWER($4))`
 //     }
 
@@ -230,11 +230,11 @@
 //   }
 // }
 
-// // 4. ADMIN/TUTOR: Toggle student exclusion status (exclude/disqualify from leaderboard)
+// // 4. ADMIN/TUTOR: Toggle student exclusion status
 // const toggleStudentExclusion = async (req, res) => {
 //   try {
 //     const { studentId } = req.params
-//     const { exclude } = req.body // Boolean (true/false)
+//     const { exclude } = req.body
 
 //     const userCheck = await pool.query('SELECT id, role, exclude_from_leaderboard FROM users WHERE id = $1', [studentId])
 //     if (userCheck.rows.length === 0) {
@@ -265,17 +265,18 @@
 //     const { courseId } = req.params
 //     const resolvedCourseId = await resolveCourseId(pool, courseId)
 
-//     const courseCheck = await pool.query('SELECT id, title, is_leaderboard_frozen FROM courses WHERE id::text = $1', [resolvedCourseId])
+//     const courseCheck = await pool.query('SELECT id, title, is_leaderboard_frozen FROM courses WHERE id = $1 OR id::text = $1', [resolvedCourseId])
 //     if (courseCheck.rows.length === 0) {
 //       return res.status(404).json({ success: false, message: 'Course not found' })
 //     }
 
 //     const currentFreeze = courseCheck.rows[0].is_leaderboard_frozen || false
 //     const newFreezeStatus = !currentFreeze
+//     const actualCourseId = courseCheck.rows[0].id
 
 //     const updateResult = await pool.query(
-//       'UPDATE courses SET is_leaderboard_frozen = $1 WHERE id::text = $2 RETURNING id, title, is_leaderboard_frozen',
-//       [newFreezeStatus, resolvedCourseId]
+//       'UPDATE courses SET is_leaderboard_frozen = $1 WHERE id = $2 RETURNING id, title, is_leaderboard_frozen',
+//       [newFreezeStatus, actualCourseId]
 //     )
 
 //     return res.status(200).json({
@@ -320,7 +321,7 @@
 //   }
 // }
 
-// // 7. ADMIN/TUTOR: Delete a student's quiz submission (removes score from leaderboard calculation)
+// // 7. ADMIN/TUTOR: Delete a student's quiz submission
 // const deleteStudentSubmission = async (req, res) => {
 //   try {
 //     const { submissionId } = req.params
@@ -351,6 +352,7 @@
 //   overrideStudentScore,
 //   deleteStudentSubmission,
 // }
+
 
 
 // src/controllers/leaderboardController.js
@@ -389,7 +391,7 @@ const checkCourseFreezeStatus = async (client, resolvedCourseId) => {
   return result.rows.length > 0 ? !!result.rows[0].is_leaderboard_frozen : false
 }
 
-// 1. Get global or course-specific leaderboard
+// 1. Get global or course-specific leaderboard (includes students with no quiz attempts)
 const getLeaderboard = async (req, res) => {
   try {
     const { limit = 20, page = 1, courseId, search } = req.query
@@ -406,17 +408,15 @@ const getLeaderboard = async (req, res) => {
           u.first_name,
           u.last_name,
           COUNT(sub.id) AS total_quizzes_taken,
-          SUM(sub.score) AS total_marks_earned,
-          SUM(a.total_marks) AS total_marks_possible,
+          COALESCE(SUM(sub.score), 0) AS total_marks_earned,
+          COALESCE(SUM(a.total_marks), 0) AS total_marks_possible,
           ROUND(
-              (SUM(sub.score)::numeric / NULLIF(SUM(a.total_marks), 0)) * 100, 
+              (COALESCE(SUM(sub.score), 0)::numeric / NULLIF(SUM(a.total_marks), 0)) * 100, 
               2
           ) AS percentage_score
       FROM users u
-      JOIN student_submissions sub ON u.id = sub.student_id
-      JOIN assessments a ON sub.assessment_id = a.id
-      WHERE LOWER(u.role) = 'student'
-        AND (u.exclude_from_leaderboard IS NOT TRUE)
+      LEFT JOIN student_submissions sub ON u.id = sub.student_id
+      LEFT JOIN assessments a ON sub.assessment_id = a.id
     `
 
     const queryParams = []
@@ -426,6 +426,11 @@ const getLeaderboard = async (req, res) => {
       queryText += ` AND (a.course_id = $1 OR a.course_id::text = $2 OR LOWER(a.course_id::text) = LOWER($2) OR LOWER(a.course_id::text) = LOWER($3))`
     }
 
+    queryText += `
+      WHERE LOWER(u.role) = 'student'
+        AND (u.exclude_from_leaderboard IS NOT TRUE)
+    `
+
     if (search) {
       queryParams.push(`%${search.toLowerCase()}%`)
       const paramIdx = queryParams.length
@@ -434,8 +439,7 @@ const getLeaderboard = async (req, res) => {
 
     queryText += `
       GROUP BY u.id, u.first_name, u.last_name
-      HAVING SUM(a.total_marks) > 0
-      ORDER BY percentage_score DESC, total_quizzes_taken DESC
+      ORDER BY percentage_score DESC NULLS LAST, total_quizzes_taken DESC NULLS LAST, u.first_name ASC
       LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
     `
 
@@ -448,7 +452,7 @@ const getLeaderboard = async (req, res) => {
       studentId: row.student_id,
       name: `${row.first_name || ''} ${row.last_name || ''}`.trim() || 'Anonymous Student',
       quizzesTaken: parseInt(row.total_quizzes_taken),
-      percentageScore: parseFloat(row.percentage_score),
+      percentageScore: row.percentage_score !== null ? parseFloat(row.percentage_score) : null,
     }))
 
     return res.status(200).json({
@@ -480,26 +484,26 @@ const getMyRank = async (req, res) => {
       SELECT 
           u.id AS student_id,
           ROUND(
-              (SUM(sub.score)::numeric / NULLIF(SUM(a.total_marks), 0)) * 100, 
+              (COALESCE(SUM(sub.score), 0)::numeric / NULLIF(SUM(a.total_marks), 0)) * 100, 
               2
           ) AS percentage_score,
-          ROW_NUMBER() OVER (ORDER BY ROUND((SUM(sub.score)::numeric / NULLIF(SUM(a.total_marks), 0)) * 100, 2) DESC) AS calculated_rank
+          ROW_NUMBER() OVER (ORDER BY ROUND((COALESCE(SUM(sub.score), 0)::numeric / NULLIF(SUM(a.total_marks), 0)) * 100, 2) DESC NULLS LAST) AS calculated_rank
       FROM users u
-      JOIN student_submissions sub ON u.id = sub.student_id
-      JOIN assessments a ON sub.assessment_id = a.id
-      WHERE LOWER(u.role) = 'student'
-        AND (u.exclude_from_leaderboard IS NOT TRUE)
+      LEFT JOIN student_submissions sub ON u.id = sub.student_id
+      LEFT JOIN assessments a ON sub.assessment_id = a.id
     `
 
     const queryParams = [studentId]
 
     if (courseId) {
       queryParams.push(resolvedCourseId, courseId, courseName)
-      // $1 is studentId, so course parameters start at $2, $3, $4
       rankingSubQuery += ` AND (a.course_id = $2 OR a.course_id::text = $3 OR LOWER(a.course_id::text) = LOWER($3) OR LOWER(a.course_id::text) = LOWER($4))`
     }
 
-    rankingSubQuery += ` GROUP BY u.id HAVING SUM(a.total_marks) > 0`
+    rankingSubQuery += `
+      WHERE LOWER(u.role) = 'student' AND (u.exclude_from_leaderboard IS NOT TRUE)
+      GROUP BY u.id
+    `
 
     const finalQuery = `
       SELECT * FROM (${rankingSubQuery}) ranked_users
@@ -511,7 +515,7 @@ const getMyRank = async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'No ranking data found for your account yet. Complete quizzes to get ranked!',
+        message: 'Student record not found.',
       })
     }
 
@@ -519,7 +523,7 @@ const getMyRank = async (req, res) => {
       success: true,
       data: {
         rank: parseInt(result.rows[0].calculated_rank),
-        percentageScore: parseFloat(result.rows[0].percentage_score),
+        percentageScore: result.rows[0].percentage_score !== null ? parseFloat(result.rows[0].percentage_score) : null,
       },
     })
   } catch (error) {
