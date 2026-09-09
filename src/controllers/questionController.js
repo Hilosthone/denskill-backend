@@ -691,7 +691,6 @@
 
 
 
-//src/controllers/questionController.js
 /**
  * @file questionController.js
  * @description Controller handling CRUD operations for Question Banks and Questions,
@@ -1219,19 +1218,19 @@ const getMyAssessmentHistory = async (req, res) => {
     const parsedLimit = parseInt(limit, 10)
     const offset = (parsedPage - 1) * parsedLimit
 
-    // Query student assessment submissions / quiz attempts history
+    // Query student assessment submissions / quiz attempts history with explicit type casts to prevent type mismatch errors
     const query = `
       SELECT s.*, 
              c.title AS course_title,
              a.title AS assessment_title
       FROM assessment_submissions s
       LEFT JOIN courses c ON s.course_id::text = c.id::text
-      LEFT JOIN assessments a ON s.assessment_id = a.id
-      WHERE s.user_id = $1
+      LEFT JOIN assessments a ON s.assessment_id::text = a.id::text
+      WHERE s.user_id::text = $1::text
       ORDER BY s.submitted_at DESC
       LIMIT $2 OFFSET $3;
     `
-    const countQuery = `SELECT COUNT(*) FROM assessment_submissions WHERE user_id = $1;`
+    const countQuery = `SELECT COUNT(*) FROM assessment_submissions WHERE user_id::text = $1::text;`
 
     const [result, countResult] = await Promise.all([
       pool.query(query, [studentId, parsedLimit, offset]),
@@ -1270,8 +1269,8 @@ const getSubmissionDetailReview = async (req, res) => {
     const subResult = await pool.query(
       `SELECT s.*, u.name AS student_name, u.email AS student_email 
        FROM assessment_submissions s
-       LEFT JOIN users u ON s.user_id = u.id
-       WHERE s.id = $1;`,
+       LEFT JOIN users u ON s.user_id::text = u.id::text
+       WHERE s.id::text = $1::text;`,
       [submissionId]
     )
 
@@ -1313,15 +1312,15 @@ const getAllStudentsAssessmentHistory = async (req, res) => {
 
     if (course_id) {
       filterValues.push(course_id)
-      conditions.push(`s.course_id = $${filterValues.length}`)
+      conditions.push(`s.course_id::text = $${filterValues.length}::text`)
     }
     if (assessment_id) {
       filterValues.push(assessment_id)
-      conditions.push(`s.assessment_id = $${filterValues.length}`)
+      conditions.push(`s.assessment_id::text = $${filterValues.length}::text`)
     }
     if (student_id) {
       filterValues.push(student_id)
-      conditions.push(`s.user_id = $${filterValues.length}`)
+      conditions.push(`s.user_id::text = $${filterValues.length}::text`)
     }
 
     const whereClause = conditions.length > 0 ? ` WHERE ` + conditions.join(' AND ') : ``
@@ -1333,9 +1332,9 @@ const getAllStudentsAssessmentHistory = async (req, res) => {
              c.title AS course_title,
              a.title AS assessment_title
       FROM assessment_submissions s
-      LEFT JOIN users u ON s.user_id = u.id
+      LEFT JOIN users u ON s.user_id::text = u.id::text
       LEFT JOIN courses c ON s.course_id::text = c.id::text
-      LEFT JOIN assessments a ON s.assessment_id = a.id
+      LEFT JOIN assessments a ON s.assessment_id::text = a.id::text
       ${whereClause}
       ORDER BY s.submitted_at DESC
       LIMIT $${filterValues.length + 1} OFFSET $${filterValues.length + 2};
